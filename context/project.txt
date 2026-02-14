@@ -1,0 +1,49 @@
+# Project information
+Language: PHP 8.2
+Framework: Laravel 12
+Inertia: inertia-laravel package is being used with vuejs version 3 - using the composite api method with "script setup"
+Quasar: https://quasar.dev/ - i run this as a vite package inside my application. This can be used for styling and components and is important
+Queues: Queues are being used
+Emails: Laravel notifications with markdown template is being used. Try to avoid email files and make use of Laravel's notifications method.
+
+# Other composer packages:
+aws/aws-sdk-php-laravel for file and image storage
+spatie/laravel-permission for user roles and permissions
+
+# Important NPM packages
+- @quasar/vite-plugin
+- @types/lodash
+- axios
+- laravel-vite-plugin
+- ziggy-js
+- @inertiajs/inertia
+- @inertiajs/progress
+- @inertiajs/server
+- @inertiajs/vue3
+- @tabler/icons-vue
+- @vuepic/vue-datepicker
+- moment
+- vue-recaptcha-v3
+- vue3-google-map
+
+# controllers
+
+## controller naming convention
+
+controllers should always be in plural as per the laravel best practices, as an example, not CityController, but CitiesController
+
+## controller redirect after create or edit
+
+- when creating or editing a record, redirect back to that controller index page when possible
+- many times a user would have search parameters applied and then click edit or delete. Redirect back with the search parameters when possible, after edit or delete.
+
+## controller validating request / input data
+
+- validating data should always be in a separate request form request file
+- retain the hierarchy structure for the form requests to match that of the controller hierarchy structure
+
+# models
+
+## naming convention
+
+- models are always singular as per the laravel best practices

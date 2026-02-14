@@ -1,0 +1,1488 @@
+create table cache
+(
+    `key`      varchar(255) not null
+        primary key,
+    value      mediumtext   not null,
+    expiration int          not null
+)
+    collate = utf8mb4_unicode_ci;
+
+create table cache_locks
+(
+    `key`      varchar(255) not null
+        primary key,
+    owner      varchar(255) not null,
+    expiration int          not null
+)
+    collate = utf8mb4_unicode_ci;
+
+create table dealers
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    is_active  tinyint(1) default 1 not null,
+    name       varchar(255)         not null,
+    slug       varchar(255)         not null,
+    context    longtext             null,
+    created_at timestamp            null,
+    updated_at timestamp            null,
+    deleted_at timestamp            null,
+    constraint dealers_slug_unique
+        unique (slug)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table ai_conversations
+(
+    id                bigint unsigned auto_increment
+        primary key,
+    dealer_id         bigint unsigned               not null,
+    owner_type        varchar(255)                  null,
+    owner_id          bigint unsigned               null,
+    purpose           varchar(255)                  null,
+    openai_model      varchar(255)  default 'gpt-5' not null,
+    max_output_tokens int unsigned  default '600'   not null,
+    min_output_tokens int unsigned  default '0'     not null,
+    temperature       decimal(4, 2) default 0.30    not null,
+    summary           longtext                      null,
+    last_used_at      timestamp                     null,
+    created_at        timestamp                     null,
+    updated_at        timestamp                     null,
+    deleted_at        timestamp                     null,
+    constraint ai_conversations_dealer_id_foreign
+        foreign key (dealer_id) references dealers (id)
+            on delete cascade
+)
+    collate = utf8mb4_unicode_ci;
+
+create table ai_conversation_contexts
+(
+    id              bigint unsigned auto_increment
+        primary key,
+    conversation_id bigint unsigned                 not null,
+    context_type    varchar(255)                    not null,
+    payload         json                            null,
+    payload_text    longtext                        null,
+    priority        smallint unsigned default '100' not null,
+    superseded_at   timestamp                       null,
+    created_at      timestamp                       null,
+    updated_at      timestamp                       null,
+    deleted_at      timestamp                       null,
+    constraint ai_conversation_contexts_conversation_id_foreign
+        foreign key (conversation_id) references ai_conversations (id)
+            on delete cascade
+)
+    collate = utf8mb4_unicode_ci;
+
+create index ai_ctx_conv_pri
+    on ai_conversation_contexts (conversation_id, priority);
+
+create index ai_ctx_conv_type_sup
+    on ai_conversation_contexts (conversation_id, context_type, superseded_at);
+
+create table ai_conversation_messages
+(
+    id              bigint unsigned auto_increment
+        primary key,
+    conversation_id bigint unsigned not null,
+    role            varchar(255)    not null,
+    name            varchar(255)    null,
+    content         longtext        null,
+    tool_calls      json            null,
+    tool_call_id    varchar(255)    null,
+    tokens_in       int unsigned    null,
+    tokens_out      int unsigned    null,
+    total_tokens    int unsigned    null,
+    meta            json            null,
+    created_at      timestamp       null,
+    updated_at      timestamp       null,
+    deleted_at      timestamp       null,
+    constraint ai_conversation_messages_conversation_id_foreign
+        foreign key (conversation_id) references ai_conversations (id)
+            on delete cascade
+)
+    collate = utf8mb4_unicode_ci;
+
+create index ai_conversation_messages_conversation_id_created_at_index
+    on ai_conversation_messages (conversation_id, created_at);
+
+create index ai_conversation_messages_conversation_id_role_index
+    on ai_conversation_messages (conversation_id, role);
+
+create index ai_conversation_messages_tool_call_id_index
+    on ai_conversation_messages (tool_call_id);
+
+create index ai_conversations_dealer_id_last_used_at_index
+    on ai_conversations (dealer_id, last_used_at);
+
+create index ai_conversations_owner_type_owner_id_index
+    on ai_conversations (owner_type, owner_id);
+
+create table dealer_ai_token_usages
+(
+    id            bigint unsigned auto_increment
+        primary key,
+    dealer_id     bigint unsigned          not null,
+    consumer_type varchar(255)             not null,
+    consumer_id   bigint unsigned          null,
+    openai_model  varchar(255)             null,
+    tokens_in     int unsigned default '0' not null,
+    tokens_out    int unsigned default '0' not null,
+    total_tokens  int unsigned default '0' not null,
+    meta          json                     null,
+    created_at    timestamp                null,
+    updated_at    timestamp                null,
+    constraint dealer_ai_token_usages_dealer_id_foreign
+        foreign key (dealer_id) references dealers (id)
+            on delete cascade
+)
+    collate = utf8mb4_unicode_ci;
+
+create index dealer_ai_token_usages_consumer_type_consumer_id_index
+    on dealer_ai_token_usages (consumer_type, consumer_id);
+
+create index dealer_ai_token_usages_dealer_id_created_at_index
+    on dealer_ai_token_usages (dealer_id, created_at);
+
+create index dealer_ai_token_usages_openai_model_index
+    on dealer_ai_token_usages (openai_model);
+
+create table dealer_users
+(
+    id                bigint unsigned auto_increment
+        primary key,
+    dealer_id         bigint unsigned      not null,
+    is_active         tinyint(1) default 1 not null,
+    firstname         varchar(255)         not null,
+    lastname          varchar(255)         not null,
+    email             varchar(255)         not null,
+    email_verified_at timestamp            null,
+    password          varchar(255)         not null,
+    remember_token    varchar(100)         null,
+    created_at        timestamp            null,
+    updated_at        timestamp            null,
+    deleted_at        timestamp            null,
+    constraint dealer_users_email_unique
+        unique (email),
+    constraint dealer_users_dealer_id_foreign
+        foreign key (dealer_id) references dealers (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table dealer_user_buckets
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    user_id    bigint unsigned not null,
+    name       varchar(255)    null,
+    created_at timestamp       null,
+    updated_at timestamp       null,
+    deleted_at timestamp       null,
+    constraint dealer_user_buckets_user_id_foreign
+        foreign key (user_id) references dealer_users (id)
+            on delete cascade
+)
+    collate = utf8mb4_unicode_ci;
+
+create index dealer_user_buckets_user_id_index
+    on dealer_user_buckets (user_id);
+
+create table dealer_user_notifications
+(
+    id             bigint unsigned auto_increment
+        primary key,
+    dealer_user_id bigint unsigned not null,
+    target_type    varchar(255)    not null,
+    target_id      bigint unsigned null,
+    route_name     varchar(255)    not null,
+    route_params   json            null,
+    title          varchar(255)    null,
+    description    text            not null,
+    meta           json            null,
+    read_at        timestamp       null,
+    dismissed_at   timestamp       null,
+    created_at     timestamp       null,
+    updated_at     timestamp       null,
+    deleted_at     timestamp       null,
+    constraint dealer_user_notifications_dealer_user_id_foreign
+        foreign key (dealer_user_id) references dealer_users (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index dealer_user_notifications_dealer_user_id_dismissed_at_index
+    on dealer_user_notifications (dealer_user_id, dismissed_at);
+
+create index dealer_user_notifications_dealer_user_id_read_at_index
+    on dealer_user_notifications (dealer_user_id, read_at);
+
+create index dealer_user_notifications_route_name_index
+    on dealer_user_notifications (route_name);
+
+create index dealer_user_notifications_target_type_target_id_index
+    on dealer_user_notifications (target_type, target_id);
+
+create table email_messages
+(
+    id                bigint unsigned auto_increment
+        primary key,
+    message_id_header varchar(255) null,
+    in_reply_to       varchar(255) null,
+    from_email        varchar(255) not null,
+    to_email          json         null,
+    cc                json         null,
+    bcc               json         null,
+    subject           varchar(255) null,
+    attachments       json         null,
+    raw_headers       json         null,
+    raw_payload       longtext     null,
+    created_at        timestamp    null,
+    updated_at        timestamp    null
+)
+    collate = utf8mb4_unicode_ci;
+
+create index email_messages_from_email_index
+    on email_messages (from_email);
+
+create table email_threads
+(
+    id                 bigint unsigned auto_increment
+        primary key,
+    thread_external_id varchar(255) null,
+    from_email         varchar(255) null,
+    to_email           varchar(255) null,
+    cc                 json         null,
+    subject            varchar(255) null,
+    meta               json         null,
+    created_at         timestamp    null,
+    updated_at         timestamp    null
+)
+    collate = utf8mb4_unicode_ci;
+
+create index email_threads_from_email_index
+    on email_threads (from_email);
+
+create index email_threads_thread_external_id_index
+    on email_threads (thread_external_id);
+
+create index email_threads_to_email_index
+    on email_threads (to_email);
+
+create table failed_jobs
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    uuid       varchar(255)                        not null,
+    connection text                                not null,
+    queue      text                                not null,
+    payload    longtext                            not null,
+    exception  longtext                            not null,
+    failed_at  timestamp default CURRENT_TIMESTAMP not null,
+    constraint failed_jobs_uuid_unique
+        unique (uuid)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table job_batches
+(
+    id             varchar(255) not null
+        primary key,
+    name           varchar(255) not null,
+    total_jobs     int          not null,
+    pending_jobs   int          not null,
+    failed_jobs    int          not null,
+    failed_job_ids longtext     not null,
+    options        mediumtext   null,
+    cancelled_at   int          null,
+    created_at     int          not null,
+    finished_at    int          null
+)
+    collate = utf8mb4_unicode_ci;
+
+create table jobs
+(
+    id           bigint unsigned auto_increment
+        primary key,
+    queue        varchar(255)     not null,
+    payload      longtext         not null,
+    attempts     tinyint unsigned not null,
+    reserved_at  int unsigned     null,
+    available_at int unsigned     not null,
+    created_at   int unsigned     not null
+)
+    collate = utf8mb4_unicode_ci;
+
+create index jobs_queue_index
+    on jobs (queue);
+
+create table lead_pipelines
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    dealer_id  bigint unsigned      not null,
+    name       varchar(255)         not null,
+    is_default tinyint(1) default 0 not null,
+    created_at timestamp            null,
+    updated_at timestamp            null,
+    deleted_at timestamp            null,
+    constraint lead_pipelines_dealer_id_foreign
+        foreign key (dealer_id) references dealers (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index lead_pipelines_dealer_id_deleted_at_index
+    on lead_pipelines (dealer_id, deleted_at);
+
+create index lead_pipelines_dealer_id_is_default_index
+    on lead_pipelines (dealer_id, is_default);
+
+create table lead_stages
+(
+    id                            bigint unsigned auto_increment
+        primary key,
+    pipeline_id                   bigint unsigned          not null,
+    name                          varchar(255)             not null,
+    sort_order                    int unsigned default '0' not null,
+    is_terminal                   tinyint(1)   default 0   not null,
+    is_won                        tinyint(1)   default 0   not null,
+    is_lost                       tinyint(1)   default 0   not null,
+    sla_minutes_to_first_response int unsigned             null,
+    created_at                    timestamp                null,
+    updated_at                    timestamp                null,
+    deleted_at                    timestamp                null,
+    constraint lead_stages_pipeline_id_foreign
+        foreign key (pipeline_id) references lead_pipelines (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index lead_stages_sort_order_index
+    on lead_stages (sort_order);
+
+create table location_cities
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    state_id   int unsigned not null,
+    name       varchar(255) not null,
+    slug       varchar(255) not null,
+    created_at timestamp    null,
+    updated_at timestamp    null,
+    deleted_at timestamp    null,
+    constraint location_cities_slug_unique
+        unique (slug)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table location_countries
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    name       varchar(255) not null,
+    slug       varchar(255) not null,
+    created_at timestamp    null,
+    updated_at timestamp    null,
+    deleted_at timestamp    null,
+    constraint location_countries_slug_unique
+        unique (slug)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table location_states
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    country_id int unsigned not null,
+    name       varchar(255) not null,
+    slug       varchar(255) not null,
+    created_at timestamp    null,
+    updated_at timestamp    null,
+    deleted_at timestamp    null,
+    constraint location_states_slug_unique
+        unique (slug)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table location_suburbs
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    city_id    int unsigned not null,
+    name       varchar(255) not null,
+    slug       varchar(255) not null,
+    created_at timestamp    null,
+    updated_at timestamp    null,
+    deleted_at timestamp    null,
+    constraint location_suburbs_slug_unique
+        unique (slug)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table dealer_branches
+(
+    id              bigint unsigned auto_increment
+        primary key,
+    dealer_id       bigint unsigned not null,
+    suburb_id       bigint unsigned not null,
+    name            varchar(255)    not null,
+    slug            varchar(255)    not null,
+    contact_numbers varchar(255)    not null,
+    display_address varchar(255)    not null,
+    latitude        decimal(10, 7)  null,
+    longitude       decimal(10, 7)  null,
+    created_at      timestamp       null,
+    updated_at      timestamp       null,
+    deleted_at      timestamp       null,
+    constraint dealer_branches_slug_unique
+        unique (slug),
+    constraint dealer_branches_dealer_id_foreign
+        foreign key (dealer_id) references dealers (id),
+    constraint dealer_branches_suburb_id_foreign
+        foreign key (suburb_id) references location_suburbs (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index dealer_branches_dealer_id_deleted_at_index
+    on dealer_branches (dealer_id, deleted_at);
+
+create table dealer_sale_people
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    branch_id  bigint unsigned not null,
+    firstname  varchar(255)    not null,
+    lastname   varchar(255)    not null,
+    contact_no varchar(255)    not null,
+    email      varchar(255)    null,
+    created_at timestamp       null,
+    updated_at timestamp       null,
+    deleted_at timestamp       null,
+    constraint dealer_sale_people_branch_id_foreign
+        foreign key (branch_id) references dealer_branches (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table leads
+(
+    id                         bigint unsigned auto_increment
+        primary key,
+    dealer_id                  bigint unsigned                                          not null,
+    branch_id                  bigint unsigned                                          null,
+    assigned_to_dealer_user_id bigint unsigned                                          null,
+    pipeline_id                bigint unsigned                                          null,
+    stage_id                   bigint unsigned                                          null,
+    ai_mode                    tinyint(1)              default 0                        not null,
+    auto_capture_by_ai         tinyint(1)              default 0                        not null,
+    auto_update_lead_context   tinyint(1)              default 0                        not null,
+    lead_context               longtext                                                 null,
+    firstname                  varchar(255)                                             null,
+    lastname                   varchar(255)                                             null,
+    email                      varchar(255)                                             null,
+    contact_no                 varchar(50)                                              null,
+    source                     enum ('whatsapp', 'email', 'website', 'walk_in', 'call') null,
+    status                     enum ('open', 'closed') default 'open'                   not null,
+    created_at                 timestamp                                                null,
+    updated_at                 timestamp                                                null,
+    deleted_at                 timestamp                                                null,
+    constraint leads_assigned_to_dealer_user_id_foreign
+        foreign key (assigned_to_dealer_user_id) references dealer_users (id),
+    constraint leads_branch_id_foreign
+        foreign key (branch_id) references dealer_branches (id),
+    constraint leads_dealer_id_foreign
+        foreign key (dealer_id) references dealers (id),
+    constraint leads_pipeline_id_foreign
+        foreign key (pipeline_id) references lead_pipelines (id),
+    constraint leads_stage_id_foreign
+        foreign key (stage_id) references lead_stages (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table lead_conversations
+(
+    id               bigint unsigned auto_increment
+        primary key,
+    dealer_id        bigint unsigned                                         not null,
+    lead_id          bigint unsigned                                         not null,
+    channel          enum ('whatsapp', 'email', 'unknown') default 'unknown' null,
+    subject          varchar(255)                                            null,
+    external_ref     varchar(255)                                            null,
+    participant      varchar(255)                                            null,
+    channelable_type varchar(255)                                            null,
+    channelable_id   bigint unsigned                                         null,
+    last_message_id  bigint unsigned                                         null,
+    last_message_at  datetime                                                null,
+    created_at       timestamp                                               null,
+    updated_at       timestamp                                               null,
+    deleted_at       timestamp                                               null,
+    constraint lead_conversations_dealer_id_foreign
+        foreign key (dealer_id) references dealers (id),
+    constraint lead_conversations_lead_id_foreign
+        foreign key (lead_id) references leads (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index lead_conversations_channel_index
+    on lead_conversations (channel);
+
+create index lead_conversations_channelable_type_channelable_id_index
+    on lead_conversations (channelable_type, channelable_id);
+
+create index lead_conversations_dealer_id_channel_index
+    on lead_conversations (dealer_id, channel);
+
+create index lead_conversations_dealer_id_deleted_at_index
+    on lead_conversations (dealer_id, deleted_at);
+
+create index lead_conversations_dealer_id_last_message_at_index
+    on lead_conversations (dealer_id, last_message_at);
+
+create index lead_conversations_dealer_id_lead_id_index
+    on lead_conversations (dealer_id, lead_id);
+
+create table lead_stage_events
+(
+    id                        bigint unsigned auto_increment
+        primary key,
+    lead_id                   bigint unsigned null,
+    from_stage_id             bigint unsigned null,
+    to_stage_id               bigint unsigned null,
+    changed_by_dealer_user_id bigint unsigned null,
+    reason                    varchar(255)    null,
+    meta                      json            null,
+    created_at                timestamp       null,
+    updated_at                timestamp       null,
+    constraint lead_stage_events_changed_by_dealer_user_id_foreign
+        foreign key (changed_by_dealer_user_id) references dealer_users (id),
+    constraint lead_stage_events_from_stage_id_foreign
+        foreign key (from_stage_id) references lead_stages (id),
+    constraint lead_stage_events_lead_id_foreign
+        foreign key (lead_id) references leads (id),
+    constraint lead_stage_events_to_stage_id_foreign
+        foreign key (to_stage_id) references lead_stages (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index leads_source_index
+    on leads (source);
+
+create index leads_status_index
+    on leads (status);
+
+create table media
+(
+    id                    bigint unsigned auto_increment
+        primary key,
+    model_type            varchar(255)    not null,
+    model_id              bigint unsigned not null,
+    uuid                  char(36)        null,
+    collection_name       varchar(255)    not null,
+    name                  varchar(255)    not null,
+    file_name             varchar(255)    not null,
+    mime_type             varchar(255)    null,
+    disk                  varchar(255)    not null,
+    conversions_disk      varchar(255)    null,
+    size                  bigint unsigned not null,
+    manipulations         json            not null,
+    custom_properties     json            not null,
+    generated_conversions json            not null,
+    responsive_images     json            not null,
+    order_column          int unsigned    null,
+    created_at            timestamp       null,
+    updated_at            timestamp       null,
+    constraint media_uuid_unique
+        unique (uuid)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index media_model_type_model_id_index
+    on media (model_type, model_id);
+
+create index media_order_column_index
+    on media (order_column);
+
+create table migrations
+(
+    id        int unsigned auto_increment
+        primary key,
+    migration varchar(255) not null,
+    batch     int          not null
+)
+    collate = utf8mb4_unicode_ci;
+
+create table notes
+(
+    id              bigint unsigned auto_increment
+        primary key,
+    noteable_type   varchar(255)         not null,
+    noteable_id     bigint unsigned      not null,
+    author_type     varchar(255)         null,
+    author_id       bigint unsigned      null,
+    note            text                 not null,
+    backoffice_only tinyint(1) default 0 not null,
+    created_at      timestamp            null,
+    updated_at      timestamp            null,
+    deleted_at      timestamp            null
+)
+    collate = utf8mb4_unicode_ci;
+
+create index notes_author_type_author_id_index
+    on notes (author_type, author_id);
+
+create index notes_backoffice_only_index
+    on notes (backoffice_only);
+
+create index notes_noteable_type_noteable_id_created_at_index
+    on notes (noteable_type, noteable_id, created_at);
+
+create index notes_noteable_type_noteable_id_index
+    on notes (noteable_type, noteable_id);
+
+create table password_reset_tokens
+(
+    email      varchar(255) not null
+        primary key,
+    token      varchar(255) not null,
+    created_at timestamp    null
+)
+    collate = utf8mb4_unicode_ci;
+
+create table permissions
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    name       varchar(255) not null,
+    guard_name varchar(255) not null,
+    created_at timestamp    null,
+    updated_at timestamp    null,
+    constraint permissions_name_guard_name_unique
+        unique (name, guard_name)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table model_has_permissions
+(
+    permission_id bigint unsigned not null,
+    model_type    varchar(255)    not null,
+    model_id      bigint unsigned not null,
+    primary key (permission_id, model_id, model_type),
+    constraint model_has_permissions_permission_id_foreign
+        foreign key (permission_id) references permissions (id)
+            on delete cascade
+)
+    collate = utf8mb4_unicode_ci;
+
+create index model_has_permissions_model_id_model_type_index
+    on model_has_permissions (model_id, model_type);
+
+create table roles
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    name       varchar(255) not null,
+    guard_name varchar(255) not null,
+    created_at timestamp    null,
+    updated_at timestamp    null,
+    constraint roles_name_guard_name_unique
+        unique (name, guard_name)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table model_has_roles
+(
+    role_id    bigint unsigned not null,
+    model_type varchar(255)    not null,
+    model_id   bigint unsigned not null,
+    primary key (role_id, model_id, model_type),
+    constraint model_has_roles_role_id_foreign
+        foreign key (role_id) references roles (id)
+            on delete cascade
+)
+    collate = utf8mb4_unicode_ci;
+
+create index model_has_roles_model_id_model_type_index
+    on model_has_roles (model_id, model_type);
+
+create table role_has_permissions
+(
+    permission_id bigint unsigned not null,
+    role_id       bigint unsigned not null,
+    primary key (permission_id, role_id),
+    constraint role_has_permissions_permission_id_foreign
+        foreign key (permission_id) references permissions (id)
+            on delete cascade,
+    constraint role_has_permissions_role_id_foreign
+        foreign key (role_id) references roles (id)
+            on delete cascade
+)
+    collate = utf8mb4_unicode_ci;
+
+create table sessions
+(
+    id            varchar(255)    not null
+        primary key,
+    user_id       bigint unsigned null,
+    ip_address    varchar(45)     null,
+    user_agent    text            null,
+    payload       longtext        not null,
+    last_activity int             not null
+)
+    collate = utf8mb4_unicode_ci;
+
+create index sessions_last_activity_index
+    on sessions (last_activity);
+
+create index sessions_user_id_index
+    on sessions (user_id);
+
+create table site_configurations
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    created_at timestamp null,
+    updated_at timestamp null
+)
+    collate = utf8mb4_unicode_ci;
+
+create table stock
+(
+    id                 bigint unsigned auto_increment
+        primary key,
+    branch_id          bigint unsigned                                                not null,
+    is_active          tinyint(1) default 1                                           not null,
+    is_sold            tinyint(1) default 0                                           not null,
+    published_at       datetime                                                       null,
+    internal_reference varchar(255)                                                   not null,
+    type               enum ('vehicle', 'motorbike', 'leisure', 'commercial', 'gear') not null,
+    name               varchar(255)                                                   not null,
+    slug               varchar(255)                                                   not null,
+    price              bigint unsigned                                                not null,
+    created_at         timestamp                                                      null,
+    updated_at         timestamp                                                      null,
+    deleted_at         timestamp                                                      null,
+    constraint stock_branch_internal_ref_unique
+        unique (branch_id, internal_reference),
+    constraint stock_slug_unique
+        unique (slug),
+    constraint stock_branch_id_foreign
+        foreign key (branch_id) references dealer_branches (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table lead_stock
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    lead_id    bigint unsigned not null,
+    stock_id   bigint unsigned not null,
+    created_at timestamp       null,
+    updated_at timestamp       null,
+    constraint lead_stock_lead_id_stock_id_unique
+        unique (lead_id, stock_id),
+    constraint lead_stock_lead_id_foreign
+        foreign key (lead_id) references leads (id),
+    constraint lead_stock_stock_id_foreign
+        foreign key (stock_id) references stock (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index stock_branch_id_deleted_at_index
+    on stock (branch_id, deleted_at);
+
+create index stock_branch_id_published_at_deleted_at_index
+    on stock (branch_id, published_at, deleted_at);
+
+create index stock_branch_id_type_deleted_at_index
+    on stock (branch_id, type, deleted_at);
+
+create index stock_is_active_index
+    on stock (is_active);
+
+create index stock_is_sold_index
+    on stock (is_sold);
+
+create index stock_published_at_index
+    on stock (published_at);
+
+create index stock_type_index
+    on stock (type);
+
+create table stock_feature_tags
+(
+    id          bigint unsigned auto_increment
+        primary key,
+    name        varchar(255)                                                   not null,
+    is_approved tinyint(1) default 0                                           not null,
+    stock_type  enum ('vehicle', 'motorbike', 'leisure', 'commercial', 'gear') not null,
+    created_at  timestamp                                                      null,
+    updated_at  timestamp                                                      null,
+    deleted_at  timestamp                                                      null,
+    constraint stock_feature_tags_stock_type_name_unique
+        unique (stock_type, name)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index stock_feature_tags_is_approved_index
+    on stock_feature_tags (is_approved);
+
+create index stock_feature_tags_stock_type_index
+    on stock_feature_tags (stock_type);
+
+create table stock_features
+(
+    stock_id   bigint unsigned not null,
+    feature_id bigint unsigned not null,
+    primary key (stock_id, feature_id),
+    constraint stock_features_feature_id_foreign
+        foreign key (feature_id) references stock_feature_tags (id),
+    constraint stock_features_stock_id_foreign
+        foreign key (stock_id) references stock (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table stock_makes
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    name       varchar(255)                                                   not null,
+    slug       varchar(255)                                                   not null,
+    stock_type enum ('vehicle', 'motorbike', 'leisure', 'commercial', 'gear') not null,
+    created_at timestamp                                                      null,
+    updated_at timestamp                                                      null,
+    deleted_at timestamp                                                      null,
+    constraint stock_makes_slug_unique
+        unique (slug)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index stock_makes_stock_type_index
+    on stock_makes (stock_type);
+
+create table stock_models
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    make_id    bigint unsigned not null,
+    name       varchar(255)    not null,
+    slug       varchar(255)    not null,
+    created_at timestamp       null,
+    updated_at timestamp       null,
+    deleted_at timestamp       null,
+    constraint stock_models_slug_unique
+        unique (slug),
+    constraint stock_models_make_id_foreign
+        foreign key (make_id) references stock_makes (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table stock_publish_logs
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    stock_id   bigint unsigned not null,
+    action     enum ('1', '0') not null,
+    by_user_id bigint unsigned not null,
+    created_at timestamp       null,
+    updated_at timestamp       null,
+    deleted_at timestamp       null,
+    constraint stock_publish_logs_stock_id_foreign
+        foreign key (stock_id) references stock (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index stock_publish_logs_action_index
+    on stock_publish_logs (action);
+
+create index stock_publish_logs_by_user_id_index
+    on stock_publish_logs (by_user_id);
+
+create table stock_type_commercial
+(
+    id           bigint unsigned auto_increment
+        primary key,
+    stock_id     bigint unsigned                                                   not null,
+    make_id      bigint unsigned                                                   not null,
+    year_model   int                                                               not null,
+    color        enum ('black', 'blue', 'grey', 'red', 'silver', 'white', 'other') not null,
+    `condition`  enum ('new', 'used', 'rebuild', 'demo')                           not null,
+    gearbox_type enum ('manual', 'automatic')                                      not null,
+    fuel_type    enum ('diesel', 'petrol', 'electric', 'hybrid')                   not null,
+    millage      int                                                               not null,
+    created_at   timestamp                                                         null,
+    updated_at   timestamp                                                         null,
+    deleted_at   timestamp                                                         null,
+    constraint stock_type_commercial_make_id_foreign
+        foreign key (make_id) references stock (id),
+    constraint stock_type_commercial_stock_id_foreign
+        foreign key (stock_id) references stock (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index stock_type_commercial_color_index
+    on stock_type_commercial (color);
+
+create index stock_type_commercial_condition_index
+    on stock_type_commercial (`condition`);
+
+create index stock_type_commercial_fuel_type_index
+    on stock_type_commercial (fuel_type);
+
+create index stock_type_commercial_gearbox_type_index
+    on stock_type_commercial (gearbox_type);
+
+create index stock_type_commercial_millage_index
+    on stock_type_commercial (millage);
+
+create index stock_type_commercial_year_model_index
+    on stock_type_commercial (year_model);
+
+create table stock_type_gear
+(
+    id          bigint unsigned auto_increment
+        primary key,
+    stock_id    bigint unsigned      not null,
+    `condition` enum ('new', 'used') not null,
+    created_at  timestamp            null,
+    updated_at  timestamp            null,
+    deleted_at  timestamp            null,
+    constraint stock_type_gear_stock_id_foreign
+        foreign key (stock_id) references stock (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index stock_type_gear_condition_index
+    on stock_type_gear (`condition`);
+
+create table stock_type_leisure
+(
+    id          bigint unsigned auto_increment
+        primary key,
+    stock_id    bigint unsigned                                                                                                                                                not null,
+    make_id     bigint unsigned                                                                                                                                                not null,
+    year_model  int                                                                                                                                                            not null,
+    color       enum ('beige', 'black', 'blue', 'bronze', 'brown', 'gold', 'green', 'grey', 'maroon', 'orange', 'pink', 'purple', 'red', 'silver', 'white', 'yellow', 'other') not null,
+    `condition` enum ('new', 'used', 'rebuild', 'demo')                                                                                                                        not null,
+    created_at  timestamp                                                                                                                                                      null,
+    updated_at  timestamp                                                                                                                                                      null,
+    deleted_at  timestamp                                                                                                                                                      null,
+    constraint stock_type_leisure_make_id_foreign
+        foreign key (make_id) references stock (id),
+    constraint stock_type_leisure_stock_id_foreign
+        foreign key (stock_id) references stock (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index stock_type_leisure_color_index
+    on stock_type_leisure (color);
+
+create index stock_type_leisure_condition_index
+    on stock_type_leisure (`condition`);
+
+create index stock_type_leisure_year_model_index
+    on stock_type_leisure (year_model);
+
+create table stock_type_motorbikes
+(
+    id           bigint unsigned auto_increment
+        primary key,
+    stock_id     bigint unsigned                                                                                                          not null,
+    make_id      bigint unsigned                                                                                                          not null,
+    year_model   int                                                                                                                      not null,
+    category     enum ('road', 'dual_purpose', 'off_road', 'scooter', 'four_wheel', 'sport', 'three_wheel', 'side_by_side', 'moto_cross') not null,
+    color        enum ('black', 'blue', 'green', 'grey', 'orange', 'pink', 'purple', 'red', 'silver', 'white', 'yellow', 'other')         not null,
+    `condition`  enum ('new', 'used', 'rebuild', 'demo')                                                                                  not null,
+    gearbox_type enum ('manual', 'automatic')                                                                                             not null,
+    fuel_type    enum ('petrol', 'electric')                                                                                              not null,
+    millage      int                                                                                                                      not null,
+    created_at   timestamp                                                                                                                null,
+    updated_at   timestamp                                                                                                                null,
+    deleted_at   timestamp                                                                                                                null,
+    constraint stock_type_motorbikes_make_id_foreign
+        foreign key (make_id) references stock (id),
+    constraint stock_type_motorbikes_stock_id_foreign
+        foreign key (stock_id) references stock (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index stock_type_motorbikes_category_index
+    on stock_type_motorbikes (category);
+
+create index stock_type_motorbikes_color_index
+    on stock_type_motorbikes (color);
+
+create index stock_type_motorbikes_condition_index
+    on stock_type_motorbikes (`condition`);
+
+create index stock_type_motorbikes_fuel_type_index
+    on stock_type_motorbikes (fuel_type);
+
+create index stock_type_motorbikes_gearbox_type_index
+    on stock_type_motorbikes (gearbox_type);
+
+create index stock_type_motorbikes_millage_index
+    on stock_type_motorbikes (millage);
+
+create index stock_type_motorbikes_year_model_index
+    on stock_type_motorbikes (year_model);
+
+create table stock_type_vehicles
+(
+    id              bigint unsigned auto_increment
+        primary key,
+    stock_id        bigint unsigned                                                                                                                                                not null,
+    make_id         bigint unsigned                                                                                                                                                not null,
+    model_id        bigint unsigned                                                                                                                                                not null,
+    is_import       tinyint(1) default 0                                                                                                                                           not null,
+    year_model      int                                                                                                                                                            not null,
+    category        enum ('suv', 'hatchback', 'sedan', 'bus', 'mpv', 'coupe', 'cabriolet', 'bakkie')                                                                               not null,
+    color           enum ('beige', 'black', 'blue', 'bronze', 'brown', 'gold', 'green', 'grey', 'maroon', 'orange', 'pink', 'purple', 'red', 'silver', 'white', 'yellow', 'other') not null,
+    `condition`     enum ('new', 'used', 'rebuild', 'demo')                                                                                                                        not null,
+    gearbox_type    enum ('manual', 'automatic')                                                                                                                                   not null,
+    fuel_type       enum ('diesel', 'petrol', 'electric', 'hybrid')                                                                                                                not null,
+    drive_type      enum ('awd', 'fwd', 'rwd', '4x4')                                                                                                                              not null,
+    millage         int                                                                                                                                                            not null,
+    number_of_seats int                                                                                                                                                            not null,
+    number_of_doors int                                                                                                                                                            not null,
+    created_at      timestamp                                                                                                                                                      null,
+    updated_at      timestamp                                                                                                                                                      null,
+    deleted_at      timestamp                                                                                                                                                      null,
+    constraint stock_type_vehicles_make_id_foreign
+        foreign key (make_id) references stock (id),
+    constraint stock_type_vehicles_model_id_foreign
+        foreign key (model_id) references stock (id),
+    constraint stock_type_vehicles_stock_id_foreign
+        foreign key (stock_id) references stock (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index stock_type_vehicles_category_index
+    on stock_type_vehicles (category);
+
+create index stock_type_vehicles_color_index
+    on stock_type_vehicles (color);
+
+create index stock_type_vehicles_condition_index
+    on stock_type_vehicles (`condition`);
+
+create index stock_type_vehicles_drive_type_index
+    on stock_type_vehicles (drive_type);
+
+create index stock_type_vehicles_fuel_type_index
+    on stock_type_vehicles (fuel_type);
+
+create index stock_type_vehicles_gearbox_type_index
+    on stock_type_vehicles (gearbox_type);
+
+create index stock_type_vehicles_is_import_index
+    on stock_type_vehicles (is_import);
+
+create index stock_type_vehicles_millage_index
+    on stock_type_vehicles (millage);
+
+create index stock_type_vehicles_number_of_doors_index
+    on stock_type_vehicles (number_of_doors);
+
+create index stock_type_vehicles_number_of_seats_index
+    on stock_type_vehicles (number_of_seats);
+
+create index stock_type_vehicles_year_model_index
+    on stock_type_vehicles (year_model);
+
+create table stock_view_summary
+(
+    id          bigint unsigned auto_increment
+        primary key,
+    dealer_id   bigint unsigned               not null,
+    stock_id    bigint unsigned               not null,
+    type        enum ('impression', 'detail') not null,
+    country     varchar(255)                  not null,
+    total_views bigint unsigned               not null,
+    date        date                          not null,
+    created_at  timestamp                     null,
+    updated_at  timestamp                     null,
+    constraint svs_unique
+        unique (dealer_id, stock_id, type, country, date),
+    constraint stock_view_summary_dealer_id_foreign
+        foreign key (dealer_id) references dealers (id)
+            on delete cascade,
+    constraint stock_view_summary_stock_id_foreign
+        foreign key (stock_id) references stock (id)
+            on delete cascade
+)
+    collate = utf8mb4_unicode_ci;
+
+create index stock_view_summary_country_index
+    on stock_view_summary (country);
+
+create index stock_view_summary_total_views_index
+    on stock_view_summary (total_views);
+
+create index stock_view_summary_type_index
+    on stock_view_summary (type);
+
+create index svs_dealer_date_idx
+    on stock_view_summary (dealer_id, date);
+
+create index svs_stock_date_idx
+    on stock_view_summary (stock_id, date);
+
+create index svs_type_date_idx
+    on stock_view_summary (type, date);
+
+create table stock_views
+(
+    id         bigint unsigned auto_increment
+        primary key,
+    stock_id   bigint unsigned               not null,
+    is_sold    tinyint(1) default 0          not null,
+    ip_address varchar(45)                   not null,
+    type       enum ('impression', 'detail') not null,
+    country    varchar(255)                  null,
+    created_at timestamp                     null,
+    updated_at timestamp                     null,
+    constraint stock_views_stock_id_foreign
+        foreign key (stock_id) references stock (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index stock_views_country_index
+    on stock_views (country);
+
+create index stock_views_is_sold_index
+    on stock_views (is_sold);
+
+create index stock_views_type_index
+    on stock_views (type);
+
+create table system_whatsapp_providers
+(
+    id            bigint unsigned auto_increment
+        primary key,
+    identifier    varchar(255) not null,
+    config_fields json         not null,
+    created_at    timestamp    null,
+    updated_at    timestamp    null,
+    constraint system_whatsapp_providers_identifier_unique
+        unique (identifier)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table users
+(
+    id                bigint unsigned auto_increment
+        primary key,
+    is_active         tinyint(1) default 1 not null,
+    firstname         varchar(255)         not null,
+    lastname          varchar(255)         not null,
+    email             varchar(255)         not null,
+    email_verified_at timestamp            null,
+    password          varchar(255)         not null,
+    remember_token    varchar(100)         null,
+    created_at        timestamp            null,
+    updated_at        timestamp            null,
+    deleted_at        timestamp            null,
+    constraint users_email_unique
+        unique (email)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table activity_logs
+(
+    id             bigint unsigned auto_increment
+        primary key,
+    loggable_type  varchar(255)    not null,
+    loggable_id    bigint unsigned not null,
+    user_id        bigint unsigned null,
+    dealer_user_id bigint unsigned null,
+    event          varchar(255)    null,
+    description    varchar(255)    not null,
+    properties     json            null,
+    ip_address     varchar(45)     null,
+    user_agent     varchar(255)    null,
+    created_at     timestamp       null,
+    updated_at     timestamp       null,
+    constraint activity_logs_dealer_user_id_foreign
+        foreign key (dealer_user_id) references dealer_users (id)
+            on delete set null,
+    constraint activity_logs_user_id_foreign
+        foreign key (user_id) references users (id)
+            on delete set null
+)
+    collate = utf8mb4_unicode_ci;
+
+create index activity_logs_dealer_user_id_index
+    on activity_logs (dealer_user_id);
+
+create index activity_logs_loggable_type_loggable_id_event_index
+    on activity_logs (loggable_type, loggable_id, event);
+
+create index activity_logs_loggable_type_loggable_id_index
+    on activity_logs (loggable_type, loggable_id);
+
+create index activity_logs_user_id_index
+    on activity_logs (user_id);
+
+create table lead_goals
+(
+    id                            bigint unsigned auto_increment
+        primary key,
+    lead_id                       bigint unsigned not null,
+    title                         varchar(255)    not null,
+    description                   text            null,
+    created_by_dealer_user_id     bigint unsigned null,
+    created_by_backoffice_user_id bigint unsigned null,
+    achieved_at                   timestamp       null,
+    achieved_by_dealer_user_id    bigint unsigned null,
+    meta                          json            null,
+    created_at                    timestamp       null,
+    updated_at                    timestamp       null,
+    deleted_at                    timestamp       null,
+    constraint lead_goals_achieved_by_dealer_user_id_foreign
+        foreign key (achieved_by_dealer_user_id) references dealer_users (id)
+            on delete set null,
+    constraint lead_goals_created_by_backoffice_user_id_foreign
+        foreign key (created_by_backoffice_user_id) references users (id)
+            on delete set null,
+    constraint lead_goals_created_by_dealer_user_id_foreign
+        foreign key (created_by_dealer_user_id) references dealer_users (id)
+            on delete set null,
+    constraint lead_goals_lead_id_foreign
+        foreign key (lead_id) references leads (id)
+            on delete cascade
+)
+    collate = utf8mb4_unicode_ci;
+
+create index lead_goals_lead_id_achieved_at_index
+    on lead_goals (lead_id, achieved_at);
+
+create table lead_messages
+(
+    id                        bigint unsigned auto_increment
+        primary key,
+    is_read                   tinyint(1)                   default 0         not null,
+    dealer_id                 bigint unsigned                                not null,
+    conversation_id           bigint unsigned                                not null,
+    created_by_dealer_user_id bigint unsigned                                null,
+    system_user_id            bigint unsigned                                null,
+    channel                   varchar(255)                                   not null,
+    direction                 enum ('inbound', 'outbound') default 'inbound' not null,
+    body                      text                                           null,
+    body_html                 longtext                                       null,
+    preview                   varchar(255)                                   null,
+    status                    varchar(255)                                   null,
+    sent_at                   datetime                                       null,
+    delivered_at              datetime                                       null,
+    read_at                   datetime                                       null,
+    error_code                varchar(255)                                   null,
+    error_message             varchar(255)                                   null,
+    messageable_type          varchar(255)                                   null,
+    messageable_id            bigint unsigned                                null,
+    created_at                timestamp                                      null,
+    updated_at                timestamp                                      null,
+    deleted_at                timestamp                                      null,
+    constraint lead_messages_conversation_id_foreign
+        foreign key (conversation_id) references lead_conversations (id),
+    constraint lead_messages_created_by_dealer_user_id_foreign
+        foreign key (created_by_dealer_user_id) references dealer_users (id),
+    constraint lead_messages_dealer_id_foreign
+        foreign key (dealer_id) references dealers (id),
+    constraint lead_messages_system_user_id_foreign
+        foreign key (system_user_id) references users (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create table lead_conversation_summaries
+(
+    id                   bigint unsigned auto_increment
+        primary key,
+    dealer_id            bigint unsigned not null,
+    conversation_id      bigint unsigned not null,
+    last_lead_message_id bigint unsigned null,
+    channel              varchar(50)     not null,
+    channelable_type     varchar(255)    null,
+    channelable_id       bigint unsigned null,
+    period_start         datetime        not null,
+    period_end           datetime        not null,
+    summary_full         longtext        not null,
+    summary_delta        longtext        null,
+    meta                 json            null,
+    created_at           timestamp       null,
+    updated_at           timestamp       null,
+    constraint lcs_conv_end_uq
+        unique (conversation_id, period_end),
+    constraint lead_conversation_summaries_conversation_id_foreign
+        foreign key (conversation_id) references lead_conversations (id)
+            on delete cascade,
+    constraint lead_conversation_summaries_dealer_id_foreign
+        foreign key (dealer_id) references dealers (id)
+            on delete cascade,
+    constraint lead_conversation_summaries_last_lead_message_id_foreign
+        foreign key (last_lead_message_id) references lead_messages (id)
+            on delete set null
+)
+    collate = utf8mb4_unicode_ci;
+
+create index lcs_channel_end_idx
+    on lead_conversation_summaries (channel, period_end);
+
+create index lcs_dealer_end_idx
+    on lead_conversation_summaries (dealer_id, period_end);
+
+alter table lead_conversations
+    add constraint lead_conversations_last_message_id_foreign
+        foreign key (last_message_id) references lead_messages (id)
+            on delete set null;
+
+create index lead_messages_dealer_id_channel_direction_index
+    on lead_messages (dealer_id, channel, direction);
+
+create index lead_messages_dealer_id_conversation_id_created_at_index
+    on lead_messages (dealer_id, conversation_id, created_at);
+
+create index lead_messages_dealer_id_created_at_index
+    on lead_messages (dealer_id, created_at);
+
+create index lead_messages_dealer_id_deleted_at_index
+    on lead_messages (dealer_id, deleted_at);
+
+create index lead_messages_messageable_type_messageable_id_index
+    on lead_messages (messageable_type, messageable_id);
+
+create table system_requests
+(
+    id             bigint unsigned auto_increment
+        primary key,
+    user_id        bigint unsigned                     null,
+    dealer_user_id bigint unsigned                     null,
+    type           enum ('contact', 'system', 'other') not null,
+    subject        varchar(255)                        not null,
+    message        longtext                            not null,
+    created_at     timestamp                           null,
+    updated_at     timestamp                           null,
+    constraint system_requests_dealer_user_id_foreign
+        foreign key (dealer_user_id) references dealer_users (id),
+    constraint system_requests_user_id_foreign
+        foreign key (user_id) references users (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index system_requests_type_index
+    on system_requests (type);
+
+create table whatsapp_messages
+(
+    id             bigint unsigned auto_increment
+        primary key,
+    system_user_id bigint unsigned  null,
+    dealer_user_id bigint unsigned  null,
+    provider       varchar(255)     not null,
+    message_sid    varchar(255)     not null,
+    from_wa        varchar(255)     null,
+    to_wa          varchar(255)     null,
+    type           varchar(255)     null,
+    media          json             null,
+    raw_payload    json             null,
+    cost           double default 0 not null,
+    profile_name   varchar(255)     null,
+    body           longtext         null,
+    created_at     timestamp        null,
+    updated_at     timestamp        null,
+    constraint whatsapp_messages_message_sid_unique
+        unique (message_sid),
+    constraint whatsapp_messages_dealer_user_id_foreign
+        foreign key (dealer_user_id) references dealer_users (id),
+    constraint whatsapp_messages_system_user_id_foreign
+        foreign key (system_user_id) references users (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index whatsapp_messages_from_wa_index
+    on whatsapp_messages (from_wa);
+
+create index whatsapp_messages_profile_name_index
+    on whatsapp_messages (profile_name);
+
+create index whatsapp_messages_provider_index
+    on whatsapp_messages (provider);
+
+create index whatsapp_messages_to_wa_index
+    on whatsapp_messages (to_wa);
+
+create index whatsapp_messages_type_index
+    on whatsapp_messages (type);
+
+create table whatsapp_numbers
+(
+    id            bigint unsigned auto_increment
+        primary key,
+    type          enum ('system', 'dealer', 'unassigned') default 'unassigned' not null,
+    provider_id   bigint unsigned                                              not null,
+    dealer_id     bigint unsigned                                              null,
+    msisdn        varchar(255)                                                 not null,
+    configuration json                                                         not null,
+    deleted_at    timestamp                                                    null,
+    created_at    timestamp                                                    null,
+    updated_at    timestamp                                                    null,
+    constraint whatsapp_numbers_msisdn_unique
+        unique (msisdn),
+    constraint whatsapp_numbers_dealer_id_foreign
+        foreign key (dealer_id) references dealers (id),
+    constraint whatsapp_numbers_provider_id_foreign
+        foreign key (provider_id) references system_whatsapp_providers (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index whatsapp_numbers_type_index
+    on whatsapp_numbers (type);
+
+create table whatsapp_templates
+(
+    id                   bigint unsigned auto_increment
+        primary key,
+    dealer_id            bigint unsigned                                                                                      not null,
+    provider_id          bigint unsigned                                                                                      not null,
+    provider_template_id varchar(255)                                                                                         null,
+    name                 varchar(255)                                                                                         not null,
+    language             varchar(255)                                                                                         not null,
+    category             varchar(255)                                                                                         null,
+    status               enum ('pending', 'approved', 'rejected', 'submitted', 'pending_delete', 'deleted') default 'pending' not null,
+    components           json                                                                                                 null,
+    body                 longtext                                                                                             null,
+    created_at           timestamp                                                                                            null,
+    updated_at           timestamp                                                                                            null,
+    deleted_at           timestamp                                                                                            null,
+    constraint whatsapp_templates_dealer_id_name_language_unique
+        unique (dealer_id, name, language),
+    constraint whatsapp_templates_dealer_id_provider_template_id_unique
+        unique (dealer_id, provider_template_id),
+    constraint whatsapp_templates_dealer_id_foreign
+        foreign key (dealer_id) references dealers (id),
+    constraint whatsapp_templates_provider_id_foreign
+        foreign key (provider_id) references system_whatsapp_providers (id)
+)
+    collate = utf8mb4_unicode_ci;
+
+create index whatsapp_templates_status_index
+    on whatsapp_templates (status);
+
+create table whatsapp_threads
+(
+    id           bigint unsigned auto_increment
+        primary key,
+    twilio_from  varchar(255) null,
+    twilio_to    varchar(255) null,
+    customer_wa  varchar(255) null,
+    dealer_wa    varchar(255) null,
+    profile_name varchar(255) null,
+    meta         json         null,
+    created_at   timestamp    null,
+    updated_at   timestamp    null
+)
+    collate = utf8mb4_unicode_ci;
+
+create index whatsapp_threads_customer_wa_index
+    on whatsapp_threads (customer_wa);
+
+create index whatsapp_threads_dealer_wa_index
+    on whatsapp_threads (dealer_wa);
+
+create index whatsapp_threads_profile_name_index
+    on whatsapp_threads (profile_name);
+
