@@ -16,6 +16,7 @@ use App\Models\Location\LocationCity;
 use App\Models\Location\LocationCountry;
 use App\Models\Location\LocationState;
 use App\Models\Location\LocationSuburb;
+use App\Support\DeferredDatasets\DeferredBranchStockCount;
 use App\Support\Options\StockOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -68,6 +69,7 @@ class BranchesController extends Controller
         $records = $query
             ->paginate((int) ($filters['rowsPerPage'] ?? 25))
             ->appends($filters);
+        $branchIds = $records->getCollection()->pluck('id')->values();
 
         $records->setCollection(
             $records->getCollection()->map(
@@ -82,6 +84,9 @@ class BranchesController extends Controller
             'city',
             'suburb',
             'sale_people_count',
+            'total_stock_count',
+            'published_count',
+            'unpublished_count',
             'notes_count',
         ])->map(fn (string $key) => [
             'name' => $key,
@@ -103,12 +108,8 @@ class BranchesController extends Controller
             'columns' => $columns,
             'records' => $records,
             'typeOptions' => StockOptions::types(withAll: true)->resolve(),
-            'options' => [
-                'countries' => LocationCountry::query()->select(['id as value', 'name as label'])->orderBy('name')->get()->toArray(),
-                'states' => LocationState::query()->select(['id as value', 'name as label', 'country_id'])->orderBy('name')->get()->toArray(),
-                'cities' => LocationCity::query()->select(['id as value', 'name as label', 'state_id'])->orderBy('name')->get()->toArray(),
-                'suburbs' => LocationSuburb::query()->select(['id as value', 'name as label', 'city_id'])->orderBy('name')->get()->toArray(),
-            ],
+            'options' => $this->locationOptionsForDealer($dealer),
+            'deferredStockCount' => DeferredBranchStockCount::resolve($branchIds, true, $stockType),
         ]);
     }
 
@@ -183,5 +184,55 @@ class BranchesController extends Controller
         $branch->delete();
 
         return back()->with('success', 'Branch deleted.');
+    }
+
+    private function locationOptionsForDealer(Dealer $dealer): array
+    {
+        $rows = $dealer->branches()
+            ->join('location_suburbs', 'location_suburbs.id', '=', 'dealer_branches.suburb_id')
+            ->join('location_cities', 'location_cities.id', '=', 'location_suburbs.city_id')
+            ->join('location_states', 'location_states.id', '=', 'location_cities.state_id')
+            ->join('location_countries', 'location_countries.id', '=', 'location_states.country_id')
+            ->select([
+                'location_countries.id as country_id',
+                'location_countries.name as country_name',
+                'location_states.id as state_id',
+                'location_states.name as state_name',
+                'location_states.country_id as state_country_id',
+                'location_cities.id as city_id',
+                'location_cities.name as city_name',
+                'location_cities.state_id as city_state_id',
+                'location_suburbs.id as suburb_id',
+                'location_suburbs.name as suburb_name',
+                'location_suburbs.city_id as suburb_city_id',
+            ])
+            ->distinct()
+            ->orderBy('location_countries.name')
+            ->orderBy('location_states.name')
+            ->orderBy('location_cities.name')
+            ->orderBy('location_suburbs.name')
+            ->get();
+
+        return [
+            'countries' => $rows->map(fn ($row) => [
+                'value' => $row->country_id,
+                'label' => $row->country_name,
+            ])->unique('value')->values()->all(),
+            'states' => $rows->map(fn ($row) => [
+                'value' => $row->state_id,
+                'label' => $row->state_name,
+                'country_id' => $row->state_country_id,
+            ])->unique('value')->values()->all(),
+            'cities' => $rows->map(fn ($row) => [
+                'value' => $row->city_id,
+                'label' => $row->city_name,
+                'state_id' => $row->city_state_id,
+            ])->unique('value')->values()->all(),
+            'suburbs' => $rows->map(fn ($row) => [
+                'value' => $row->suburb_id,
+                'label' => $row->suburb_name,
+                'city_id' => $row->suburb_city_id,
+            ])->unique('value')->values()->all(),
+        ];
     }
 }

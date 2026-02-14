@@ -14,6 +14,7 @@ const props = defineProps({
 
     // when null => create, when object => edit
     note: { type: Object, default: null },
+    canManageBackofficeOnly: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['update:modelValue', 'saved'])
@@ -43,6 +44,10 @@ const hydrateForm = () => {
     if (props.note) {
         form.value.note = props.note.note ?? ''
         form.value.backoffice_only = !!props.note.backoffice_only
+    }
+
+    if (!props.canManageBackofficeOnly) {
+        form.value.backoffice_only = false
     }
 }
 
@@ -76,7 +81,7 @@ const submit = async () => {
                 route('backoffice.notes.update', [props.noteableType, props.noteableId, props.note.id]),
                 {
                     note: form.value.note,
-                    backoffice_only: form.value.backoffice_only,
+                    backoffice_only: props.canManageBackofficeOnly ? form.value.backoffice_only : false,
                 }
             )
             $q.notify({ type: 'positive', message: 'Note updated.' })
@@ -85,7 +90,7 @@ const submit = async () => {
                 route('backoffice.notes.store', [props.noteableType, props.noteableId]),
                 {
                     note: form.value.note,
-                    backoffice_only: form.value.backoffice_only,
+                    backoffice_only: props.canManageBackofficeOnly ? form.value.backoffice_only : false,
                 }
             )
             $q.notify({ type: 'positive', message: 'Note created.' })
@@ -137,6 +142,7 @@ const submit = async () => {
                 />
 
                 <q-toggle
+                    v-if="canManageBackofficeOnly"
                     v-model="form.backoffice_only"
                     class="q-mt-md"
                     label="Backoffice only"

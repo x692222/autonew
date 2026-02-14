@@ -11,6 +11,7 @@ defineOptions({ layout: Layout })
 
 const route = inject('route')
 const page = usePage()
+const abilities = computed(() => page.props.auth?.user?.abilities || {})
 
 const props = defineProps({
     publicTitle: { type: String, default: 'Configuration' },
@@ -26,6 +27,8 @@ const notesRef = ref(null)
 const { confirmAction } = useConfirmAction(loading)
 const search = ref(props.filters?.search ?? '')
 const currentUrl = computed(() => page.url || route('backoffice.dealer-configuration.users.index'))
+const canAssignPermissions = computed(() => !!abilities.value.assignPermissions)
+const canCreateDealerUsers = computed(() => !!abilities.value.createDealershipUsers)
 
 const tableColumns = computed(() => ([...(props.columns || []), { name: 'actions', label: '', sortable: false, align: 'right', field: 'actions', numeric: false }]))
 const goFirst = () => tableRef.value?.goFirstPage()
@@ -70,6 +73,7 @@ const confirmResetPassword = (row) => {
     <Head><title>{{ $page.props.appName }}</title></Head>
     <div class="row nowrap justify-between items-center q-mb-md">
         <div><div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div><div class="text-caption text-grey-7">{{ dealer.name }}</div></div>
+        <q-btn v-if="canCreateDealerUsers" color="primary" label="Create User" no-wrap unelevated @click="router.visit(route('backoffice.dealer-configuration.users.create', { return_to: currentUrl }))" />
     </div>
     <DealerConfigurationNav tab="users" />
 
@@ -83,6 +87,7 @@ const confirmResetPassword = (row) => {
             <q-btn v-if="row.can?.show_notes" round dense flat icon="sticky_note_2" @click.stop="notesRef?.open(row)"><q-badge v-if="row.notes_count > 0" color="red" class="text-weight-bold" floating>{{ row.notes_count }}</q-badge><q-tooltip>Notes</q-tooltip></q-btn>
             <q-btn v-if="row.can?.reset_password" round dense flat icon="lock_reset" :disable="loading" @click.stop="confirmResetPassword(row)"><q-tooltip>Reset password</q-tooltip></q-btn>
             <q-btn v-if="row.can?.edit" round dense flat icon="edit" @click="router.visit(route('backoffice.dealer-configuration.users.edit', { dealerUser: row.id, return_to: currentUrl }))"><q-tooltip>Edit</q-tooltip></q-btn>
+            <q-btn v-if="canAssignPermissions && row.can?.assign_permissions" round dense flat icon="verified_user" @click="router.visit(route('backoffice.dealer-configuration.users.permissions.edit', { dealerUser: row.id, return_to: currentUrl }))"><q-tooltip>Access permissions</q-tooltip></q-btn>
             <q-btn v-if="row.can?.delete" round dense flat icon="delete" color="negative" :disable="loading" @click.stop="confirmDelete(row)"><q-tooltip>Delete</q-tooltip></q-btn>
         </template>
     </PaginatedTable>

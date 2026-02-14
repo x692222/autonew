@@ -83,12 +83,15 @@ class PermissionsSeeder extends Seeder
                 'editDealershipBranches',
                 'deleteDealershipBranches',
                 'indexDealershipSalesPeople',
+                'createDealershipSalesPeople',
                 'editDealershipSalesPeople',
                 'deleteDealershipSalesPeople',
                 'indexDealershipUsers',
+                'createDealershipUsers',
                 'editDealershipUsers',
                 'deleteDealershipUsers',
                 'resetDealershipUserPasswords',
+                'showNotes',
             ],
         ];
 

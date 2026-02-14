@@ -19,6 +19,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
 use Spatie\Permission\Traits\HasPermissions;
+use Spatie\Permission\Traits\HasRoles;
 
 class DealerUser extends Authenticatable
 {
@@ -28,6 +29,7 @@ class DealerUser extends Authenticatable
     use Notifiable;
     use SoftDeletes;
     use HasActivityTrait;
+    use HasRoles;
     use HasPermissions;
     use FilterSearchScope;
     use HasNotes;

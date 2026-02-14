@@ -10,7 +10,9 @@ const route = inject('route')
 const props = defineProps({
     publicTitle: { type: String, default: 'Access Management' },
     data: { type: Object, required: true },
-    permissions: { type: Array, default: () => [] }
+    permissions: { type: Array, default: () => [] },
+    updateRoute: { type: String, default: '' },
+    cancelRoute: { type: String, default: '' },
 })
 
 const permissionRows = computed(() =>
@@ -41,13 +43,13 @@ const form = useForm({
 
 const submit = () => {
     form.patch(
-        route('backoffice.system.user-management.users.permissions.update', props.data.id),
+        props.updateRoute || route('backoffice.system.user-management.users.permissions.update', props.data.id),
         { preserveScroll: true }
     )
 }
 
 const cancel = () => {
-    router.visit(route('backoffice.system.user-management.users.index'))
+    router.visit(props.cancelRoute || route('backoffice.system.user-management.users.index'))
 }
 </script>
 

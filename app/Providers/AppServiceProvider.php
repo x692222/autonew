@@ -142,6 +142,20 @@ class AppServiceProvider extends ServiceProvider
                 : Response::deny('You do not have permission to delete sales people.');
         });
 
+        Gate::define('dealerConfigurationCreateSalesPerson', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('createDealershipSalesPeople', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to create sales people.');
+        });
+
         Gate::define('dealerConfigurationIndexUsers', function ($actor, Dealer $dealer): Response {
             if (! $actor instanceof DealerUser) {
                 return Response::deny('Invalid actor.');
@@ -154,6 +168,20 @@ class AppServiceProvider extends ServiceProvider
             return $actor->hasPermissionTo('indexDealershipUsers', 'dealer')
                 ? Response::allow()
                 : Response::deny('You do not have permission to view users.');
+        });
+
+        Gate::define('dealerConfigurationCreateUser', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('createDealershipUsers', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to create users.');
         });
 
         Gate::define('dealerConfigurationEditUser', function ($actor, DealerUser $dealerUser): Response {
@@ -200,6 +228,34 @@ class AppServiceProvider extends ServiceProvider
             return $actor->hasPermissionTo('resetDealershipUserPasswords', 'dealer')
                 ? Response::allow()
                 : Response::deny('You do not have permission to reset user passwords.');
+        });
+
+        Gate::define('dealerConfigurationAssignUserPermissions', function ($actor, DealerUser $dealerUser): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealerUser->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('assignPermissions', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to assign user permissions.');
+        });
+
+        Gate::define('dealerConfigurationShowNotes', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('showNotes', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to view notes.');
         });
     }
 }

@@ -80,6 +80,41 @@ const recordsForTable = computed(() => {
     }
 })
 
+const canManageBackofficeOnly = computed(() => !!payload.value?.context?.can_manage_backoffice_only)
+
+const showAuthorGuardFilter = computed(() => payload.value?.context?.guard !== 'dealer')
+
+const guardOptions = computed(() => ([
+    { label: 'All', value: '' },
+    { label: 'Backoffice', value: 'backoffice' },
+    { label: 'Dealer', value: 'dealer' },
+]))
+
+const authorFilterOptions = computed(() => {
+    if (showAuthorGuardFilter.value) {
+        return filters.value.author_guard
+            ? (payload.value?.authorOptions?.[filters.value.author_guard] || [])
+            : []
+    }
+
+    const out = []
+    for (const [guard, list] of Object.entries(payload.value?.authorOptions || {})) {
+        for (const option of list || []) {
+            out.push({
+                value: option.value,
+                label: guard === 'backoffice' ? `${option.label} (Backoffice)` : option.label,
+            })
+        }
+    }
+
+    const unique = new Map()
+    for (const item of out) {
+        if (!unique.has(item.value)) unique.set(item.value, item)
+    }
+
+    return Array.from(unique.values()).sort((a, b) => a.label.localeCompare(b.label))
+})
+
 // confirm delete
 const { confirmAction } = useConfirmAction(loading)
 
@@ -144,6 +179,11 @@ const loadNotes = async (p = null) => {
             author_guard: data?.filters?.author_guard ?? '',
             author_id: data?.filters?.author_id ?? '',
             backoffice_only: (data?.filters?.backoffice_only ?? '') + '',
+        }
+
+        if (!data?.context?.can_manage_backoffice_only) {
+            filters.value.backoffice_only = ''
+            filters.value.author_guard = ''
         }
 
     } catch (e) {
@@ -302,17 +342,13 @@ watch(
                                 />
                             </div>
 
-                            <div class="col-auto" style="min-width: 200px">
+                            <div v-if="showAuthorGuardFilter" class="col-auto" style="min-width: 200px">
                                 <q-select
                                     dense outlined clearable
                                     emit-value map-options
                                     label="Posted by (Guard)"
                                     v-model="filters.author_guard"
-                                    :options="[
-                                        { label: 'All', value: '' },
-                                        { label: 'Backoffice', value: 'backoffice' },
-                                        { label: 'Dealer', value: 'dealer' },
-                                    ]"
+                                    :options="guardOptions"
                                     @update:model-value="() => { filters.author_id = ''; onFilterChange() }"
                                 />
                             </div>
@@ -323,15 +359,13 @@ watch(
                                     emit-value map-options
                                     label="Posted by"
                                     v-model="filters.author_id"
-                                    :options="filters.author_guard
-                                        ? (payload.authorOptions?.[filters.author_guard] || [])
-                                        : []"
-                                    :disable="!filters.author_guard"
+                                    :options="authorFilterOptions"
+                                    :disable="showAuthorGuardFilter && !filters.author_guard"
                                     @update:model-value="onFilterChange"
                                 />
                             </div>
 
-                            <div class="col-auto" style="min-width: 200px">
+                            <div v-if="canManageBackofficeOnly" class="col-auto" style="min-width: 200px">
                                 <q-select
                                     dense outlined clearable
                                     emit-value map-options
@@ -418,6 +452,7 @@ watch(
                 :noteable-type="noteableType"
                 :noteable-id="noteableId"
                 :note="editingRow"
+                :can-manage-backoffice-only="canManageBackofficeOnly"
                 @saved="onSaved"
             />
 

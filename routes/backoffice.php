@@ -16,12 +16,14 @@ use App\Http\Controllers\Backoffice\DealerManagement\Dealers\SalesPeopleControll
 use App\Http\Controllers\Backoffice\DealerManagement\Dealers\SettingsController;
 use App\Http\Controllers\Backoffice\DealerManagement\Dealers\StockController;
 use App\Http\Controllers\Backoffice\DealerManagement\Dealers\UsersController;
+use App\Http\Controllers\Backoffice\DealerManagement\Dealers\UserPermissionsController as DealerManagementUserPermissionsController;
 use App\Http\Controllers\Backoffice\System\AccessManagementController;
 use App\Http\Controllers\Backoffice\DashboardController;
 use App\Http\Controllers\Backoffice\DealerConfiguration\BranchesController as DealerConfigurationBranchesController;
 use App\Http\Controllers\Backoffice\DealerConfiguration\EditDealershipController as DealerConfigurationEditDealershipController;
 use App\Http\Controllers\Backoffice\DealerConfiguration\SalesPeopleController as DealerConfigurationSalesPeopleController;
 use App\Http\Controllers\Backoffice\DealerConfiguration\UsersController as DealerConfigurationUsersController;
+use App\Http\Controllers\Backoffice\DealerConfiguration\UserPermissionsController as DealerConfigurationUserPermissionsController;
 use App\Http\Controllers\Backoffice\NotesController as BackofficeNotesController;
 use App\Http\Controllers\Backoffice\System\LocationsManagementController;
 use App\Http\Controllers\Backoffice\System\UsersManagementController;
@@ -52,22 +54,24 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
         });
     });
 
-    Route::group(['middleware' => 'auth:backoffice'], function () {
+    Route::prefix('notes')
+        ->as('notes.')
+        ->middleware(['auth:backoffice,dealer', 'ajax'])
+        ->group(function () {
+            Route::get('{noteableType}/{noteableId}', [BackofficeNotesController::class, 'index'])->name('index');
+            Route::post('{noteableType}/{noteableId}', [BackofficeNotesController::class, 'store'])->name('store');
+            Route::patch('{noteableType}/{noteableId}/{note}', [BackofficeNotesController::class, 'update'])->name('update');
+            Route::delete('{noteableType}/{noteableId}/{note}', [BackofficeNotesController::class, 'destroy'])->name('destroy');
+        });
+
+    Route::group(['middleware' => ['auth:backoffice', 'block-backoffice-while-impersonating']], function () {
         Route::get('logout', [LoginController::class, 'destroy'])->name('logout');
         Route::get('/', [DashboardController::class, 'index'])->name('index');
         Route::get('/test', [DashboardController::class, 'test'])->name('test');
         Route::post('/auth/impersonations/start', [ImpersonationsController::class, 'start'])->name('auth.impersonations.start');
-        Route::post('/auth/impersonations/stop', [ImpersonationsController::class, 'stop'])->name('auth.impersonations.stop');
-
-        Route::prefix('notes')
-            ->as('notes.')
-            ->middleware('ajax')
-            ->group(function () {
-                Route::get('{noteableType}/{noteableId}', [BackofficeNotesController::class, 'index'])->name('index');
-                Route::post('{noteableType}/{noteableId}', [BackofficeNotesController::class, 'store'])->name('store');
-                Route::patch('{noteableType}/{noteableId}/{note}', [BackofficeNotesController::class, 'update'])->name('update');
-                Route::delete('{noteableType}/{noteableId}/{note}', [BackofficeNotesController::class, 'destroy'])->name('destroy');
-            });
+        Route::post('/auth/impersonations/stop', [ImpersonationsController::class, 'stop'])
+            ->withoutMiddleware('block-backoffice-while-impersonating')
+            ->name('auth.impersonations.stop');
 
         Route::prefix('system/user-management')
             ->as('system.user-management.')
@@ -146,6 +150,10 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                     ->name('dealers.users.destroy');
                 Route::post('dealers/{dealer}/users/{dealerUser}/reset-password', [UsersController::class, 'resetPassword'])
                     ->name('dealers.users.reset-password');
+                Route::get('dealers/{dealer}/users/{dealerUser}/permissions', [DealerManagementUserPermissionsController::class, 'edit'])
+                    ->name('dealers.users.permissions.edit');
+                Route::patch('dealers/{dealer}/users/{dealerUser}/permissions', [DealerManagementUserPermissionsController::class, 'update'])
+                    ->name('dealers.users.permissions.update');
                 Route::get('dealers/{dealer}/stock', [StockController::class, 'show'])
                     ->name('dealers.stock');
                 Route::get('dealers/{dealer}/notes', [NotesController::class, 'show'])
@@ -193,6 +201,10 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
 
                 Route::get('sales-people', [DealerConfigurationSalesPeopleController::class, 'index'])
                     ->name('sales-people.index');
+                Route::get('sales-people/create', [DealerConfigurationSalesPeopleController::class, 'create'])
+                    ->name('sales-people.create');
+                Route::post('sales-people', [DealerConfigurationSalesPeopleController::class, 'store'])
+                    ->name('sales-people.store');
                 Route::get('sales-people/{salesPerson}/edit', [DealerConfigurationSalesPeopleController::class, 'edit'])
                     ->name('sales-people.edit');
                 Route::patch('sales-people/{salesPerson}', [DealerConfigurationSalesPeopleController::class, 'update'])
@@ -202,6 +214,10 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
 
                 Route::get('users', [DealerConfigurationUsersController::class, 'index'])
                     ->name('users.index');
+                Route::get('users/create', [DealerConfigurationUsersController::class, 'create'])
+                    ->name('users.create');
+                Route::post('users', [DealerConfigurationUsersController::class, 'store'])
+                    ->name('users.store');
                 Route::get('users/{dealerUser}/edit', [DealerConfigurationUsersController::class, 'edit'])
                     ->name('users.edit');
                 Route::patch('users/{dealerUser}', [DealerConfigurationUsersController::class, 'update'])
@@ -210,6 +226,10 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                     ->name('users.destroy');
                 Route::post('users/{dealerUser}/reset-password', [DealerConfigurationUsersController::class, 'resetPassword'])
                     ->name('users.reset-password');
+                Route::get('users/{dealerUser}/permissions', [DealerConfigurationUserPermissionsController::class, 'edit'])
+                    ->name('users.permissions.edit');
+                Route::patch('users/{dealerUser}/permissions', [DealerConfigurationUserPermissionsController::class, 'update'])
+                    ->name('users.permissions.update');
             });
     });
 });

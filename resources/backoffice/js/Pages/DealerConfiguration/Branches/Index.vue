@@ -6,6 +6,7 @@ import PaginatedTable from 'bo@/Components/Shared/PaginatedTable.vue'
 import NotesHost from 'bo@/Components/Notes/NotesHost.vue'
 import DealerConfigurationNav from 'bo@/Pages/DealerConfiguration/_Nav.vue'
 import { useConfirmAction } from 'bo@/Composables/useConfirmAction'
+import { useLocationHierarchy } from 'bo@/Composables/useLocationHierarchy'
 
 defineOptions({ layout: Layout })
 
@@ -20,6 +21,7 @@ const props = defineProps({
     columns: { type: Array, default: () => [] },
     records: { type: Object, required: true },
     typeOptions: { type: Array, default: () => [] },
+    deferredStockCount: { type: Object, default: null },
     options: {
         type: Object,
         default: () => ({ countries: [], states: [], cities: [], suburbs: [] }),
@@ -38,72 +40,26 @@ const selectedState = ref(props.filters?.state_id ?? null)
 const selectedCity = ref(props.filters?.city_id ?? null)
 const selectedSuburb = ref(props.filters?.suburb_id ?? null)
 
-const toKey = (value) => value === null || value === undefined || value === '' ? null : String(value)
-const countriesAll = computed(() => props.options?.countries ?? [])
-const statesAll = computed(() => props.options?.states ?? [])
-const citiesAll = computed(() => props.options?.cities ?? [])
-const suburbsAll = computed(() => props.options?.suburbs ?? [])
-const stateById = computed(() => new Map(statesAll.value.map((state) => [toKey(state.value), state])))
-const cityById = computed(() => new Map(citiesAll.value.map((city) => [toKey(city.value), city])))
-const suburbById = computed(() => new Map(suburbsAll.value.map((suburb) => [toKey(suburb.value), suburb])))
-
-const normalizeFromOptions = (value, options) => {
-    const key = toKey(value)
-    if (!key) return null
-    const option = options.find((item) => toKey(item.value) === key)
-    return option ? option.value : value
-}
-
-const stateOptions = computed(() => {
-    const countryKey = toKey(selectedCountry.value)
-    if (!countryKey) return statesAll.value
-    return statesAll.value.filter((state) => toKey(state.country_id) === countryKey)
+const {
+    countriesAll,
+    stateOptions,
+    cityOptions,
+    suburbOptions,
+    onCountryChanged,
+    onStateChanged,
+    onCityChanged,
+    onSuburbChanged,
+    hydrateFromCurrent,
+} = useLocationHierarchy({
+    countries: computed(() => props.options?.countries ?? []),
+    states: computed(() => props.options?.states ?? []),
+    cities: computed(() => props.options?.cities ?? []),
+    suburbs: computed(() => props.options?.suburbs ?? []),
+    selectedCountry,
+    selectedState,
+    selectedCity,
+    selectedSuburb,
 })
-
-const cityOptions = computed(() => {
-    const stateKey = toKey(selectedState.value)
-    if (stateKey) return citiesAll.value.filter((city) => toKey(city.state_id) === stateKey)
-    const allowedStateKeys = new Set(stateOptions.value.map((state) => toKey(state.value)))
-    return citiesAll.value.filter((city) => allowedStateKeys.has(toKey(city.state_id)))
-})
-
-const suburbOptions = computed(() => {
-    const cityKey = toKey(selectedCity.value)
-    if (cityKey) return suburbsAll.value.filter((suburb) => toKey(suburb.city_id) === cityKey)
-    const allowedCityKeys = new Set(cityOptions.value.map((city) => toKey(city.value)))
-    return suburbsAll.value.filter((suburb) => allowedCityKeys.has(toKey(suburb.city_id)))
-})
-
-const syncParentsFromState = () => {
-    const state = stateById.value.get(toKey(selectedState.value))
-    if (!state) return
-    selectedCountry.value = normalizeFromOptions(state.country_id, countriesAll.value)
-}
-const syncParentsFromCity = () => {
-    const city = cityById.value.get(toKey(selectedCity.value))
-    if (!city) return
-    selectedState.value = normalizeFromOptions(city.state_id, statesAll.value)
-    syncParentsFromState()
-}
-const syncParentsFromSuburb = () => {
-    const suburb = suburbById.value.get(toKey(selectedSuburb.value))
-    if (!suburb) return
-    selectedCity.value = normalizeFromOptions(suburb.city_id, citiesAll.value)
-    syncParentsFromCity()
-}
-const hydrateFromInitialFilters = () => {
-    selectedCountry.value = normalizeFromOptions(selectedCountry.value, countriesAll.value)
-    selectedState.value = normalizeFromOptions(selectedState.value, statesAll.value)
-    selectedCity.value = normalizeFromOptions(selectedCity.value, citiesAll.value)
-    selectedSuburb.value = normalizeFromOptions(selectedSuburb.value, suburbsAll.value)
-    if (toKey(selectedSuburb.value)) {
-        syncParentsFromSuburb(); return
-    }
-    if (toKey(selectedCity.value)) {
-        syncParentsFromCity(); return
-    }
-    if (toKey(selectedState.value)) syncParentsFromState()
-}
 
 const tableColumns = computed(() => ([...(props.columns || []), { name: 'actions', label: '', sortable: false, align: 'right', field: 'actions', numeric: false }]))
 const canCreateBranch = computed(() => !!abilities.value.editDealershipBranches)
@@ -117,15 +73,15 @@ const fetchRecords = (p, helpers) => {
         search: search.value || '', type: selectedType.value || '',
         country_id: selectedCountry.value ?? null, state_id: selectedState.value ?? null, city_id: selectedCity.value ?? null, suburb_id: selectedSuburb.value ?? null,
     }, {
-        preserveState: true, preserveScroll: true, replace: true, only: ['records', 'filters', 'columns', 'flash'],
+        preserveState: true, preserveScroll: true, replace: true, only: ['records', 'filters', 'columns', 'deferredStockCount', 'flash'],
         onFinish: () => helpers.finish(),
     })
 }
 
-const onCountryChanged = (value) => { selectedCountry.value = normalizeFromOptions(value, countriesAll.value); selectedState.value = null; selectedCity.value = null; selectedSuburb.value = null; goFirst() }
-const onStateChanged = (value) => { selectedState.value = normalizeFromOptions(value, statesAll.value); if (!toKey(selectedState.value)) { selectedCity.value = null; selectedSuburb.value = null; goFirst(); return } syncParentsFromState(); selectedCity.value = null; selectedSuburb.value = null; goFirst() }
-const onCityChanged = (value) => { selectedCity.value = normalizeFromOptions(value, citiesAll.value); if (!toKey(selectedCity.value)) { selectedSuburb.value = null; goFirst(); return } syncParentsFromCity(); selectedSuburb.value = null; goFirst() }
-const onSuburbChanged = (value) => { selectedSuburb.value = normalizeFromOptions(value, suburbsAll.value); if (!toKey(selectedSuburb.value)) { goFirst(); return } syncParentsFromSuburb(); goFirst() }
+const onCountryFilterChanged = (value) => { onCountryChanged(value); goFirst() }
+const onStateFilterChanged = (value) => { onStateChanged(value); goFirst() }
+const onCityFilterChanged = (value) => { onCityChanged(value); goFirst() }
+const onSuburbFilterChanged = (value) => { onSuburbChanged(value); goFirst() }
 
 const confirmDelete = (row) => {
     confirmAction({
@@ -140,7 +96,7 @@ const confirmDelete = (row) => {
     })
 }
 
-hydrateFromInitialFilters()
+hydrateFromCurrent()
 </script>
 
 <template>
@@ -155,14 +111,25 @@ hydrateFromInitialFilters()
 
     <DealerConfigurationNav tab="branches" />
 
-    <PaginatedTable ref="tableRef" title="Branches" row-key="id" :records="records" :columns="tableColumns" :fetch="fetchRecords" initial-sort-by="name" :initial-descending="false">
+    <PaginatedTable
+        ref="tableRef"
+        title="Branches"
+        row-key="id"
+        :records="records"
+        :columns="tableColumns"
+        :fetch="fetchRecords"
+        initial-sort-by="name"
+        :initial-descending="false"
+        :deferred="{ deferredStockCount: props.deferredStockCount }"
+        :deferred-versions="{ deferredStockCount: selectedType }"
+    >
         <template #top-right>
             <div class="row q-col-gutter-sm items-center">
                 <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedType" dense outlined emit-value map-options :options="typeOptions" label="Stock Type" @update:model-value="goFirst" /></div>
-                <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedCountry" dense outlined clearable emit-value map-options :options="countriesAll" label="Country" @update:model-value="onCountryChanged" /></div>
-                <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedState" dense outlined clearable emit-value map-options :options="stateOptions" label="State" @update:model-value="onStateChanged" /></div>
-                <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedCity" dense outlined clearable emit-value map-options :options="cityOptions" label="City" @update:model-value="onCityChanged" /></div>
-                <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedSuburb" dense outlined clearable emit-value map-options :options="suburbOptions" label="Suburb" @update:model-value="onSuburbChanged" /></div>
+                <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedCountry" dense outlined clearable emit-value map-options :options="countriesAll" label="Country" @update:model-value="onCountryFilterChanged" /></div>
+                <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedState" dense outlined clearable emit-value map-options :options="stateOptions" label="State" @update:model-value="onStateFilterChanged" /></div>
+                <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedCity" dense outlined clearable emit-value map-options :options="cityOptions" label="City" @update:model-value="onCityFilterChanged" /></div>
+                <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedSuburb" dense outlined clearable emit-value map-options :options="suburbOptions" label="Suburb" @update:model-value="onSuburbFilterChanged" /></div>
                 <div class="col-auto" style="min-width: 280px;"><q-input v-model="search" dense outlined clearable debounce="700" placeholder="Search branches..." :input-attrs="{ autocomplete: 'off' }" @update:model-value="goFirst" /></div>
             </div>
         </template>

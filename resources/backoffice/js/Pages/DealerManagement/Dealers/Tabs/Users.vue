@@ -11,6 +11,7 @@ defineOptions({ layout: Layout })
 
 const route = inject('route')
 const page = usePage()
+const abilities = computed(() => page.props.auth?.user?.abilities || {})
 
 const props = defineProps({
     publicTitle: { type: String, default: 'Dealer Management' },
@@ -27,6 +28,7 @@ const notesRef = ref(null)
 const { confirmAction } = useConfirmAction(loading)
 const search = ref(props.filters?.search ?? '')
 const currentUrl = computed(() => page.url || route('backoffice.dealer-management.dealers.users', props.dealer.id))
+const canAssignPermissions = computed(() => !!abilities.value.assignPermissions)
 
 const tableColumns = computed(() => ([
     ...(props.columns || []),
@@ -156,6 +158,17 @@ const confirmResetPassword = (row) => {
                 @click="router.visit(route('backoffice.dealer-management.dealers.users.edit', { dealer: dealer.id, dealerUser: row.id, return_to: currentUrl }))"
             >
                 <q-tooltip>Edit</q-tooltip>
+            </q-btn>
+
+            <q-btn
+                v-if="canAssignPermissions && row.can?.assign_permissions"
+                round
+                dense
+                flat
+                icon="verified_user"
+                @click="router.visit(route('backoffice.dealer-management.dealers.users.permissions.edit', { dealer: dealer.id, dealerUser: row.id, return_to: currentUrl }))"
+            >
+                <q-tooltip>Access permissions</q-tooltip>
             </q-btn>
 
             <q-btn

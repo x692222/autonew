@@ -3,6 +3,7 @@ import { Head, router, useForm } from '@inertiajs/vue3'
 import { computed, inject } from 'vue'
 import Layout from 'bo@/Layouts/Layout.vue'
 import DealerTabs from 'bo@/Pages/DealerManagement/Dealers/_Tabs.vue'
+import { useLocationHierarchy } from 'bo@/Composables/useLocationHierarchy'
 
 defineOptions({ layout: Layout })
 
@@ -32,97 +33,42 @@ const form = useForm({
     longitude: null,
 })
 
-const toKey = (value) => value === null || value === undefined || value === '' ? null : String(value)
-const countriesAll = computed(() => props.options?.countries ?? [])
-const statesAll = computed(() => props.options?.states ?? [])
-const citiesAll = computed(() => props.options?.cities ?? [])
-const suburbsAll = computed(() => props.options?.suburbs ?? [])
-
-const stateById = computed(() => new Map(statesAll.value.map((state) => [toKey(state.value), state])))
-const cityById = computed(() => new Map(citiesAll.value.map((city) => [toKey(city.value), city])))
-const suburbById = computed(() => new Map(suburbsAll.value.map((suburb) => [toKey(suburb.value), suburb])))
-
-const normalizeFromOptions = (value, options) => {
-    const key = toKey(value)
-    if (!key) return null
-    const option = options.find((item) => toKey(item.value) === key)
-    return option ? option.value : value
-}
-
-const stateOptions = computed(() => {
-    const countryKey = toKey(form.country_id)
-    if (!countryKey) return statesAll.value
-    return statesAll.value.filter((state) => toKey(state.country_id) === countryKey)
+const countryRef = computed({
+    get: () => form.country_id,
+    set: (value) => { form.country_id = value },
+})
+const stateRef = computed({
+    get: () => form.state_id,
+    set: (value) => { form.state_id = value },
+})
+const cityRef = computed({
+    get: () => form.city_id,
+    set: (value) => { form.city_id = value },
+})
+const suburbRef = computed({
+    get: () => form.suburb_id,
+    set: (value) => { form.suburb_id = value },
 })
 
-const cityOptions = computed(() => {
-    const stateKey = toKey(form.state_id)
-    if (stateKey) return citiesAll.value.filter((city) => toKey(city.state_id) === stateKey)
-    const allowedStateKeys = new Set(stateOptions.value.map((state) => toKey(state.value)))
-    return citiesAll.value.filter((city) => allowedStateKeys.has(toKey(city.state_id)))
+const {
+    countriesAll,
+    stateOptions,
+    cityOptions,
+    suburbOptions,
+    onCountryChanged,
+    onStateChanged,
+    onCityChanged,
+    onSuburbChanged,
+} = useLocationHierarchy({
+    countries: computed(() => props.options?.countries ?? []),
+    states: computed(() => props.options?.states ?? []),
+    cities: computed(() => props.options?.cities ?? []),
+    suburbs: computed(() => props.options?.suburbs ?? []),
+    selectedCountry: countryRef,
+    selectedState: stateRef,
+    selectedCity: cityRef,
+    selectedSuburb: suburbRef,
 })
-
-const suburbOptions = computed(() => {
-    const cityKey = toKey(form.city_id)
-    if (cityKey) return suburbsAll.value.filter((suburb) => toKey(suburb.city_id) === cityKey)
-    const allowedCityKeys = new Set(cityOptions.value.map((city) => toKey(city.value)))
-    return suburbsAll.value.filter((suburb) => allowedCityKeys.has(toKey(suburb.city_id)))
-})
-
-const syncParentsFromState = () => {
-    const state = stateById.value.get(toKey(form.state_id))
-    if (!state) return
-    form.country_id = normalizeFromOptions(state.country_id, countriesAll.value)
-}
-
-const syncParentsFromCity = () => {
-    const city = cityById.value.get(toKey(form.city_id))
-    if (!city) return
-    form.state_id = normalizeFromOptions(city.state_id, statesAll.value)
-    syncParentsFromState()
-}
-
-const syncParentsFromSuburb = () => {
-    const suburb = suburbById.value.get(toKey(form.suburb_id))
-    if (!suburb) return
-    form.city_id = normalizeFromOptions(suburb.city_id, citiesAll.value)
-    syncParentsFromCity()
-}
-
-const onCountryChanged = (value) => {
-    form.country_id = normalizeFromOptions(value, countriesAll.value)
-    form.state_id = null
-    form.city_id = null
-    form.suburb_id = null
-}
-
-const onStateChanged = (value) => {
-    form.state_id = normalizeFromOptions(value, statesAll.value)
-    if (!toKey(form.state_id)) {
-        form.city_id = null
-        form.suburb_id = null
-        return
-    }
-    syncParentsFromState()
-    form.city_id = null
-    form.suburb_id = null
-}
-
-const onCityChanged = (value) => {
-    form.city_id = normalizeFromOptions(value, citiesAll.value)
-    if (!toKey(form.city_id)) {
-        form.suburb_id = null
-        return
-    }
-    syncParentsFromCity()
-    form.suburb_id = null
-}
-
-const onSuburbChanged = (value) => {
-    form.suburb_id = normalizeFromOptions(value, suburbsAll.value)
-    if (!toKey(form.suburb_id)) return
-    syncParentsFromSuburb()
-}
 
 const submit = () => {
     form.transform((data) => ({

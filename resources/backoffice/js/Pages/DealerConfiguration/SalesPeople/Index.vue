@@ -11,6 +11,7 @@ defineOptions({ layout: Layout })
 
 const route = inject('route')
 const page = usePage()
+const abilities = computed(() => page.props.auth?.user?.abilities || {})
 
 const props = defineProps({
     publicTitle: { type: String, default: 'Configuration' },
@@ -27,6 +28,7 @@ const notesRef = ref(null)
 const { confirmAction } = useConfirmAction(loading)
 const selectedBranch = ref(props.filters?.branch_id ?? null)
 const currentUrl = computed(() => page.url || route('backoffice.dealer-configuration.sales-people.index'))
+const canCreateSalesPeople = computed(() => !!abilities.value.createDealershipSalesPeople)
 
 const tableColumns = computed(() => ([...(props.columns || []), { name: 'actions', label: '', sortable: false, align: 'right', field: 'actions', numeric: false }]))
 const goFirst = () => tableRef.value?.goFirstPage()
@@ -60,6 +62,7 @@ const confirmDelete = (row) => {
     <Head><title>{{ $page.props.appName }}</title></Head>
     <div class="row nowrap justify-between items-center q-mb-md">
         <div><div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div><div class="text-caption text-grey-7">{{ dealer.name }}</div></div>
+        <q-btn v-if="canCreateSalesPeople" color="primary" label="Create Sales Person" no-wrap unelevated @click="router.visit(route('backoffice.dealer-configuration.sales-people.create', { return_to: currentUrl }))" />
     </div>
     <DealerConfigurationNav tab="sales-people" />
 

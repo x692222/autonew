@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Backoffice\DealerConfiguration;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Backoffice\DealerConfiguration\Users\CreateDealerConfigurationUsersRequest;
 use App\Http\Requests\Backoffice\DealerConfiguration\Users\DestroyDealerConfigurationUsersRequest;
 use App\Http\Requests\Backoffice\DealerConfiguration\Users\EditDealerConfigurationUsersRequest;
 use App\Http\Requests\Backoffice\DealerConfiguration\Users\IndexDealerConfigurationUsersRequest;
 use App\Http\Requests\Backoffice\DealerConfiguration\Users\ResetPasswordDealerConfigurationUsersRequest;
+use App\Http\Requests\Backoffice\DealerConfiguration\Users\StoreDealerConfigurationUsersRequest;
 use App\Http\Requests\Backoffice\DealerConfiguration\Users\UpdateDealerConfigurationUsersRequest;
 use App\Models\Dealer\DealerUser;
 use Illuminate\Support\Facades\Gate;
@@ -40,7 +42,7 @@ class UsersController extends Controller
         };
 
         $records = $query->paginate((int) ($filters['rowsPerPage'] ?? 25))->appends($filters);
-        $records->setCollection($records->getCollection()->map(function (DealerUser $dealerUser) use ($actor) {
+        $records->setCollection($records->getCollection()->map(function (DealerUser $dealerUser) use ($actor, $dealer) {
             return [
                 'id' => $dealerUser->id,
                 'name' => trim((string) $dealerUser->firstname . ' ' . (string) $dealerUser->lastname),
@@ -52,7 +54,8 @@ class UsersController extends Controller
                     'edit' => Gate::forUser($actor)->inspect('dealerConfigurationEditUser', $dealerUser)->allowed(),
                     'delete' => Gate::forUser($actor)->inspect('dealerConfigurationDeleteUser', $dealerUser)->allowed(),
                     'reset_password' => Gate::forUser($actor)->inspect('dealerConfigurationResetUserPassword', $dealerUser)->allowed(),
-                    'show_notes' => false,
+                    'assign_permissions' => Gate::forUser($actor)->inspect('dealerConfigurationAssignUserPermissions', $dealerUser)->allowed(),
+                    'show_notes' => Gate::forUser($actor)->inspect('dealerConfigurationShowNotes', $dealer)->allowed(),
                 ],
             ];
         }));
@@ -92,6 +95,33 @@ class UsersController extends Controller
                 'email' => $dealerUser->email,
             ],
         ]);
+    }
+
+    public function create(CreateDealerConfigurationUsersRequest $request): Response
+    {
+        $actor = $request->user('dealer');
+        $dealer = $actor->dealer;
+        Gate::forUser($actor)->authorize('dealerConfigurationCreateUser', $dealer);
+
+        return Inertia::render('DealerConfiguration/Users/Create', [
+            'publicTitle' => 'Configuration',
+            'dealer' => ['id' => $dealer->id, 'name' => $dealer->name],
+            'returnTo' => $request->input('return_to', route('backoffice.dealer-configuration.users.index')),
+        ]);
+    }
+
+    public function store(StoreDealerConfigurationUsersRequest $request): RedirectResponse
+    {
+        $actor = $request->user('dealer');
+        $dealer = $actor->dealer;
+        Gate::forUser($actor)->authorize('dealerConfigurationCreateUser', $dealer);
+
+        $data = $request->safe()->except(['return_to']);
+        $dealerUser = $dealer->users()->create($data);
+        Password::broker('dealers')->sendResetLink(['email' => $dealerUser->email]);
+
+        return redirect($request->input('return_to', route('backoffice.dealer-configuration.users.index')))
+            ->with('success', 'Dealer user created.');
     }
 
     public function update(UpdateDealerConfigurationUsersRequest $request, DealerUser $dealerUser): RedirectResponse

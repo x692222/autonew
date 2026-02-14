@@ -27,6 +27,7 @@ class DealerUsersIndexResource extends JsonResource
                 'edit' => $dealer ? ($actor?->can('updateDealerUser', [$dealer, $this->resource]) ?? false) : false,
                 'delete' => $dealer ? ($actor?->can('deleteDealerUser', [$dealer, $this->resource]) ?? false) : false,
                 'reset_password' => $dealer ? ($actor?->can('resetDealerUserPassword', [$dealer, $this->resource]) ?? false) : false,
+                'assign_permissions' => $dealer ? ($actor?->can('assignDealerUserPermissions', [$dealer, $this->resource]) ?? false) : false,
                 'show_notes' => $dealer ? ($actor?->can('showNotes', $dealer) ?? false) : false,
             ],
         ];

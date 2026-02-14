@@ -208,4 +208,15 @@ class DealersManagementPolicy
             ? Response::allow()
             : Response::deny('You do not have permission to reset dealer user passwords.');
     }
+
+    public function assignDealerUserPermissions(User $user, Dealer $dealer, DealerUser $dealerUser): Response
+    {
+        if ((string) $dealerUser->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This user does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('assignPermissions', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to assign dealer user permissions.');
+    }
 }

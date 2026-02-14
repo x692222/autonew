@@ -22,7 +22,7 @@ class UpdateDealerConfigurationUsersRequest extends FormRequest
             'return_to' => ['nullable', 'string'],
             'firstname' => ['required', 'string', 'max:255'],
             'lastname' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('dealer_users', 'email')->ignore($dealerUser->id)],
+            'email' => ['required', 'email', 'max:255', Rule::unique('dealer_users', 'email')->ignore($dealerUser->id)->whereNull('deleted_at')],
         ];
     }
 }

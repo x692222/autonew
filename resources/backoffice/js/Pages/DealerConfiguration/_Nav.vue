@@ -5,6 +5,8 @@ import { router, usePage } from '@inertiajs/vue3'
 const route = inject('route')
 const page = usePage()
 const abilities = computed(() => page.props.auth?.user?.abilities || {})
+const authGuard = computed(() => page.props.auth?.guard ?? '')
+const showNav = computed(() => authGuard.value === 'backoffice')
 
 defineProps({
     tab: { type: String, required: true },
@@ -29,7 +31,7 @@ const onTabChange = (tabName) => {
 </script>
 
 <template>
-    <q-card flat bordered class="q-mb-md">
+    <q-card v-if="showNav" flat bordered class="q-mb-md">
         <q-card-section>
             <q-tabs
                 :model-value="tab"

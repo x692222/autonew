@@ -43,7 +43,7 @@ class HandleInertiaRequests extends Middleware
             auth('backoffice')->check() => 'backoffice',
             default => 'web',
         };
-
+//dd($guard);
         $basics = [
             'auth'  => function() use ($request, $guard) {
                 if (stripos(Route::currentRouteName(), 'console.') !== false) {
