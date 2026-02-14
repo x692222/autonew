@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use App\Models\System\Configuration\WhatsappProvider;
 use App\Traits\HasActivityTrait;
@@ -11,6 +13,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class WhatsappNumber extends Model
 {
+    use HasUuidPrimaryKey;
+
     use HasActivityTrait;
     use SoftDeletes;
 

@@ -227,7 +227,7 @@ final class StockOptions extends AbstractOptions
         return new GeneralCollection($options);
     }
 
-    public static function modelsByMakeAndType(?string $type, ?int $makeId, bool $withAll = false): StockMakeIdCollection
+    public static function modelsByMakeAndType(?string $type, ?string $makeId, bool $withAll = false): StockMakeIdCollection
     {
         $items = cache()->remember("stock:model_options:{$type}:{$makeId}:{$withAll}:v1", now()->addHour(), function() use ($type, $makeId) {
 

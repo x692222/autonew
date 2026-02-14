@@ -2,6 +2,8 @@
 
 namespace App\Models\System;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerUser;
 use App\Traits\HasActivityTrait;
@@ -11,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 class SystemRequest extends Model
 {
+    use HasUuidPrimaryKey;
+
     use HasActivityTrait;
 
     const REQUEST_TYPES = [

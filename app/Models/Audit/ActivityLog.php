@@ -2,6 +2,8 @@
 
 namespace App\Models\Audit;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerUser;
 use App\Models\System\User;
@@ -12,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ActivityLog extends Model
 {
+    use HasUuidPrimaryKey;
+
 
     protected $table = 'activity_logs';
 

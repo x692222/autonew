@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('dealer_users', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('dealer_id')->constrained('dealers')->restrictOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('dealer_id')->constrained('dealers')->restrictOnDelete();
             $table->boolean('is_active')->default(true);
             $table->string('firstname');
             $table->string('lastname');

@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('stock_features', function (Blueprint $table) {
-            $table->foreignId('stock_id')->constrained('stock')->restrictOnDelete();
-            $table->foreignId('feature_id')->constrained('stock_feature_tags')->restrictOnDelete();
+            $table->foreignUuid('stock_id')->constrained('stock')->restrictOnDelete();
+            $table->foreignUuid('feature_id')->constrained('stock_feature_tags')->restrictOnDelete();
 
             $table->primary(['stock_id', 'feature_id']);
         });

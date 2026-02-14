@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Dealer\DealerUser;
+use App\Support\AbilityValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Middleware;
@@ -59,7 +61,28 @@ class HandleInertiaRequests extends Middleware
                         'firstname' => auth()->guard($guard)->user()->firstname,
                         'lastname'  => auth()->guard($guard)->user()->lastname,
                         'email'     => auth()->guard($guard)->user()->email,
+                        'abilities' => (new AbilityValidator())->permissionsFor($request->user($guard), $guard),
                     ] : null,
+                ];
+            },
+            'impersonation' => function () use ($request) {
+                $isImpersonating = (bool) $request->session()->get('impersonation.active', false)
+                    && auth('dealer')->check();
+
+                $defaultEmail = null;
+                if (app()->environment('local')) {
+                    $defaultEmail = DealerUser::query()
+                        ->where('is_active', true)
+                        ->whereHas('dealer', fn ($query) => $query->where('is_active', true))
+                        ->orderBy('email')
+                        ->value('email');
+                }
+
+                return [
+                    'active' => $isImpersonating,
+                    'dealer_user_email' => auth('dealer')->user()?->email,
+                    'backoffice_user_id' => $request->session()->get('impersonation.backoffice_user_id'),
+                    'default_email' => $defaultEmail,
                 ];
             },
             'flash' => [
@@ -67,6 +90,7 @@ class HandleInertiaRequests extends Middleware
                 'error'   => fn() => $request->session()->get('error'),
             ],
         ];
+
         return [
             ...$basics,
             ...parent::share($request),

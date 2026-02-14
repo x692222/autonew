@@ -13,10 +13,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('stock_publish_logs', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('stock_id')->constrained('stock')->restrictOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('stock_id')->constrained('stock')->restrictOnDelete();
             $table->enum('action', [StockPublishLog::ACTION_PUBLISH, StockPublishLog::ACTION_UNPUBLISH])->index();
-            $table->unsignedBigInteger('by_user_id')->index();
+            $table->uuid('by_user_id')->index();
             $table->timestamps();
             $table->softDeletes();
         });

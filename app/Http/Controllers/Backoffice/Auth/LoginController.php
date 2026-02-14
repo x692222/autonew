@@ -32,7 +32,7 @@ class LoginController extends Controller
         $remember = (bool)($data['remember'] ?? false);
 
         if (!Auth::guard('backoffice')->attempt(
-            ['email' => $data['email'], 'password' => $data['password']],
+            ['email' => $data['email'], 'password' => $data['password'], 'is_active' => true],
             $remember
         )) {
             return back()->withErrors([

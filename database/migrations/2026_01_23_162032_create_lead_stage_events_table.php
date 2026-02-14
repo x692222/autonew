@@ -8,12 +8,12 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('lead_stage_events', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
-            $table->foreignId('lead_id')->nullable()->constrained('leads')->restrictOnDelete();
-            $table->foreignId('from_stage_id')->nullable()->constrained('lead_stages')->restrictOnDelete();
-            $table->foreignId('to_stage_id')->nullable()->constrained('lead_stages')->restrictOnDelete();
-            $table->foreignId('changed_by_dealer_user_id')->nullable()->constrained('dealer_users')->restrictOnDelete();
+            $table->foreignUuid('lead_id')->nullable()->constrained('leads')->restrictOnDelete();
+            $table->foreignUuid('from_stage_id')->nullable()->constrained('lead_stages')->restrictOnDelete();
+            $table->foreignUuid('to_stage_id')->nullable()->constrained('lead_stages')->restrictOnDelete();
+            $table->foreignUuid('changed_by_dealer_user_id')->nullable()->constrained('dealer_users')->restrictOnDelete();
 
             $table->string('reason')->nullable();
             $table->json('meta')->nullable();

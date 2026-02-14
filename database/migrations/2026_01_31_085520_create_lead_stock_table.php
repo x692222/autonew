@@ -9,18 +9,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('lead_stock', function (Blueprint $table) {
-            $table->id();
-
-            $table->foreignId('lead_id')
+            $table->foreignUuid('lead_id')
                 ->constrained('leads')
                 ->restrictOnDelete();
 
-            $table->foreignId('stock_id')
+            $table->foreignUuid('stock_id')
                 ->constrained('stock')
                 ->restrictOnDelete();
 
-            // Optional but recommended
-            $table->unique(['lead_id', 'stock_id']);
+            $table->primary(['lead_id', 'stock_id']);
 
             $table->timestamps();
         });

@@ -63,7 +63,8 @@ class DealerDatasetSeeder extends Seeder
                     $email = $faker->unique()->safeEmail();
 
                     $users[] = [
-                        'dealer_id'          => $dealer->id,
+                        'id'                 => (string) Str::uuid(),
+                        'dealer_id'          => (string) $dealer->id,
                         'is_active'          => $faker->boolean(90),
                         'firstname'          => $first,
                         'lastname'           => $last,
@@ -93,8 +94,8 @@ class DealerDatasetSeeder extends Seeder
 
                     /** @var DealerBranch $branch */
                     $branch = DealerBranch::query()->create([
-                        'dealer_id'        => $dealer->id,
-                        'suburb_id'        => $faker->randomElement($suburbIds),
+                        'dealer_id'        => (string) $dealer->id,
+                        'suburb_id'        => (string) $faker->randomElement($suburbIds),
 
                         // adjust these fields if your Branch table differs
                         'name'             => $branchName,
@@ -124,7 +125,8 @@ class DealerDatasetSeeder extends Seeder
                     $salePeople = [];
                     for ($s = 0; $s < $saleCount; $s++) {
                         $salePeople[] = [
-                            'branch_id'    => $branchId,
+                            'id'           => (string) Str::uuid(),
+                            'branch_id'    => (string) $branchId,
                             'firstname'    => $faker->firstName(),
                             'lastname'     => $faker->lastName(),
                             'contact_no'   => $faker->phoneNumber(),

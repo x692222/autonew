@@ -13,9 +13,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('system_requests', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('user_id')->nullable()->constrained('users')->restrictOnDelete();
-            $table->foreignId('dealer_user_id')->nullable()->constrained('dealer_users')->restrictOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('user_id')->nullable()->constrained('users')->restrictOnDelete();
+            $table->foreignUuid('dealer_user_id')->nullable()->constrained('dealer_users')->restrictOnDelete();
             $table->enum('type', SystemRequest::REQUEST_TYPES)->index();
             $table->string('subject');
             $table->longText('message');

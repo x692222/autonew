@@ -2,6 +2,8 @@
 
 namespace App\Models\System;
 
+use App\Traits\HasUuidPrimaryKey;
+
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\ModelScopes\FilterSearchScope;
 use App\Notifications\Auth\BackofficeResetPasswordNotification;
@@ -12,14 +14,18 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
+use Spatie\Permission\Traits\HasPermissions;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
+    use HasUuidPrimaryKey;
+
     use HasFactory, Notifiable;
     use SoftDeletes;
     use HasActivityTrait;
     use HasRoles;
+    use HasPermissions;
     use FilterSearchScope;
 
     protected $guard_name = 'backoffice';
@@ -85,8 +91,8 @@ class User extends Authenticatable
         return $query->where('is_active', false);
     }
 
-//    public function sendPasswordResetNotification($token)
-//    {
-//        $this->notify(new BackofficeResetPasswordNotification($token));
-//    }
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new BackofficeResetPasswordNotification($token));
+    }
 }

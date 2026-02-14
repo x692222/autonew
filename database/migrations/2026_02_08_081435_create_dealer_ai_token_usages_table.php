@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('dealer_ai_token_usages', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
-            $table->foreignId('dealer_id')->constrained('dealers')->cascadeOnDelete();
+            $table->foreignUuid('dealer_id')->constrained('dealers')->cascadeOnDelete();
 
             /**
              * Which class/record triggered the AI call.
@@ -20,7 +20,7 @@ return new class extends Migration
              *  consumer_id   = 123
              */
             $table->string('consumer_type');
-            $table->unsignedBigInteger('consumer_id')->nullable();
+            $table->uuid('consumer_id')->nullable();
 
             /**
              * Which OpenAI model was used (optional but very handy for reporting).

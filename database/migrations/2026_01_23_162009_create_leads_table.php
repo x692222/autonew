@@ -9,14 +9,14 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('leads', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
             // Ownership / scoping
-            $table->foreignId('dealer_id')->constrained('dealers')->restrictOnDelete();
-            $table->foreignId('branch_id')->nullable()->constrained('dealer_branches')->restrictOnDelete();
-            $table->foreignId('assigned_to_dealer_user_id')->nullable()->constrained('dealer_users')->restrictOnDelete();
-            $table->foreignId('pipeline_id')->nullable()->constrained('lead_pipelines')->restrictOnDelete();
-            $table->foreignId('stage_id')->nullable()->constrained('lead_stages')->restrictOnDelete();
+            $table->foreignUuid('dealer_id')->constrained('dealers')->restrictOnDelete();
+            $table->foreignUuid('branch_id')->nullable()->constrained('dealer_branches')->restrictOnDelete();
+            $table->foreignUuid('assigned_to_dealer_user_id')->nullable()->constrained('dealer_users')->restrictOnDelete();
+            $table->foreignUuid('pipeline_id')->nullable()->constrained('lead_pipelines')->restrictOnDelete();
+            $table->foreignUuid('stage_id')->nullable()->constrained('lead_stages')->restrictOnDelete();
 
             // ai mode
             $table->boolean('ai_mode')->default(false);

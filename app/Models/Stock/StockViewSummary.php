@@ -2,12 +2,16 @@
 
 namespace App\Models\Stock;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StockViewSummary extends Model
 {
+    use HasUuidPrimaryKey;
+
     protected $table = 'stock_view_summary';
 
     protected $fillable = [

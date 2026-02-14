@@ -2,6 +2,8 @@
 
 namespace App\Models\Leads;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerBranch;
 use App\Models\Dealer\DealerUser;
@@ -16,6 +18,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LeadMessage extends Model
 {
+    use HasUuidPrimaryKey;
+
     use SoftDeletes;
     use HasNotes;
     use FilterSearchScope;

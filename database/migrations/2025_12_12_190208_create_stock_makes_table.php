@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('stock_makes', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('name');
             $table->string('slug')->unique()->index();
             $table->enum('stock_type', Stock::STOCK_TYPE_OPTIONS)->index();

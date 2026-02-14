@@ -101,7 +101,7 @@ class StockSeeder extends Seeder
             $type = $types[array_rand($types)];
 
             // Make internal_reference unique within branch (constraint is (branch_id, internal_reference))
-            $internalRef = $this->uniqueInternalReferenceForBranch($branch->id);
+            $internalRef = $this->uniqueInternalReferenceForBranch((string) $branch->id);
 
             $publishedAt = $pubFlags[$i]
                 ? $this->randomDateTimeBetween($this->publishStart, $this->publishEnd)
@@ -136,7 +136,7 @@ class StockSeeder extends Seeder
     ): void {
         if ($type === Stock::STOCK_TYPE_VEHICLE) {
             $make = $this->pickMake($makesByType, 'vehicle');
-            $modelId = $make ? $this->pickModelId($modelsByMake, $make->id) : null;
+            $modelId = $make ? $this->pickModelId($modelsByMake, (string) $make->id) : null;
 
             $condition = $forceNewCondition
                 ? StockTypeVehicle::CONDITION_OPTION_NEW
@@ -151,8 +151,8 @@ class StockSeeder extends Seeder
             $millage = $this->vehicleMillage($condition, $year);
 
             $stock->vehicleItem()->create([
-                'make_id'         => $make?->id ?? 1,
-                'model_id'        => $modelId ?? 1,
+                'make_id'         => (string) ($make?->id ?? $stock->id),
+                'model_id'        => (string) ($modelId ?? $stock->id),
                 'is_import'       => $isImport,
                 'year_model'      => $year,
                 'category'        => StockTypeVehicle::CATEGORY_OPTIONS[array_rand(StockTypeVehicle::CATEGORY_OPTIONS)],
@@ -187,7 +187,7 @@ class StockSeeder extends Seeder
                 : StockTypeLeisure::CONDITION_OPTIONS[array_rand(StockTypeLeisure::CONDITION_OPTIONS)];
 
             $stock->leisureItem()->create([
-                'make_id'    => $make?->id ?? 1,
+                'make_id'    => (string) ($make?->id ?? $stock->id),
                 'year_model' => random_int(1950, 2026),
                 'color'      => StockTypeLeisure::COLOR_OPTIONS[array_rand(StockTypeLeisure::COLOR_OPTIONS)],
                 'condition'  => $condition,
@@ -206,7 +206,7 @@ class StockSeeder extends Seeder
             $millage = $this->commercialMillage($condition, $year);
 
             $stock->commercialItem()->create([
-                'make_id'      => $make?->id ?? 1,
+                'make_id'      => (string) ($make?->id ?? $stock->id),
                 'year_model'   => $year,
                 'color'        => StockTypeCommercial::COLOR_OPTIONS[array_rand(StockTypeCommercial::COLOR_OPTIONS)],
                 'condition'    => $condition,
@@ -232,7 +232,7 @@ class StockSeeder extends Seeder
             // - do NOT insert is_import (column does not exist, per your error)
             // - we only insert columns that exist in your StockTypeMotorbike fillable (and in DB schema)
             $stock->motorbikeItem()->create([
-                'make_id'      => $make?->id ?? 1,
+                'make_id'      => (string) ($make?->id ?? $stock->id),
                 'year_model'   => $year,
                 'category'     => StockTypeMotorbike::CATEGORY_OPTIONS[array_rand(StockTypeMotorbike::CATEGORY_OPTIONS)],
                 'color'        => StockTypeMotorbike::COLOR_OPTIONS[array_rand(StockTypeMotorbike::COLOR_OPTIONS)],
@@ -265,7 +265,10 @@ class StockSeeder extends Seeder
 
     private function seedStockPublishLogs(): void
     {
-        $userId = DB::table('users')->inRandomOrder()->value('id') ?? 1;
+        $userId = DB::table('users')->inRandomOrder()->value('id');
+        if (!$userId) {
+            return;
+        }
 
         $publishedStockIds = DB::table('stock')
             ->whereNotNull('published_at')
@@ -283,9 +286,10 @@ class StockSeeder extends Seeder
         foreach ($publishedStockIds as $sid) {
             $dt = $this->randomDateTimeBetween($this->publishStart, $this->publishEnd);
             $rows[] = [
-                'stock_id'    => $sid,
+                'id'          => (string) Str::uuid(),
+                'stock_id'    => (string) $sid,
                 'action'      => '1',
-                'by_user_id'  => $userId,
+                'by_user_id'  => (string) $userId,
                 'created_at'  => $dt,
                 'updated_at'  => $dt,
                 'deleted_at'  => null,
@@ -302,18 +306,20 @@ class StockSeeder extends Seeder
             $dt2 = $dt1->copy()->addMinutes(random_int(5, 60 * 24)); // must be after
 
             $rows[] = [
-                'stock_id'    => $sid,
+                'id'          => (string) Str::uuid(),
+                'stock_id'    => (string) $sid,
                 'action'      => '1',
-                'by_user_id'  => $userId,
+                'by_user_id'  => (string) $userId,
                 'created_at'  => $dt1,
                 'updated_at'  => $dt1,
                 'deleted_at'  => null,
             ];
 
             $rows[] = [
-                'stock_id'    => $sid,
+                'id'          => (string) Str::uuid(),
+                'stock_id'    => (string) $sid,
                 'action'      => '0',
-                'by_user_id'  => $userId,
+                'by_user_id'  => (string) $userId,
                 'created_at'  => $dt2,
                 'updated_at'  => $dt2,
                 'deleted_at'  => null,
@@ -352,7 +358,8 @@ class StockSeeder extends Seeder
             for ($i = 0; $i < $detailCount; $i++) {
                 $dt = $this->randomDateTimeBetween($this->publishStart, $this->publishEnd);
                 $detailRows[] = [
-                    'stock_id'    => $sid,
+                    'id'          => (string) Str::uuid(),
+                    'stock_id'    => (string) $sid,
                     'is_sold'     => $isSold ? 1 : 0,
                     'ip_address'  => $this->randomIpv4(),
                     'type'        => StockView::VIEW_TYPE_DETAIL,
@@ -369,7 +376,8 @@ class StockSeeder extends Seeder
             for ($i = 0; $i < $impCount; $i++) {
                 $dt = $this->randomDateTimeBetween($this->publishStart, $this->publishEnd);
                 $impRows[] = [
-                    'stock_id'    => $sid,
+                    'id'          => (string) Str::uuid(),
+                    'stock_id'    => (string) $sid,
                     'is_sold'     => $isSold ? 1 : 0,
                     'ip_address'  => $this->randomIpv4(),
                     'type'        => StockView::VIEW_TYPE_IMPRESSION,
@@ -417,7 +425,7 @@ class StockSeeder extends Seeder
         ]);
     }
 
-    private function uniqueInternalReferenceForBranch(int $branchId): string
+    private function uniqueInternalReferenceForBranch(string $branchId): string
     {
         // quick loop until unique under (branch_id, internal_reference)
         do {
@@ -438,7 +446,7 @@ class StockSeeder extends Seeder
         return $bucket[random_int(0, $bucket->count() - 1)];
     }
 
-    private function pickModelId($modelsByMake, int $makeId): ?int
+    private function pickModelId($modelsByMake, string $makeId): ?string
     {
         $bucket = $modelsByMake->get($makeId);
         if (!$bucket || $bucket->isEmpty()) return null;

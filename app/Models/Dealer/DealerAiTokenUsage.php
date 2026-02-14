@@ -2,12 +2,16 @@
 
 namespace App\Models\Dealer;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DealerAiTokenUsage extends Model
 {
+    use HasUuidPrimaryKey;
+
     protected $table = 'dealer_ai_token_usages';
 
     protected $fillable = [

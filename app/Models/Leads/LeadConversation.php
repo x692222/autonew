@@ -2,6 +2,8 @@
 
 namespace App\Models\Leads;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use App\ModelScopes\FilterSearchScope;
 use App\Traits\HasNotes;
@@ -13,6 +15,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LeadConversation extends Model
 {
+    use HasUuidPrimaryKey;
+
     use SoftDeletes;
     use HasNotes;
     use FilterSearchScope;

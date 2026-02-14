@@ -1,0 +1,50 @@
+This is your new task
+
+# Overview
+
+# preferred directory structure
+
+Backoffice/System
+
+# route notes
+
+This is an authenticated interface and must live inside the "auth:backoffice" middleware already applied in the backoffice.php routes file
+
+# Who can access
+
+## dealer guard: no
+## backoffice guard:
+
+If the following keys are set:
+
+- assignPermissions
+
+### controller
+
+Preferred controller name: AccessManagementController
+
+# vuejs abilities list
+
+Inside app/Http/Middleware/HandleInertiaRequests.php we set the "abilities" key inside auth => user - use this abilities to conditionally show the following link:
+
+## vuejs navigation resources/backoffice/js/Layouts/Layout.vue
+
+There will be no navigation menu item, this will be inside the actions section for each of the system user records.
+
+If the user has the ability on the permissions key "assignPermissions" then show this link otherwise not.
+
+# what is needed
+
+The following is NOT limited to what needs to be done, but serves as a minimum guideline:
+
+- Controller
+- Gate / security implementation as explained in context/project_information.txt
+- vuejs files
+
+# context
+
+I need a full implementation of a page to show all the available backoffice permissions with checkboxes so that i can select the permission checkboxes and save the permissions to assign for that user.
+
+This interface must be accessed from the users datatable, so add an icon which redirects with the user's uuid in the route
+
+Clearly indicate for which user you are updating the permissions for

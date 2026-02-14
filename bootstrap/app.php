@@ -10,6 +10,7 @@ use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Validation\ValidationException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -65,6 +66,16 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->render(function (ValidationException $e, Request $request) {
+            if ($request->header('X-Inertia')) {
+                return back()
+                    ->withErrors($e->errors())
+                    ->withInput($request->except(['password', 'password_confirmation']));
+            }
+
+            return null;
+        });
+
         $exceptions->render(function (AuthenticationException $e, Request $request) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Unauthenticated.'], 401);
@@ -73,7 +84,7 @@ return Application::configure(basePath: dirname(__DIR__))
             $guard = $e->guards()[0]??null;
 
             $loginRoute = match ($guard) {
-                'dealer' => 'dealer.auth.login',
+                'dealer' => Route::has('dealer.auth.login') ? 'dealer.auth.login' : 'backoffice.auth.login.show',
                 'backoffice' => 'backoffice.auth.login.show',
                 default => Route::has('login') ? 'login' : 'backoffice.auth.login.show',
             };

@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('location_suburbs', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedInteger('city_id');
+            $table->uuid('id')->primary();
+            $table->foreignUuid('city_id');
             $table->string('name');
             $table->string('slug')->unique();
             $table->timestamps();

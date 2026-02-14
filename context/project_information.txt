@@ -1,0 +1,912 @@
+# first rule
+
+- Do not access or view files inside the context/tasks directory, UNLESS I have instructed you to look at a specific task.
+- Never look at code inside the node_modules, storage, tests or vendor directory
+
+# Project information
+Language: PHP 8.2
+Framework: Laravel 12
+Inertia: inertia-laravel package is being used with vuejs version 3 - using the composite api method with "script setup"
+Quasar: https://quasar.dev/ - i run this as a vite package inside my application. This can be used for styling and components and is important
+Queues: Queues are being used
+Emails: Laravel notifications with markdown template is being used. Try to avoid email files and make use of Laravel's notifications method.
+
+# Other composer packages:
+aws/aws-sdk-php-laravel for file and image storage
+spatie/laravel-permission for user roles and permissions
+
+# Important NPM packages
+- @quasar/vite-plugin
+- @types/lodash
+- axios
+- laravel-vite-plugin
+- ziggy-js
+- @inertiajs/inertia
+- @inertiajs/progress
+- @inertiajs/server
+- @inertiajs/vue3
+- @tabler/icons-vue
+- @vuepic/vue-datepicker
+- moment
+- vue-recaptcha-v3
+- vue3-google-map
+
+# data structures, refactoring, re-usable classes
+
+- the goal is minimal but solid code.
+- Always try to keep classes abstracted so that it can be re-used. However, classes should do only that the intended purposes is and not be bloated if it can be avoided.
+- This applies to php classes for server side and composables for vuejs
+
+# controllers
+
+## abstraction and private functions
+
+You can NEVER have private functions or functions NOT serving a route, inside a controller.
+
+Abstraction would be needed.
+
+Pay attention on abstracted classes and code in app/Support to see if anything can be re-used or improved to serve a purpose.
+
+Keep functions simple and not bloated and to the point, though it is fine if it becomes a bigger function or class if needed.
+
+## controller naming convention
+
+controllers should always be in plural as per the laravel best practices, as an example, not CityController, but CitiesController
+
+## resource controllers
+
+Use resource controllers for crud functions and if only certain methods in the controller is being used, use the except() or only() in the routes file.
+
+## controller redirect after create or edit
+
+- when creating or editing a record, redirect back to that controller index page when possible
+- many times a user would have search parameters applied and then click edit or delete. Redirect back with the search parameters when possible, after edit or delete.
+
+## controller validating request / input data
+
+- validating data should always be in a separate request form request file
+- retain the hierarchy structure for the form requests to match that of the controller hierarchy structure
+
+### index() in controller
+
+Most of the times, the index() function has a datatable with data - refer to the DataTables section later in this context document.
+
+This means that the same form filters applies for all index() actions. Make sure that these filters are in a consolidated abstracted place so that it can be re-used
+
+```
+'page' => ['nullable', 'integer', 'min:1'],
+'rowsPerPage' => ['nullable', 'integer', 'min:1', 'max:200'],
+'sortBy' => ['nullable', 'string', 'max:50'],
+'descending' => ['nullable'],
+```
+
+## controller purpose
+
+- stick to the controller purpose to orchestration and coordinate
+- controllers should not be bloated and code that serves a specific purpose should be abstracted
+
+## controller destroy() actions
+
+Delete / destroy actions will be revisited manually and a "@todo" comment should always be added when implementing a destroy() action initially
+
+# Laravel resources and collections
+
+Since we are providing data to vuejs components, I dont want to provide all database data to the vuejs component and not sensitive data.
+
+For all data from a controller, a resource, and if required, a collection should be used.
+
+The path to resources is app/Http/Resources - you can look at the files in here, if needed, to see examples and you can also implement best practices.
+
+There are already resources and collections that are commonly used, however, it is important to structure new resources and collections in a proper directory structure.
+
+Thus, ensure that resources and collections specific to a goal is properly structured and inside either backoffice or website - since we are working on the backoffice now, it would be inside a backoffice directory.
+
+You may also notice that there are many legacy code - which I will provide on a task to task basis - that is using the collection helper ->through()
+
+I dont want to use this through() anymore instead i want data to be properly built inside a resource.
+
+Also, since there are checks and counts and relations to parent or child relationships, always keep in mind effective and minimum database queries, so first load relationships needed. You can always look at the relevant Model instance tog et the relationships.
+
+Lastly, only load and use what is needed for optimal database calls and load.
+
+# permissions
+
+The application uses the spatie/laravel-permission package and documentation is at https://spatie.be/docs/laravel-permission/v6/introduction
+
+In each task, I will specify which permissions should be created and used in which sections.
+
+Permission seeds should be added to database/seeders/PermissionsSeeder.php - I will define if both guards backoffice and dealer can access - if a dealer can not access, dont add the permission.
+
+Then, you will notice in app/Http/Middleware/HandleInertiaRequests.php that there is an "abilities" key inside the "user" key.
+
+The abilities key give a list of permissions and if the user has access or not, and these abilities originates from app/Support/AbilityValidator.php
+
+The abilities key can be used in the vuejs files where applicable to conditionally show links / icons.
+
+## important
+
+When returning paginated table data to Inertia/Vue, always ensure each row is serialized to a plain array before passing it to the frontend. Do not pass JsonResource objects or ResourceCollection internals directly into paginator setCollection(). After implementing, verify the frontend row object contains expected keys (eg. name/email/roles/can.*) so table cells and action visibility work correctly.
+
+# security, form requests, policies, gates
+
+- The application should be absolutely secured.
+- whether a user can access a page, should always be validated by a gate and/or policy
+- since each controller action, OTHER than ajax requests, should have a form request, we will by implementing the gate/policy into the form request to validate if a user can access a particular section of the site / backoffice
+- code needs to be clean and best practices used - therefore if you have a better solution, suggest it
+
+When I'm developing, I will always give clear instructions as to who can access the page / section.
+
+Below is an example of a function in the policy and what should be validated for
+
+```
+public function functionName(User $user): Response
+{
+    // first check: if can be accessible by a dealer - one would use the "dealer" guard to validate and the spatie permissions will be used. I will provide the "permission" identifier to validate against
+    // second check: if session user is using the "dealer" guard - validate that the dealer to whom the entity is linked to, matches the dealer / dealer id of the session user to ensure that the session user is not viewing / editing / deleting / creating a record for a different dealer
+    // thid check: if can be accessible by a backoffice - one would use the "backoffice" guard to validate using the spatie permissions - i will specify the permission identifier to validate against
+}
+```
+
+Then once the policy is set, use a gate check in the form request, once can apply the policy, as an example
+
+```
+public function authorize(): bool
+{
+    return Gate::inspect(....)->allowed();
+}
+```
+
+Very important is that in the legacy code, we always validated if an entity belongs to a parent entity, in the controller.
+
+As an example, when viewing or editing a branch (and the branch belongs to a dealer) we would do the check in the controller to validate if the branch the user is editing, belongs to the correct dealer.
+
+Because since a dealer user the "dealer" session guard, and the dealer user belongs to a dealer on the dealer_id key - the check was in the controller to apply this validation.
+
+This controller-based check should not be used unless necessary.
+
+Instead, the check should be done in the gate - validating that if the session user is using the "dealer" guard - then validate if the entity in question belogs to the dealer of that session user.
+
+# models
+
+## naming convention
+
+- models are always singular as per the laravel best practices
+
+# actions
+
+- path: app/Actions
+
+## Purpose
+
+The purpose of actions is to action the intend of the controller. This is for example to save data and apply updated actions against the database.
+
+If for example we need to save data and then send an email - then the action will to save the data will be in an action and sending the email will still be in the controller.
+
+Here is an example of actions:
+
+```
+<?php
+
+namespace App\Actions\Account\Password;
+
+use App\Models\User\User;
+use Illuminate\Support\Facades\Hash;
+
+class UpdateUserPassword
+{
+    public function execute(User $user, string $password): bool
+    {
+        return $user->update([
+            'password' => Hash::make($password)
+        ]);
+    }
+}
+```
+
+```
+<?php
+
+namespace App\Actions\Account\Company;
+
+use App\Models\Auth\Profile;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Str;
+
+class UpdateFfcFile
+{
+    public function execute(Profile $profile, UploadedFile $file): bool
+    {
+        if ($profile->ffc) {
+            $profile->ffc;
+        }
+
+        $profile->avatar = $file->storeAs(
+            path: $profile->getKey(),
+            name: sprintf('%s.%s', (string)Str::uuid(), $file->getClientOriginalExtension()),
+            options: 'user_documents'
+        );
+
+        return $profile->save();
+    }
+}
+
+```
+
+```
+<?php
+
+namespace App\Actions\Account\Company;
+
+use App\Models\User\User;
+
+class UpdateOrCreateCompany
+{
+    public function execute(User $user, array $data): bool
+    {
+        return (bool)$user->company()->updateOrCreate([], $data);
+    }
+}
+```
+
+```
+<?php
+
+namespace App\Actions\ContactUs;
+
+use App\Enums\ContactUs\FeedbackType;
+use App\Models\ContactUs\FeedbackRequest;
+use App\Models\Landlord\Landlord;
+use App\Notifications\General\GeneralContactUsNotification;
+use Illuminate\Mail\Mailables\Envelope;
+use Illuminate\Notifications\AnonymousNotifiable;
+
+class CreateGeneralFeedback
+{
+    public function execute(array $feedbackData, string $recipientEmail): bool
+    {
+        $landlord        = app()->landlord;
+        $feedbackRequest = FeedbackRequest::create(array_merge(
+            $feedbackData,
+            [
+                'landlord_id' => $landlord->getKey(),
+                'type'        => FeedbackType::GENERAL->value,
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]
+        ));
+
+        if (!!$feedbackRequest && $recipientEmail) {
+            (new AnonymousNotifiable())
+                ->route('mail', $recipientEmail)
+                ->notify(new GeneralContactUsNotification(
+                    landlord: app()->landlord,
+                    feedbackRequest: $feedbackRequest
+                ));
+            return true;
+        }
+        return !!$feedbackRequest;
+    }
+}
+```
+
+# app/Enums
+
+Constants should be stored as enums where applicable. Feel free to use improved code for enums.
+
+Examples
+
+```
+<?php
+
+namespace App\Enums\Company;
+
+enum Type: string
+{
+    case CC          = 'CC';
+    case LC          = 'LC';
+    case PARTNERSHIP = 'Partnership';
+    case PROPRIETOR  = 'Proprietor';
+    case PTY         = 'PTY';
+    case TRUSTEES    = 'Trustees';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::CC => 'Close Corporation',
+            self::LC => 'Listed Company',
+            self::PARTNERSHIP => 'Partnership',
+            self::PROPRIETOR => 'Sole Proprietor',
+            self::PTY => 'Private Company',
+            self::TRUSTEES => 'Trust',
+        };
+    }
+
+    /**
+     * @return Type[]
+     */
+    public static function list(): array
+    {
+        return self::cases();
+    }
+}
+
+```
+
+# routes
+
+Always try to use resource routes and try to stick controller actions to CRUD unless not possible.
+
+# Data manipulation and relationships
+
+As an added security method and a way of saving data, always try to modify data through the primary relationship - when available.
+
+As an example, a Dealer can have Branches, and each branch can have Sales People
+
+Since Dealer plays a significant role in the system, always try to get the Dealer class as primary entry point, then manipulate the data through the relationships.
+
+Since data manipulation should happen in actions as explained before, rather require an instance of the Dealer::class to be passed in, instead of the instance of the child relationship.
+
+There are many instances where a parent the parent of the parent does not relate to a dealer, especially if it is system related - in those cases where there is no dealer relation or dealer relation in the parent of a parent, go with yuor best practice solution.
+
+# FilterSearchScope
+
+When applying freeform search, always use the FilterSearchScope and ensure that this scope is applied to the class from where one would search.
+
+# Deferred loading
+
+you will notice in the component that i use deferred loading sometimes and that the key of the param always starts with "deferred"
+
+as an example
+
+```
+return Inertia::render('DealerManagement/Dealers/Branches/Index', [
+            'publicTitle' => 'Dealer Branches',
+            'pageTab'     => 'branches',
+
+            'filters' => $filters,
+
+            'dealers'   => $dealers,
+            'countries' => $countries,
+            'states'    => $states,
+            'cities'    => $cities,
+            'suburbs'   => $suburbs,
+
+            'columns'            => $columns,
+            'records'            => $records,
+
+            // Deferred (KEEP)
+            'deferredUsersCount' => DeferredUsersCount::resolve($dealerIds, true),
+            'deferredStockCount' => DeferredBranchStockCount::resolve($branchIds, true, $stockType),
+        ]);
+```
+
+therefore, deferred fields should never be searchable
+
+and here is an example of a deferred class
+
+```
+<?php
+
+namespace App\Services\DeferredDatasets;
+
+use App\Models\Dealer\Dealer;
+use App\Models\Dealer\DealerBranch;
+use App\Models\Stock\Stock;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Collection;
+use Inertia\Inertia;
+
+class DeferredBranchStockCount
+{
+    public static function resolve(Collection $branchIds, bool $isVisible, ?string $stockType = null)
+    {
+        return Inertia::defer(function () use ($isVisible, $branchIds, $stockType) {
+            if (!$isVisible) return null;
+            if ($branchIds->isEmpty()) return [];
+
+            $q = Stock::query()
+                ->withoutGlobalScope(SoftDeletingScope::class)
+                ->whereNull('deleted_at')
+                ->whereIn('branch_id', $branchIds);
+
+            if ($stockType) {
+                $q->where('type', $stockType);
+            }
+
+            return $q->selectRaw('
+                    branch_id,
+                    SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_stock_count,
+                    SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) as inactive_stock_count,
+                    COUNT(*) as total_stock_count,
+                    SUM(CASE WHEN published_at IS NOT NULL THEN 1 ELSE 0 END) as published_count,
+                    SUM(CASE WHEN published_at IS NULL THEN 1 ELSE 0 END) as unpublished_count
+                ')
+                ->groupBy('branch_id')
+                ->get()
+                ->keyBy('branch_id')
+                ->map(fn ($r) => [
+                    'active_stock_count' => (int)$r->active_stock_count,
+                    'inactive_stock_count' => (int)$r->inactive_stock_count,
+                    'total_stock_count' => (int)$r->total_stock_count,
+                    'published_count' => (int)$r->published_count,
+                    'unpublished_count' => (int)$r->unpublished_count,
+                ])
+                ->toArray();
+        });
+    }
+}
+
+```
+
+# authentication and guards
+
+Currently there are 3 guards implemented in config/auth.php
+
+- web
+- dealer - this is when a dealer user is signed in
+- backoffice - this is when a backoffice user is signed in
+
+Authenticated session data should never be used in models or actions or other stateless functions or classes.
+
+Always rather pass the expected class instance to these classes or functions when needed.
+
+The guards can be used in controllers.
+
+When using session data, always apply the guard and never assume.
+
+# vuejs
+
+## file structure
+
+I'm running 2 sections for vuejs - implemented individually for both the front end and the backoffice.
+
+Right now we are building the backoffice only.
+
+resources/backoffice/js/Components - this is for general components that will be re-used
+resources/backoffice/js/Composables - this is for js files like js functions that will be used across the site
+resources/backoffice/js/Layouts - contains the layout file
+resources/backoffice/js/Layouts/Components - contains components specifically to the layout file, such as footer or navigation
+resources/backoffice/js/Pages - vuejs pages
+
+## functions
+
+when creating functions in vuejs - use a function assigned as a constant instead of just function()
+
+as an example
+
+```
+const doSearch = (val) => {
+    // rest of the function code
+}
+```
+
+## DataTables
+
+All datatables works with resources/backoffice/js/Components/Shared/PaginatedTable.vue - thus, idially we dont want to make changes to this file uless it is required.
+If we make changes to this file, make sure that any file using this datatable file still checks out and is working.
+
+### Datatable filters
+
+- When implementing filters, ensure that the appropriate label is used and that the numerical id of options doesnt display
+- Often the condition above works, but when you refresh the page, the numerical id displays - ensure that when a filter is applied and the page is refreshed, that it shows the label in the filter and not the numerical value of the filter option.
+- Filters MUST be placed inside the PaginatedTable "top-right" slot - do not edit the resources/backoffice/js/Components/Shared/PaginatedTable.vue file as this functionality already exists by passing in slots to the DataTable
+- Filters MUST NOT be placed next to the page title.
+
+#### Actions columns
+
+Always provision for an action column in a datatable - unless there are no actions. However, there is almost always an action actionable against any records in a datatable
+
+#### Confirmation
+
+- We usually have icons in the action column of a datatable, such as delete, reset passwords etc. Always use a quasar confirmation modal to confirm the action before making the request to the serverside to action the action
+- View and edit will never have a confirmation in the datatable.
+- Try to use a shared composable for actions so that parameters can just be passed in, such as for the resources/backoffice/js/Composables/useConfirmAction.js - unless the requirements is different and a custom confirmation is required
+
+Example usage:
+
+<q-btn
+    round dense flat icon="delete" color="negative"
+    :disable="loading"
+    @click.stop="confirmAction({
+        title: 'Delete Dealership',
+        message: `Are you sure you want to delete ${row.name}? This cannot be undone.`,
+        okLabel: 'Delete',
+        okColor: 'negative',
+        cancelLabel: 'Cancel',
+        method: 'delete',
+        actionUrl: route('backoffice.dealer-management.dealers.destroy', row.id)
+    })"
+>
+    <q-tooltip>Delete</q-tooltip>
+</q-btn>
+
+#### Child filters and sub dependencies
+
+Sometimes we have filters where it depends on a parent, or a parent with an additional child filter.
+
+As an example, for stock, we can have a model filter, and a make filter. The make is a child of the model filter.
+
+Or, in case of locations, we have a country which has many states, and states which has many cities, and cities which has many suburbs.
+
+In these cases when there is both a parent filter and a child filter which depends on the parent, then
+
+- the child filter must be disabled until a value of the parent filter is selected
+- only options in the child filter, which are relevant to the parent filter, should display
+
+##### Location Filter Dependency Contract (critical, must be exact)
+
+This section is non-negotiable for Country > State > City > Suburb filters (both system locations pages and dealer-related pages using these filters).
+
+The final behavior must work in both directions:
+
+- parent-to-child filtering
+- child-to-parent backfilling
+
+Apply these exact rules:
+
+- The canonical hierarchy is:
+- country -> state -> city -> suburb
+- Each level depends on the previous level.
+
+- If a parent changes, reset all descendants:
+- changing country must clear state, city, suburb
+- changing state must clear city, suburb
+- changing city must clear suburb
+- This reset must happen even if the child was selected first.
+
+- If a child is selected first, auto-populate all ancestors:
+- selecting state must auto-select its country
+- selecting city must auto-select its state and country
+- selecting suburb must auto-select its city, state, and country
+
+- Clearing a parent must clear all its descendants immediately:
+- clearing country clears state/city/suburb in the same interaction
+- clearing state clears city/suburb in the same interaction
+- do not require the user to clear a nearer child first
+
+- Child options must always stay constrained to current effective parent context:
+- if country is selected, state options must only be states in that country
+- city options must only be cities in currently allowed states
+- suburb options must only be suburbs in currently allowed cities
+- same principle applies recursively at all levels
+
+- Selected values must always render as labels, never raw IDs:
+- this includes first load
+- this includes refresh with query params
+- this includes values auto-set from child->parent syncing
+- if value exists in options, normalize selected model value to the exact option.value instance so q-select displays label, not ID text
+
+- Refresh persistence:
+- when filters are in URL query params and page reloads, the selected option labels must display correctly
+- never show UUID/numeric IDs in the visible select input
+
+- Query behavior:
+- filter query payload must use IDs/values
+- displayed q-select text must use labels from options
+- these are separate concerns and both must be correct
+
+- Reusability and minimal queries:
+- avoid endpoint-per-dropdown cascades where possible
+- prefer loading full option datasets once (countries/states/cities/suburbs) and compute dependent options client-side
+- use reusable helper functions/composables for:
+- normalizeValue
+- syncParentsFromState/City/Suburb
+- optionsForState/City/Suburb filtering
+- reset-descendants logic
+- do not duplicate similar dependency logic across pages without abstraction
+
+- Regression checks (must pass before done):
+- select country -> states filtered, city/suburb filtered accordingly
+- select state first -> country auto-selected with label, city/suburb scoped
+- select city first -> state+country auto-selected with labels, suburb scoped
+- select suburb first -> city+state+country auto-selected with labels
+- change top parent after child selections -> all descendants reset
+- clear top parent with lower filters set -> descendants clear immediately
+- refresh page with filters in URL -> all selected filters show labels, not IDs
+
+Important note:
+
+- The generic rule above ("disable child until parent selected") can apply to some other modules.
+- For location hierarchy filters, follow the contract above exactly, including child-first selection with automatic ancestor syncing.
+
+#### go to first page after a filter is applied
+
+Whenever one is applying filters, always go back to the first page of the results whenever a filter is applied
+
+### boolean fields
+
+Whenever a value coming from the database is a type of a boolean - use a quasar icon in the datatable to display a checkmark or the opposite for a negative
+
+## notes
+
+- Notes are implemented as a polymorphic, reusable feature that can be attached to any model.
+- Notes are not domain-specific (not tied only to dealers, branches, users, etc).
+- Notes must never have their own standalone pages.
+- Notes are always displayed in context, inside a maximised Quasar QDialog.
+- php files related to notes are app/Models/Note.php and app/Traits/HasNotes.php
+- The files for the notes components are in resources/backoffice/js/Components
+- Notes is implemented as a popup modal. Whenever we implement notes against an entity, make sure that the parent component and data is refreshed upon closing the notes modal
+
+### Filtering and Searching
+
+- Notes support filtering by:
+- text search
+- author guard (backoffice or dealer)
+- author id
+- backoffice_only flag
+- standard table filters (page, rowsPerPage, sorting)
+- Text search must always use filterSearch() and explicitly pass searchable fields.
+- Author filter dropdowns must be scoped:
+- dealer users only see users from their dealer
+- backoffice users only see users relevant to the current dealer context
+
+### UI and UX Rules
+
+- Notes are displayed inside a maximised QDialog.
+- Dialogs must be implemented as separate Vue components.
+- Notes must never be rendered directly on a page.
+
+- When the dialog is opened:
+-- all previous state must be cleared immediately
+-- no old notes may be shown while loading
+-- content is rendered only after the AJAX request completes
+
+- Create and edit actions open nested dialogs.
+- Delete actions must always require confirmation.
+
+### Vue Integration Rules
+
+- Notes dialog is opened from an actions column icon.
+- notable options are stored in config/notes.php
+- Required parameters:
+-- noteableType
+-- noteableId
+
+- Notes are loaded using Axios, not Inertia navigation.
+
+### Reusability Rules
+
+- Any model can support notes by:
+- using the HasNotes trait
+- being added to the notes.noteables config map
+
+- No controller changes should be required per model.
+- Dealer scoping rules must automatically apply where relevant.
+
+### Non-Negotiable Rules
+
+- No global notes index
+- No standalone notes pages
+- No implicit model resolution
+- No cross-dealer data access
+- No global user lists in filters
+- No UI state reuse between different noteables
+
+## vuejs page
+
+### page layout
+
+Unless it is a re-usable component, vuejs pages should always use the main layout file
+
+```
+defineOptions({ layout: Layout })
+```
+
+### input fields
+
+- Tabs, menus, input fields, buttons - you should always add the dense no-wrap unelevated parameters
+
+other stock examples for input fields
+
+<q-input class="q-my-sm" type="password" label="Label (password)" standout="bg-teal text-white" filled dense />
+<q-input class="q-my-sm" type="email" label="Label (email)" standout="bg-teal text-white" filled dense />
+<q-input class="q-my-sm" type="date" label="Label (date)" standout="bg-teal text-white" filled dense />
+<q-select class="q-my-sm" filled :options="[ { label: 'Tesla', value: 'car' }, { label: 'iPhone', value: 'phone' } ]" label="dropdown select" hint="hint" :error="true" error-message="error message" dense />
+<q-btn color="primary" label="Create Country" no-wrap unelevated />
+
+
+### form validation handling
+
+- all form fields where validation is applicable, should always give visual feedback about a specific error
+- inertiajs has built in support for validation errors
+
+#### for all input fields, the error property, supported by quasar, should always be used, as an example
+
+```
+:error="!!form.errors.email"
+:error-message="form.errors.email"
+```
+
+Full input field example:
+
+```
+<q-input
+    v-model="form.email"
+    type="email"
+    label="Email"
+    filled
+    dense
+    :error="!!form.errors.email"
+    :error-message="form.errors.email"
+    :input-attrs="{ autocomplete: 'off' }"
+/>
+```
+
+For backoffice forms, do not use `q-my-md` on input/select components unless explicitly requested. Keep spacing controlled by grid gutters. Use `q-pb-lg` for form section subtitles (eg. "Register User", "Edit User").
+
+### routing on buttons
+
+unless a button calls a specific action, such as save - keep the routing on the the button if it is just to redirect to a different page.
+
+As an example
+
+#### do not do:
+
+const cancel = () => {
+    router.visit(route('backoffice.system.user-management.users.index'))
+}
+
+<q-btn
+    color="grey-4"
+    text-color="standard"
+    label="Cancel"
+    no-wrap
+    unelevated
+    @click="cancel"
+/>
+
+#### instead, do
+
+@click="router.visit(route('backoffice.system.user-management.users.index'))"
+
+### create / edit
+
+- Cancel and Save buttons must always be at the bottom of the form, as seen in the example below
+- other buttons, such as to go back, should be in the upper right hand corner
+
+### vuejs create example
+
+```
+<script setup>
+import { Head, router, useForm } from '@inertiajs/vue3'
+import { computed, inject } from 'vue'
+import Layout from 'bo@/Layouts/Layout.vue'
+
+defineOptions({ layout: Layout })
+
+const route = inject('route')
+
+const props = defineProps({
+    publicTitle: { type: String, default: 'User Management' },
+    roles: { type: Array, default: () => [] } // ['admin','user',...]
+})
+
+const roleOptions = computed(() =>
+    (props.roles || []).map(r => ({ label: r, value: r }))
+)
+
+const form = useForm({
+    firstname: '',
+    lastname: '',
+    email: '',
+    role: null,
+    is_active: true,
+    password: ''
+})
+
+const submit = () => {
+    form.post(route('backoffice.system.user-management.users.store'), {
+        preserveScroll: true,
+        onFinish: () => form.reset('password'),
+    })
+}
+
+</script>
+
+<template>
+    <Head><title>{{ $page.props.appName }}</title></Head>
+
+    <div class="row nowrap justify-between items-center">
+        <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
+    </div>
+
+    <q-card flat bordered class="q-mt-md">
+        <q-card-section>
+            <div class="text-h6 q-pb-sm">Register User</div>
+
+            <q-form @submit.prevent="submit">
+                <q-input
+                    v-model="form.firstname"
+                    label="First name"
+                    filled
+                    dense
+                    :error="!!form.errors.firstname"
+                    :error-message="form.errors.firstname"
+                    autocomplete="off"
+                />
+
+                <q-input
+                    v-model="form.lastname"
+                    label="Last name"
+                    filled
+                    dense
+                    :error="!!form.errors.lastname"
+                    :error-message="form.errors.lastname"
+                    autocomplete="off"
+                />
+
+                <q-input
+                    v-model="form.email"
+                    type="email"
+                    label="Email"
+                    filled
+                    dense
+                    :error="!!form.errors.email"
+                    :error-message="form.errors.email"
+                    :input-attrs="{ autocomplete: 'off' }"
+                />
+
+                <q-select
+                    v-model="form.role"
+                    label="Role"
+                    :options="roleOptions"
+                    filled
+                    dense
+                    emit-value
+                    map-options
+                    :error="!!form.errors.role"
+                    :error-message="form.errors.role"
+                />
+
+                <q-select
+                    v-model="form.is_active"
+                    label="Status"
+                    :options="[
+                        { label: 'Active', value: true },
+                        { label: 'Inactive', value: false }
+                    ]"
+                    filled
+                    dense
+                    emit-value
+                    map-options
+                    :error="!!form.errors.is_active"
+                    :error-message="form.errors.is_active"
+                />
+
+                <q-input
+                    v-model="form.password"
+                    type="password"
+                    label="Password (optional)"
+                    filled
+                    dense
+                    :error="!!form.errors.password"
+                    :error-message="form.errors.password"
+                    :input-attrs="{ autocomplete: 'new-password' }"
+                />
+            </q-form>
+
+            <div class="row justify-end">
+                <div class="q-gutter-sm">
+                    <q-btn
+                        color="grey-4"
+                        text-color="standard"
+                        label="Cancel"
+                        no-wrap
+                        unelevated
+                        @click="router.visit(route('backoffice.system.user-management.users.index'))"
+                    />
+                    <q-btn
+                        color="primary"
+                        label="Save"
+                        no-wrap
+                        unelevated
+                        :loading="form.processing"
+                        :disable="form.processing"
+                        @click="submit"
+                    />
+                </div>
+            </div>
+        </q-card-section>
+    </q-card>
+</template>
+```

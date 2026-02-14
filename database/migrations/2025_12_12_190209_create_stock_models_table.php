@@ -13,8 +13,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('stock_models', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('make_id')->constrained('stock_makes')->restrictOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('make_id')->constrained('stock_makes')->restrictOnDelete();
             $table->string('name');
             $table->string('slug')->unique()->index();
             $table->timestamps();

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Messaging\WhatsappTemplate;
+use App\Models\Dealer\Dealer;
 use App\Models\System\Configuration\WhatsappProvider;
 use Illuminate\Database\Seeder;
 
@@ -10,7 +11,10 @@ class WhatsappTemplatesSeeder extends Seeder
 {
     public function run(): void
     {
-        $dealerId = 1; // <-- set the dealer id you want here
+        $dealerId = Dealer::query()->value('id');
+        if (!$dealerId) {
+            return;
+        }
 
         $provider = WhatsappProvider::query()
             ->select(['id', 'identifier'])
@@ -52,8 +56,8 @@ class WhatsappTemplatesSeeder extends Seeder
 
         foreach ($templates as $t) {
             WhatsappTemplate::query()->create([
-                'dealer_id'            => (int) $dealerId,
-                'provider_id'          => (int) $provider->getKey(),
+                'dealer_id'            => (string) $dealerId,
+                'provider_id'          => (string) $provider->getKey(),
                 'provider_template_id' => null, // set later when you sync from provider
                 'name'                 => $t['name'],
                 'language'             => $t['language'],

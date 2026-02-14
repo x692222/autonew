@@ -2,6 +2,8 @@
 
 namespace App\Models\Dealer;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Ai\AiConversation;
 use App\Models\Leads\Lead;
 use App\Models\Leads\LeadConversation;
@@ -25,6 +27,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Dealer extends Model
 {
+    use HasUuidPrimaryKey;
+
     use SoftDeletes;
     use SluggableTrait;
     use HasActivityTrait;

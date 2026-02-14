@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('dealer_branches', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('dealer_id')->constrained('dealers')->restrictOnDelete();
-            $table->foreignId('suburb_id')->constrained('location_suburbs');
+            $table->uuid('id')->primary();
+            $table->foreignUuid('dealer_id')->constrained('dealers')->restrictOnDelete();
+            $table->foreignUuid('suburb_id')->constrained('location_suburbs');
             $table->string('name');
             $table->string('slug')->unique();
             $table->string('contact_numbers');

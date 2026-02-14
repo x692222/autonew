@@ -2,10 +2,12 @@
 
 namespace App\Models\Dealer;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Leads\Lead;
 use App\Models\Order;
 use App\ModelScopes\FilterSearchScope;
-use App\Notifications\BackofficeResetPasswordNotification;
+use App\Notifications\Auth\DealerResetPasswordNotification;
 use App\Traits\HasActivityTrait;
 use App\Traits\HasNotes;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,6 +22,8 @@ use Spatie\Permission\Traits\HasPermissions;
 
 class DealerUser extends Authenticatable
 {
+    use HasUuidPrimaryKey;
+
 
     use Notifiable;
     use SoftDeletes;
@@ -110,8 +114,8 @@ class DealerUser extends Authenticatable
 
     // other
 
-    // public function sendPasswordResetNotification($token)
-    // {
-    //     $this->notify(new BackofficeResetPasswordNotification($token));
-    // }
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new DealerResetPasswordNotification($token));
+    }
 }

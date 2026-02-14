@@ -2,11 +2,15 @@
 
 namespace App\Models\Stock;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class StockFeatureTag extends Model
 {
+    use HasUuidPrimaryKey;
+
 
     protected $table = 'stock_feature_tags';
 

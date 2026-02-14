@@ -2,6 +2,8 @@
 
 namespace App\Models\Leads;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerUser;
 use App\Models\System\User;
@@ -12,6 +14,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LeadGoal extends Model
 {
+    use HasUuidPrimaryKey;
+
     use SoftDeletes;
 
     protected $table = 'lead_goals';

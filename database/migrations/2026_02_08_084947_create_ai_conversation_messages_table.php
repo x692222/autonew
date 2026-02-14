@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('ai_conversation_messages', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
-            $table->foreignId('conversation_id')
+            $table->foreignUuid('conversation_id')
                 ->constrained('ai_conversations')
                 ->cascadeOnDelete();
 

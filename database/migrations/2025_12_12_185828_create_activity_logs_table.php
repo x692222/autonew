@@ -8,18 +8,18 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('activity_logs', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
             // Polymorphic target being acted on
-            $table->morphs('loggable'); // loggable_type, loggable_id (indexed)
+            $table->uuidMorphs('loggable'); // loggable_type, loggable_id (indexed)
 
             // Who caused it (optional)
-            $table->foreignId('user_id')
+            $table->foreignUuid('user_id')
                 ->nullable()
                 ->constrained('users')
                 ->nullOnDelete();
 
-            $table->foreignId('dealer_user_id')
+            $table->foreignUuid('dealer_user_id')
                 ->nullable()
                 ->constrained('dealer_users')
                 ->nullOnDelete();

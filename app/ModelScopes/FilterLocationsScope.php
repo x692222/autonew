@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 trait FilterLocationsScope
 {
 
-    public function scopeFilterLocations(Builder $query, ?int $countryId, ?int $stateId, ?int $cityId, ?int $suburbId): Builder
+    public function scopeFilterLocations(Builder $query, ?string $countryId, ?string $stateId, ?string $cityId, ?string $suburbId): Builder
     {
         return $query
             ->when($suburbId, fn (Builder $q) => $q->where('suburb_id', $suburbId))

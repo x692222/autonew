@@ -2,6 +2,8 @@
 
 namespace App\Models\Leads;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class LeadConversationSummary extends Model
 {
+    use HasUuidPrimaryKey;
+
     protected $table = 'lead_conversation_summaries';
 
     protected $fillable = [

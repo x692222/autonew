@@ -2,6 +2,8 @@
 
 namespace App\Models\Leads;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerUser;
 use App\ModelScopes\FilterSearchScope;
@@ -11,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 class LeadStageEvent extends Model
 {
+    use HasUuidPrimaryKey;
+
 
     use FilterSearchScope;
 

@@ -2,6 +2,8 @@
 
 namespace App\Models\Dealer;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use App\Models\Stock\Stock;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +17,8 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class DealerUserBucket extends Model implements HasMedia
 {
+    use HasUuidPrimaryKey;
+
     use InteractsWithMedia;
     use SoftDeletes;
 

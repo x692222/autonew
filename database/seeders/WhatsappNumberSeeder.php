@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Dealer\Dealer;
 use App\Models\System\Configuration\WhatsappProvider;
 use App\Models\WhatsappNumber;
 use Illuminate\Database\Seeder;
@@ -23,7 +24,7 @@ class WhatsappNumberSeeder extends Seeder
 
         WhatsappNumber::query()->create([
             'type' => WhatsappNumber::TYPE_SYSTEM,
-            'provider_id' => $twilio->id,
+            'provider_id' => (string) $twilio->id,
             'dealer_id' => null,
             'msisdn' => $msisdn,
             'configuration' => [
@@ -36,8 +37,8 @@ class WhatsappNumberSeeder extends Seeder
 
         WhatsappNumber::query()->create([
             'type' => WhatsappNumber::TYPE_DEALER,
-            'provider_id' => $twilio->id,
-            'dealer_id' => 1,
+            'provider_id' => (string) $twilio->id,
+            'dealer_id' => ($dealerId = Dealer::query()->value('id')) ? (string) $dealerId : null,
             'msisdn' => $msisdn,
             'configuration' => [
                 'accountSid' => 'AC' . Str::random(32),

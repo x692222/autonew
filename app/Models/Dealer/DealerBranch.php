@@ -2,6 +2,8 @@
 
 namespace App\Models\Dealer;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Leads\Lead;
 use App\Models\Location\LocationSuburb;
 use App\Models\Stock\Stock;
@@ -18,6 +20,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DealerBranch extends Model
 {
+    use HasUuidPrimaryKey;
+
 
     use SoftDeletes;
     use SluggableTrait;

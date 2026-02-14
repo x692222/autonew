@@ -2,6 +2,8 @@
 
 namespace App\Models\Messaging;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use App\Models\System\Configuration\WhatsappProvider;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +11,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class WhatsappTemplate extends Model
 {
+    use HasUuidPrimaryKey;
+
     use SoftDeletes;
 
     const STATUS_PENDING = 'pending';

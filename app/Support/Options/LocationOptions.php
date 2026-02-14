@@ -13,7 +13,7 @@ use App\Models\Location\LocationSuburb;
 
 final class LocationOptions extends AbstractOptions
 {
-    public static function cities(?int $stateId, iterable|null $whereIn, bool $withAll = false): CityCollection
+    public static function cities(?string $stateId, iterable|null $whereIn, bool $withAll = false): CityCollection
     {
         $key = iterableToCacheString($whereIn);
         $items = cache()->rememberForever("locations:cities:{$stateId}:{$key}:{$withAll}:v1", function() use ($stateId, $whereIn) {
@@ -39,7 +39,7 @@ final class LocationOptions extends AbstractOptions
         return new CityCollection($options);
     }
 
-    public static function countries(?int $countryId, iterable|null $whereIn, bool $withAll = false): CountryCollection
+    public static function countries(?string $countryId, iterable|null $whereIn, bool $withAll = false): CountryCollection
     {
         $key = iterableToCacheString($whereIn);
         $items = cache()->rememberForever("locations:countries:{$countryId}:{$key}{$withAll}:v1", function() use ($countryId, $whereIn) {
@@ -64,7 +64,7 @@ final class LocationOptions extends AbstractOptions
         return new CountryCollection($options);
     }
 
-    public static function states(?int $countryId, iterable|null $whereIn, bool $withAll = false): StateCollection
+    public static function states(?string $countryId, iterable|null $whereIn, bool $withAll = false): StateCollection
     {
         $key = iterableToCacheString($whereIn);
         $items = cache()->rememberForever("locations:states:{$countryId}:{$key}:{$withAll}:v1", function() use ($countryId, $whereIn) {
@@ -90,7 +90,7 @@ final class LocationOptions extends AbstractOptions
         return new StateCollection($options);
     }
 
-    public static function suburbs(?int $cityId, iterable|null $whereIn, bool $withAll = false): SuburbCollection
+    public static function suburbs(?string $cityId, iterable|null $whereIn, bool $withAll = false): SuburbCollection
     {
         $key = iterableToCacheString($whereIn);
         $items = cache()->rememberForever("locations:suburbs:{$cityId}:{$key}:{$withAll}:v1", function() use ($cityId, $whereIn) {

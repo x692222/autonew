@@ -13,10 +13,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('whatsapp_numbers', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->enum('type', WhatsappNumber::TYPE_OPTIONS)->index()->default(WhatsappNumber::TYPE_UNASSIGNED);
-            $table->foreignId('provider_id')->constrained('system_whatsapp_providers')->restrictOnDelete();
-            $table->foreignId('dealer_id')->nullable()->constrained('dealers')->restrictOnDelete();
+            $table->foreignUuid('provider_id')->constrained('system_whatsapp_providers')->restrictOnDelete();
+            $table->foreignUuid('dealer_id')->nullable()->constrained('dealers')->restrictOnDelete();
             $table->string('msisdn')->index()->unique();
             $table->json('configuration');
             $table->softDeletes();

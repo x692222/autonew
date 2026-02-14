@@ -2,6 +2,8 @@
 
 namespace App\Models\Leads\Channels;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerUser;
 use App\Models\Leads\LeadMessage;
@@ -13,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class WhatsappMessage extends Model
 {
+    use HasUuidPrimaryKey;
+
     protected $table = 'whatsapp_messages';
 
     protected $guarded = [];

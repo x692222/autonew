@@ -1,11 +1,11 @@
 <?php
 
+use App\Models\System\Role;
 use App\Models\System\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
 
 return new class extends Migration
 {
@@ -71,4 +71,3 @@ return new class extends Migration
         });
     }
 };
-

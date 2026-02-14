@@ -10,10 +10,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('stock_view_summary', function (Blueprint $table) {
-            $table->bigIncrements('id');
+            $table->uuid('id')->primary();
 
-            $table->unsignedBigInteger('dealer_id');
-            $table->unsignedBigInteger('stock_id');
+            $table->uuid('dealer_id');
+            $table->uuid('stock_id');
 
             $table->enum('type', [StockView::VIEW_TYPE_IMPRESSION, StockView::VIEW_TYPE_DETAIL])->index();
             $table->string('country', 255)->index();

@@ -1,17 +1,77 @@
 <script setup>
-import {ref, watch, computed, onMounted, onUnmounted} from "vue";
-import { Link, router, usePage } from '@inertiajs/vue3'
+import { computed, ref, watch } from 'vue'
+import { router, usePage } from '@inertiajs/vue3'
 import { useQuasar } from 'quasar'
 
-// props
-const props = defineProps({
-  flash: {
-    default: {}
-  },
-});
+defineProps({
+    flash: {
+        default: {}
+    },
+})
 
 const $q = useQuasar()
 const page = usePage()
+
+const impersonationDialog = ref(false)
+const impersonationEmail = ref('')
+
+const abilities = computed(() => page.props.auth?.user?.abilities || {})
+const impersonation = computed(() => page.props.impersonation || {})
+const authGuard = computed(() => page.props.auth?.guard ?? '')
+const authUser = computed(() => page.props.auth?.user ?? null)
+
+const canViewUsersManagement = computed(() => !!abilities.value.indexSystemUsers)
+const canViewLocationsManagement = computed(() => !!abilities.value.indexSystemLocations)
+const canViewDealershipManagement = computed(() => !!abilities.value.showDealerships)
+const canImpersonateUser = computed(() => !!abilities.value.impersonateDealershipUser)
+const canViewDealerConfiguration = computed(() => authGuard.value === 'dealer' && (
+    !!abilities.value.editDealership ||
+    !!abilities.value.indexDealershipBranches ||
+    !!abilities.value.indexDealershipSalesPeople ||
+    !!abilities.value.indexDealershipUsers
+))
+
+const isImpersonating = computed(() => !!impersonation.value.active)
+const isBackofficeGuard = computed(() => authGuard.value === 'backoffice')
+const showStartImpersonation = computed(() => isBackofficeGuard.value && !isImpersonating.value && canImpersonateUser.value)
+const showStopImpersonation = computed(() => isImpersonating.value)
+const signedInName = computed(() => {
+    const first = authUser.value?.firstname ?? ''
+    const last = authUser.value?.lastname ?? ''
+    return `${first} ${last}`.trim() || 'User'
+})
+
+const openImpersonationDialog = () => {
+    impersonationEmail.value = impersonation.value.default_email ?? ''
+    impersonationDialog.value = true
+}
+
+const startImpersonation = () => {
+    if (!impersonationEmail.value) {
+        $q.notify({
+            type: 'negative',
+            message: 'Please enter a dealer user email.',
+            position: 'top-right',
+            timeout: 3500
+        })
+        return
+    }
+
+    router.post(
+        route('backoffice.auth.impersonations.start'),
+        { email: impersonationEmail.value },
+        {
+            preserveScroll: true,
+            onSuccess: () => {
+                impersonationDialog.value = false
+            },
+        }
+    )
+}
+
+const stopImpersonation = () => {
+    router.post(route('backoffice.auth.impersonations.stop'), {}, { preserveScroll: true })
+}
 
 watch(
     () => page.props.flash,
@@ -38,24 +98,6 @@ watch(
     },
     { deep: true, immediate: true }
 )
-
-// watch(() => props.flash, (val, oldVal) => {
-//   if(((typeof val.success !== 'undefined') && (val.success !== null)) || ((typeof val.error !== 'undefined') && (val.error !== null))) {
-//     if(typeof val !== 'undefined' && val !== null && val !== null) {
-//       Swal.fire({
-//         position: "top-end",
-//         // icon: val.success !== null ? "success":"error",
-//         // title: val.success !== null ? val.success:val.error,
-//         text: val.success !== null ? val.success:val.error,
-//         showConfirmButton: false,
-//         timer: 2500,
-//         timerProgressBar: true,
-//       });
-//     }
-//   }
-// }, { deep: true });
-
-
 </script>
 <template>
     <q-layout view="hHh lpR fFf" class="bg-grey-3">
@@ -88,7 +130,7 @@ watch(
                                 <q-list dense>
                                     <q-item class="GL__menu-link-signed-in">
                                         <q-item-section>
-                                            <div>Signed in as <strong>Mary</strong></div>
+                                            <div>Signed in as <strong>{{ signedInName }}</strong></div>
                                         </q-item-section>
                                     </q-item>
                                     <q-separator />
@@ -123,8 +165,24 @@ watch(
                                     <q-item clickable class="GL__menu-link">
                                         <q-item-section>Settings</q-item-section>
                                     </q-item>
-                                    <q-item clickable class="GL__menu-link">
-                                        <q-item-section @click="router.visit(route('backoffice.dashboard'))">Sign out</q-item-section>
+                                    <q-item clickable class="GL__menu-link" @click="router.visit(route('backoffice.logout'))">
+                                        <q-item-section>Sign out</q-item-section>
+                                    </q-item>
+                                    <q-item
+                                        v-if="showStartImpersonation"
+                                        clickable
+                                        class="GL__menu-link"
+                                        @click="openImpersonationDialog"
+                                    >
+                                        <q-item-section>Impersonate User</q-item-section>
+                                    </q-item>
+                                    <q-item
+                                        v-if="showStopImpersonation"
+                                        clickable
+                                        class="GL__menu-link"
+                                        @click="stopImpersonation"
+                                    >
+                                        <q-item-section>Stop Impersonation</q-item-section>
                                     </q-item>
                                 </q-list>
                             </q-menu>
@@ -136,25 +194,47 @@ watch(
 
 
             <q-tabs align="left" class="bg-grey-1 text-grey-9">
-                <q-route-tab label="Dashboard" alert @click="router.visit(route('backoffice.dashboard'))" />
+                <q-route-tab label="Dashboard" alert @click="router.visit(route('backoffice.index'))" />
 
-                <q-route-tab label="Dealership" @click="router.visit(route('backoffice.dashboard'))" />
-                <q-route-tab label="Stock" @click="router.visit(route('backoffice.dashboard'))" />
-                <q-route-tab label="Leads" @click="router.visit(route('backoffice.dashboard'))" />
+                <q-route-tab
+                    v-if="canViewDealershipManagement"
+                    label="Dealership"
+                    @click="router.visit(route('backoffice.dealer-management.dealers.index'))"
+                />
+                <q-route-tab v-if="canViewDealerConfiguration" label="Configuration">
+                    <q-menu>
+                        <q-list dense style="min-width: 220px">
+                            <q-item v-if="abilities.editDealership" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.edit-dealership.show'))">
+                                <q-item-section>Edit Dealership</q-item-section>
+                            </q-item>
+                            <q-item v-if="abilities.indexDealershipBranches" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.branches.index'))">
+                                <q-item-section>Branches</q-item-section>
+                            </q-item>
+                            <q-item v-if="abilities.indexDealershipSalesPeople" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.sales-people.index'))">
+                                <q-item-section>Sales People</q-item-section>
+                            </q-item>
+                            <q-item v-if="abilities.indexDealershipUsers" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.users.index'))">
+                                <q-item-section>Platform Users</q-item-section>
+                            </q-item>
+                        </q-list>
+                    </q-menu>
+                </q-route-tab>
+                <q-route-tab label="Stock" @click="router.visit(route('backoffice.index'))" />
+                <q-route-tab label="Leads" @click="router.visit(route('backoffice.index'))" />
                 <q-route-tab label="Analytics">
                     <q-menu>
                         <q-list style="min-width: 100px">
                             <q-item clickable v-close-popup>
-                                <q-item-section @click="router.visit(route('backoffice.dashboard'))">Dealers</q-item-section>
+                                <q-item-section @click="router.visit(route('backoffice.index'))">Dealers</q-item-section>
                             </q-item>
                             <q-item clickable v-close-popup>
-                                <q-item-section @click="router.visit(route('backoffice.dashboard'))">Branches</q-item-section>
+                                <q-item-section @click="router.visit(route('backoffice.index'))">Branches</q-item-section>
                             </q-item>
                             <q-item clickable v-close-popup>
-                                <q-item-section @click="router.visit(route('backoffice.dashboard'))">Users</q-item-section>
+                                <q-item-section @click="router.visit(route('backoffice.index'))">Users</q-item-section>
                             </q-item>
                             <q-item clickable v-close-popup>
-                                <q-item-section @click="router.visit(route('backoffice.dashboard'))">Sale People</q-item-section>
+                                <q-item-section @click="router.visit(route('backoffice.index'))">Sale People</q-item-section>
                             </q-item>
                         </q-list>
                     </q-menu>
@@ -163,8 +243,13 @@ watch(
                 <q-route-tab label="System">
                     <q-menu>
                         <q-list dense style="min-width: 100px">
-                            <q-item clickable v-close-popup>
-                                <q-item-section @click="router.visit(route('backoffice.dashboard'))">User Management</q-item-section>
+                            <q-item
+                                v-if="canViewUsersManagement"
+                                clickable
+                                v-close-popup
+                                @click="router.visit(route('backoffice.system.user-management.users.index'))"
+                            >
+                                <q-item-section>User Management</q-item-section>
                             </q-item>
                             <q-item clickable v-close-popup>
                                 <q-item-section>New</q-item-section>
@@ -179,7 +264,8 @@ watch(
                                 <q-menu auto-close anchor="top end" self="top start">
                                     <q-list>
                                         <q-item
-                                            @click="router.visit(route('backoffice.dashboard'))"
+                                            v-if="canViewLocationsManagement"
+                                            @click="router.visit(route('backoffice.system.locations-management.index'))"
                                             dense
                                             clickable
                                         >
@@ -211,11 +297,46 @@ watch(
 
         </q-header>
 
+        <q-banner
+            v-if="isImpersonating"
+            inline-actions
+            class="bg-orange-2 text-orange-10"
+        >
+            Impersonation active: {{ impersonation.dealer_user_email || 'Dealer user' }}
+            <template #action>
+                <q-btn flat color="negative" label="Stop" @click="stopImpersonation" />
+            </template>
+        </q-banner>
+
         <q-page-container>
             <q-page class="q-pa-xl">
                 <slot/>
             </q-page>
         </q-page-container>
+
+        <q-dialog v-model="impersonationDialog" persistent>
+            <q-card style="min-width: 480px; max-width: 90vw;">
+                <q-card-section>
+                    <div class="text-h6">Impersonate Dealer User</div>
+                </q-card-section>
+
+                <q-card-section>
+                    <q-input
+                        v-model="impersonationEmail"
+                        label="Dealer user email"
+                        type="email"
+                        dense
+                        outlined
+                        autocomplete="off"
+                    />
+                </q-card-section>
+
+                <q-card-actions align="right">
+                    <q-btn flat label="Cancel" @click="impersonationDialog = false" />
+                    <q-btn color="primary" label="Start Impersonation" @click="startImpersonation" />
+                </q-card-actions>
+            </q-card>
+        </q-dialog>
 
         <q-footer elevated class="bg-grey-8 text-white">
             <q-toolbar>

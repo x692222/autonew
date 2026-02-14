@@ -1,0 +1,75 @@
+now look at the other relevant files in context/tasks/legacyFiles . the task is to implement create and edit of a dealer. this will basically just be a dealer name, remove the toggle to
+  set a dealer active or inactive from the create or edit and remember to link up the button. remember to update yourself and adhere to the riles in context/project_information.txt
+
+# preferred directory structure
+
+Backoffice/DealerManagement
+
+# route notes
+
+This is an authenticated interface and must live inside the "auth:backoffice" middleware already applied in the backoffice.php routes file
+
+# Who can access
+
+While this includes creating branches and salespersons and all, the validation will only be on createDealership for create and editDealership for edit.
+
+As said, edit will just be editing the actual dealer field but create is where you have the ability to create more options.
+
+## dealer guard: no
+## backoffice guard:
+
+If the following keys are set:
+
+- createDealerships: for create() and store() function
+- editDealerships: for edit() and update() function
+
+### controller
+
+Preferred controller name: DealersController (already have this)
+
+## validation notes
+
+Ensure that the actions in the datatable shows and allows actions only based on the permission keys outlined and that actions in the datatable show only if allowed
+
+# what is needed
+
+The following is NOT limited to what needs to be done, but serves as a minimum guideline:
+
+- Controller
+- Gate / security implementation as explained in context/project_information.txt
+- vuejs files
+
+# context - important
+
+you will now implement the create and edit function of a dealer. editing a dealer is just editing the dealer fields.
+
+do NOT add the toggle in create or edit to set a dealer active or inactive.
+
+however with create you will give the create fields together of other relationships below.
+
+make sure that each of these relationships is in a separate create action for the entity because it will be re-used. also we will now be doing multiple entries but later we will do one entity at a time, for example, creating one branch, so make sure it accommodates for that.
+
+so in the create form, for each of these entities, give me somehow a plus button or something to add more.
+
+for example, branches, you will have 1 default form for a branch, but i want to instantly add more branches and this should all happen on the vuejs side and not server side. however when submitting, ensure that all the fields are validated correctly.
+
+i dont know if you also want to somehow have the validation of the sub entites / relations individually because we will have the same validation later.
+
+in any of these relationships / multiple entities to be created, if there is anything is_active do not include it in the form, neither vuejs side nor serve  side validation or create.
+
+branches - i want to be able to add multiple branches. very very important is that all the rules about parent and sub locations, yand not displaying the numerical value when selected - wherever locations apply, such as branches, make sure that all of those rules apply.
+users - this is dealer user. also in the action for every dealeruser (guard dealer) created send an email notification saying that they are signed up and a link to set apassowrd. setting a password must be implemented check the routes if if it is not, then invoke a password reset after setting the password
+
+then there is a sales people relation on brnaches, allow for multiple sales people to be created. important, since branches would not have been created int eh database as yet, somehow allow the user to link or select to which branch the sales person belongs to. it must be very sleek and easy to use and work well, then when creating make sure that sales person is linked to the branch
+
+if there are any validation errors make sure not to loose dat and make sure not to display numerical ides for dropdown options selected.
+
+also look for whatsupp numbers in the whatsappNumbers relation and let ONE be chosen
+
+make sure the code works well
+
+remember to utilize the power of quasar
+
+# legacy files
+
+see all the legacy files inside context/tasks/legacyFiles

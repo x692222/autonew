@@ -34,7 +34,7 @@ final class DealerOptions extends AbstractOptions
         return new GeneralCollection($options);
     }
 
-    public static function branchesList(?int $dealerId, bool $withAll = false): DealerIdCollection
+    public static function branchesList(?string $dealerId, bool $withAll = false): DealerIdCollection
     {
         $items = DealerBranch::query()
             ->when($dealerId, function($q) use ($dealerId) {
@@ -59,7 +59,7 @@ final class DealerOptions extends AbstractOptions
         return new DealerIdCollection($options);
     }
 
-    public static function usersList(?int $dealerId, bool $withAll = false): DealerIdCollection
+    public static function usersList(?string $dealerId, bool $withAll = false): DealerIdCollection
     {
         $items = DealerUser::query()
             ->when($dealerId, function($q) use ($dealerId) {
@@ -84,7 +84,7 @@ final class DealerOptions extends AbstractOptions
         return new DealerIdCollection($options);
     }
 
-    public static function pipelinesList(?int $dealerId, bool $withAll = false): DealerIdCollection
+    public static function pipelinesList(?string $dealerId, bool $withAll = false): DealerIdCollection
     {
         $items = LeadPipeline::query()
             ->when($dealerId, function($q) use ($dealerId) {
@@ -109,7 +109,7 @@ final class DealerOptions extends AbstractOptions
         return new DealerIdCollection($options);
     }
 
-    public static function stagesList(?int $dealerId, ?int $pipelineId, bool $withAll = false): DealerPipelineIdCollection
+    public static function stagesList(?string $dealerId, ?string $pipelineId, bool $withAll = false): DealerPipelineIdCollection
     {
         $items = LeadStage::query()
             ->when($dealerId, function ($q) use ($dealerId) {
@@ -125,10 +125,10 @@ final class DealerOptions extends AbstractOptions
             ->get()
             ->map(function (LeadStage $s) {
                 return [
-                    'value'       => (int) $s->getKey(),
+                    'value'       => (string) $s->getKey(),
                     'label'       => (string) $s->name,
-                    'pipeline_id' => (int) $s->pipeline_id,
-                    'dealer_id'   => (int) $s->pipeline?->dealer_id, // will be null unless you eager load
+                    'pipeline_id' => (string) $s->pipeline_id,
+                    'dealer_id'   => $s->pipeline?->dealer_id, // will be null unless you eager load
                 ];
             })
             ->all();

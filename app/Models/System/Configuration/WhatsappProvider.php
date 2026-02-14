@@ -2,6 +2,8 @@
 
 namespace App\Models\System\Configuration;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Messaging\WhatsappTemplate;
 use App\Models\WhatsappNumber;
 use App\Traits\HasActivityTrait;
@@ -10,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class WhatsappProvider extends Model
 {
+    use HasUuidPrimaryKey;
+
     use HasActivityTrait;
 
     protected $table = 'system_whatsapp_providers';

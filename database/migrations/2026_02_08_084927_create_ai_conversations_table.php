@@ -9,15 +9,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('ai_conversations', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
-            $table->foreignId('dealer_id')
+            $table->foreignUuid('dealer_id')
                 ->constrained('dealers')
                 ->cascadeOnDelete();
 
             // Conversation can belong to anything (Lead, WhatsappThread, etc) or be null for one-off jobs.
             $table->string('owner_type')->nullable();
-            $table->unsignedBigInteger('owner_id')->nullable();
+            $table->uuid('owner_id')->nullable();
 
             // Optional: what this conversation is used for ("whatsapp", "one_off", "lead_enrichment", etc.)
             $table->string('purpose')->nullable();

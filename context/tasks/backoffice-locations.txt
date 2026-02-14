@@ -1,0 +1,69 @@
+This is your new task
+
+# Overview
+
+# preferred directory structure
+
+Backoffice/System/Locations
+
+# route notes
+
+This is an authenticated interface and must live inside the "auth:backoffice" middleware already applied in the backoffice.php routes file
+
+# Who can access
+
+## dealer guard: no
+## backoffice guard:
+
+If the following keys are set:
+
+- indexLocations: for index() function
+- createLocations: for create() and store() function
+- editLocations: for edit() and update() function
+- deleteLocations: for destroy() function
+
+### controller
+
+Preferred controller name: LocationsManagementController
+
+# vuejs abilities list
+
+Inside app/Http/Middleware/HandleInertiaRequests.php we set the "abilities" key inside auth => user - use this abilities to conditionally show the following link:
+
+## vuejs navigation resources/backoffice/js/Layouts/Layout.vue
+
+There is already a System => System Configuration => Location Management menu item.
+
+If the user has the ability on the permissions key "indexLocations" then show this link otherwise not.
+
+## validation notes
+
+Ensure that the actions in the datatable shows and allows actions only based on the permission keys outlined and that actions in the datatable show only if allowed
+
+# what is needed
+
+The following is NOT limited to what needs to be done, but serves as a minimum guideline:
+
+- Controller
+- Gate / security implementation as explained in context/project_information.txt
+- vuejs files
+
+# context
+
+I need a full implementation and working an interface where i can manage locations.
+
+You can use quasar tabs - make sure you doa  new and solid job.
+
+I am adding the legacy files below BUT THIS IS A GUIDELINE only and to show you the intend.
+
+As explained in the project instructions, a suburb belongs to a city belongs to a state belongs to a country.
+
+There are filters in the index page, review all the instructions ive said about filters, about sub dependency filtering, not to show numerical values on edit etc.
+
+Allow create, edit and delete IF the user's permissions allows for it and make sure you take the project notes into account also about resources etc etc.
+
+DOnt bloat the controllers and abstract / keep clean waht you can and IFFFFF there are, see if you can re-use anything in app/Support/Options
+
+# legacy files
+
+see all the legacy files inside context/tasks/LocationLegacyFiles

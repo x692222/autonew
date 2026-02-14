@@ -2,6 +2,8 @@
 
 namespace App\Models\Location;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\ModelScopes\FilterSearchScope;
 use App\Traits\HasActivityTrait;
 use App\Traits\SluggableTrait;
@@ -12,6 +14,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LocationCity extends Model
 {
+    use HasUuidPrimaryKey;
+
 
     use SoftDeletes;
     use SluggableTrait;

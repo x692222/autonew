@@ -25,6 +25,7 @@ class DeferredUsersCount
                 ->get()
                 ->keyBy('dealer_id')
                 ->map(fn ($r) => [
+                    'users_count' => (int) $r->active_users_count,
                     'active_users_count' => (int)$r->active_users_count,
                     'inactive_users_count' => (int)$r->inactive_users_count,
                 ])

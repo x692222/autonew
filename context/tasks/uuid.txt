@@ -1,0 +1,18 @@
+Task:
+
+Currently the system is using id's as the primary id. I want to change this to using a uuid so that numerical id's are never being used.
+
+Go through the migrations in database/migrations and update all the migrations to use a uuid as the primary key
+
+Then go through all the files in the app directory and make sure that it uses and references the uuid instead of id.
+
+This is where you will also update all the models that they use a uuid and not numerical id.
+
+Pay close attention to the keys specified in all relations, and make sure to update those as well.
+
+Then, make sure to update the relevant updates for the spatie roles and permissions files and possible db tables to use a uuid is primary key
+
+I will do a php artisan migrate:fresh so update migrations and spatie migrations / information / config where needed and dont create new migrations.
+
+Then also update all seeders in database/seeders to use the uuid
+

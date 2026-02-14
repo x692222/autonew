@@ -2,6 +2,8 @@
 
 namespace App\Models\Leads;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use App\ModelScopes\FilterSearchScope;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +13,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class LeadPipeline extends Model
 {
+    use HasUuidPrimaryKey;
+
     use SoftDeletes;
     use FilterSearchScope;
 

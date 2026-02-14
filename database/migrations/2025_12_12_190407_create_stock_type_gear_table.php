@@ -13,8 +13,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('stock_type_gear', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('stock_id')->constrained('stock')->restrictOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('stock_id')->constrained('stock')->restrictOnDelete();
             $table->enum('condition', StockTypeGear::CONDITION_OPTIONS)->index();
             $table->timestamps();
             $table->softDeletes();

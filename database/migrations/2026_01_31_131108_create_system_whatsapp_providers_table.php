@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('system_whatsapp_providers', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
             $table->string('identifier')->unique()->index();
             $table->json('config_fields');
             $table->timestamps();

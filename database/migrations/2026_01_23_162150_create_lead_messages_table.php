@@ -8,15 +8,15 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('lead_messages', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
             $table->boolean('is_read')->default(false);
 
             // Billing / scoping (must exist even when unassigned)
-            $table->foreignId('dealer_id')->constrained('dealers')->restrictOnDelete();
-            $table->foreignId('conversation_id')->constrained('lead_conversations')->restrictOnDelete();
-            $table->foreignId('created_by_dealer_user_id')->nullable()->constrained('dealer_users')->restrictOnDelete();
-            $table->foreignId('system_user_id')->nullable()->constrained('users')->restrictOnDelete();
+            $table->foreignUuid('dealer_id')->constrained('dealers')->restrictOnDelete();
+            $table->foreignUuid('conversation_id')->constrained('lead_conversations')->restrictOnDelete();
+            $table->foreignUuid('created_by_dealer_user_id')->nullable()->constrained('dealer_users')->restrictOnDelete();
+            $table->foreignUuid('system_user_id')->nullable()->constrained('users')->restrictOnDelete();
 
             $table->string('channel'); // whatsapp/email/etc
             $table->enum('direction', ['inbound', 'outbound'])->default('inbound');
@@ -34,7 +34,7 @@ return new class extends Migration {
             $table->string('error_message')->nullable();
 
             // Polymorphic 1:1 message payload (WhatsappMessage / EmailMessage)
-            $table->nullableMorphs('messageable'); // messageable_type, messageable_id
+            $table->nullableUuidMorphs('messageable'); // messageable_type, messageable_id
 
             $table->timestamps();
             $table->softDeletes();

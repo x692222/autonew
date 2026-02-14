@@ -2,6 +2,8 @@
 
 namespace App\Models\Stock;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerBranch;
 use App\Models\Leads\Lead;
@@ -26,6 +28,8 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Stock extends Model implements HasMedia
 {
+    use HasUuidPrimaryKey;
+
     use InteractsWithMedia;
     use SoftDeletes;
     use HasActivityTrait;

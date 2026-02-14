@@ -12,8 +12,8 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('stock_views', function(Blueprint $table) {
-            $table->id();
-            $table->foreignId('stock_id')->constrained('stock')->restrictOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('stock_id')->constrained('stock')->restrictOnDelete();
             $table->boolean('is_sold')->default(false)->index();
             $table->ipAddress('ip_address');
             $table->enum('type', [StockView::VIEW_TYPE_IMPRESSION, StockView::VIEW_TYPE_DETAIL])->index();

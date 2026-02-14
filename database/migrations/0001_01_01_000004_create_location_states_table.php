@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('location_states', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedInteger('country_id');
+            $table->uuid('id')->primary();
+            $table->foreignUuid('country_id');
             $table->string('name');
             $table->string('slug')->unique();
             $table->timestamps();

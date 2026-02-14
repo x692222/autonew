@@ -2,12 +2,16 @@
 
 namespace App\Models\Leads\Channels;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Leads\LeadConversation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class WhatsappThread extends Model
 {
+    use HasUuidPrimaryKey;
+
     protected $table = 'whatsapp_threads';
 
     protected $guarded = [];

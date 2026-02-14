@@ -13,9 +13,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('stock_type_commercial', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('stock_id')->constrained('stock')->restrictOnDelete();
-            $table->foreignId('make_id')->constrained('stock')->restrictOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('stock_id')->constrained('stock')->restrictOnDelete();
+            $table->foreignUuid('make_id')->constrained('stock')->restrictOnDelete();
             $table->integer('year_model')->index();
             $table->enum('color', StockTypeCommercial::COLOR_OPTIONS)->index();
             $table->enum('condition', StockTypeCommercial::CONDITION_OPTIONS)->index();

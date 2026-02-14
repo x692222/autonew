@@ -26,9 +26,9 @@ class DealerBranchStockSeeder extends Seeder
         DealerBranch::query()
             ->select(['id']) // only what we need
             ->whereNull('deleted_at')
-            ->chunkById(200, function ($branches) use ($faker, $now) {
+            ->chunk(200, function ($branches) use ($faker, $now) {
                 foreach ($branches as $branch) {
-                    $branchId = (int) $branch->id;
+                    $branchId = (string) $branch->id;
 
                     $count = random_int(100, 500);
 
@@ -61,7 +61,8 @@ class DealerBranchStockSeeder extends Seeder
                         $slug = Str::slug($name . '-' . $internalRef);
 
                         $buffer[] = [
-                            'branch_id'          => $branchId,
+                            'id'                 => (string) Str::uuid(),
+                            'branch_id'          => (string) $branchId,
                             'is_active'          => $isActive ? 1 : 0,
                             'published_at'       => $publishedAt,
                             'internal_reference' => $internalRef,

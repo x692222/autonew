@@ -8,10 +8,10 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('whatsapp_messages', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
-            $table->foreignId('system_user_id')->nullable()->constrained('users')->restrictOnDelete();
-            $table->foreignId('dealer_user_id')->nullable()->constrained('dealer_users')->restrictOnDelete();
+            $table->foreignUuid('system_user_id')->nullable()->constrained('users')->restrictOnDelete();
+            $table->foreignUuid('dealer_user_id')->nullable()->constrained('dealer_users')->restrictOnDelete();
 
 
             $table->string('provider')->index();

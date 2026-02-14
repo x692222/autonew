@@ -8,7 +8,7 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('email_threads', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
             $table->string('thread_external_id')->nullable(); // provider thread id
             $table->string('from_email')->nullable();

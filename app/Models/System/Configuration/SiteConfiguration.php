@@ -2,11 +2,15 @@
 
 namespace App\Models\System\Configuration;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Traits\HasActivityTrait;
 use Illuminate\Database\Eloquent\Model;
 
 class SiteConfiguration extends Model
 {
+    use HasUuidPrimaryKey;
+
     use HasActivityTrait;
 
     protected $table = 'site_configurations';

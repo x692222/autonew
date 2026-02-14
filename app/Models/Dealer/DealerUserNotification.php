@@ -2,6 +2,8 @@
 
 namespace App\Models\Dealer;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 
 class DealerUserNotification extends Model
 {
+    use HasUuidPrimaryKey;
+
     use SoftDeletes;
 
     protected $table = 'dealer_user_notifications';

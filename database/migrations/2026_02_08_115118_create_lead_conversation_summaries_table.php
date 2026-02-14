@@ -9,18 +9,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('lead_conversation_summaries', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
-            $table->foreignId('dealer_id')
+            $table->foreignUuid('dealer_id')
                 ->constrained('dealers')
                 ->cascadeOnDelete();
 
-            $table->foreignId('conversation_id')
+            $table->foreignUuid('conversation_id')
                 ->constrained('lead_conversations')
                 ->cascadeOnDelete();
 
             // ✅ Must reference lead_messages (as requested)
-            $table->foreignId('last_lead_message_id')
+            $table->foreignUuid('last_lead_message_id')
                 ->nullable()
                 ->constrained('lead_messages')
                 ->nullOnDelete();
@@ -28,7 +28,7 @@ return new class extends Migration
             // For reporting: which channel + which underlying thread record (whatsapp_threads / email_threads etc.)
             $table->string('channel', 50);
             $table->string('channelable_type')->nullable();
-            $table->unsignedBigInteger('channelable_id')->nullable();
+            $table->uuid('channelable_id')->nullable();
 
             // Rolling window
             $table->dateTime('period_start');

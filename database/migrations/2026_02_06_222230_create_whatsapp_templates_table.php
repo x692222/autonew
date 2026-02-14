@@ -9,11 +9,11 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('whatsapp_templates', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
 // @todo maak alle migrations bigintiger
-            $table->foreignId('dealer_id')->constrained('dealers')->restrictOnDelete();
-            $table->foreignId('provider_id')->constrained('system_whatsapp_providers')->restrictOnDelete();
+            $table->foreignUuid('dealer_id')->constrained('dealers')->restrictOnDelete();
+            $table->foreignUuid('provider_id')->constrained('system_whatsapp_providers')->restrictOnDelete();
 
             // Meta template unique identifier (Graph returns "id")
             $table->string('provider_template_id')->nullable();

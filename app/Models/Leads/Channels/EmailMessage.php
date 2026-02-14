@@ -2,12 +2,16 @@
 
 namespace App\Models\Leads\Channels;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Leads\LeadMessage;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class EmailMessage extends Model
 {
+    use HasUuidPrimaryKey;
+
     protected $table = 'email_messages';
 
     protected $guarded = [];

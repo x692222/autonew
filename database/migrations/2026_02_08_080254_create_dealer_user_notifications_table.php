@@ -9,18 +9,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('dealer_user_notifications', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
-            $table->foreignId('dealer_user_id')->constrained('dealer_users')->restrictOnDelete();
+            $table->foreignUuid('dealer_user_id')->constrained('dealer_users')->restrictOnDelete();
 
             /**
-             * "Target" reference (class + id) without using morphs()
+             * "Target" reference (class + id) without using uuidMorphs()
              * Example:
              *  target_type = App\Models\Leads\LeadMessage::class
              *  target_id   = 123
              */
             $table->string('target_type'); // fully qualified class name
-            $table->unsignedBigInteger('target_id')->nullable(); // nullable in case you want “global” notifications
+            $table->uuid('target_id')->nullable(); // nullable in case you want “global” notifications
 
             /**
              * Where the UI should navigate when the notification is clicked.

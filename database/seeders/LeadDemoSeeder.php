@@ -291,7 +291,7 @@ class LeadDemoSeeder extends Seeder
             /** @var LeadPipeline $pipeline */
             $pipeline = LeadPipeline::query()->firstOrCreate(
                 [
-                    'dealer_id' => $dealer->id,
+                    'dealer_id' => (string) $dealer->id,
                     'name' => $name,
                 ],
                 [
@@ -360,8 +360,8 @@ class LeadDemoSeeder extends Seeder
             /** @var LeadStage $stage */
             $stage = LeadStage::query()->firstOrCreate(
                 [
-                    'dealer_id' => $dealer->id,
-                    'pipeline_id' => $pipeline->id,
+                    'dealer_id' => (string) $dealer->id,
+                    'pipeline_id' => (string) $pipeline->id,
                     'name' => $s['name'],
                 ],
                 [
@@ -404,14 +404,14 @@ class LeadDemoSeeder extends Seeder
         $channel = self::CHANNELS[array_rand(self::CHANNELS)];
 
         $lead = Lead::query()->create([
-            'dealer_id' => $dealer->id,
-            'branch_id' => $branch?->id,
-            'stock_id' => $stock->id,
+            'dealer_id' => (string) $dealer->id,
+            'branch_id' => $branch?->id ? (string) $branch->id : null,
+            'stock_id' => (string) $stock->id,
 
-            'assigned_to_dealer_user_id' => $assignedUserId,
+            'assigned_to_dealer_user_id' => $assignedUserId ? (string) $assignedUserId : null,
 
-            'pipeline_id' => $pipeline->id,
-            'stage_id' => $stage->id,
+            'pipeline_id' => (string) $pipeline->id,
+            'stage_id' => (string) $stage->id,
 
             'firstname' => $faker->firstName,
             'lastname' => $faker->lastName,
@@ -426,10 +426,10 @@ class LeadDemoSeeder extends Seeder
 
         // optional: stage event history entry (basic)
         LeadStageEvent::query()->create([
-            'lead_id' => $lead->id,
+            'lead_id' => (string) $lead->id,
             'from_stage_id' => null,
-            'to_stage_id' => $stage->id,
-            'changed_by_dealer_user_id' => $assignedUserId,
+            'to_stage_id' => (string) $stage->id,
+            'changed_by_dealer_user_id' => $assignedUserId ? (string) $assignedUserId : null,
             'reason' => 'seed',
             'meta' => ['seeded' => true],
         ]);
@@ -455,14 +455,14 @@ class LeadDemoSeeder extends Seeder
         $channel = self::CHANNELS[array_rand(self::CHANNELS)];
 
         $lead = Lead::query()->create([
-            'dealer_id' => $dealer->id,
-            'branch_id' => $branch?->id,
+            'dealer_id' => (string) $dealer->id,
+            'branch_id' => $branch?->id ? (string) $branch->id : null,
             'stock_id' => null,
 
-            'assigned_to_dealer_user_id' => $assignedUserId,
+            'assigned_to_dealer_user_id' => $assignedUserId ? (string) $assignedUserId : null,
 
-            'pipeline_id' => $pipeline->id,
-            'stage_id' => $stage->id,
+            'pipeline_id' => (string) $pipeline->id,
+            'stage_id' => (string) $stage->id,
 
             'firstname' => $faker->firstName,
             'lastname' => $faker->lastName,
@@ -476,10 +476,10 @@ class LeadDemoSeeder extends Seeder
         ]);
 
         LeadStageEvent::query()->create([
-            'lead_id' => $lead->id,
+            'lead_id' => (string) $lead->id,
             'from_stage_id' => null,
-            'to_stage_id' => $stage->id,
-            'changed_by_dealer_user_id' => $assignedUserId,
+            'to_stage_id' => (string) $stage->id,
+            'changed_by_dealer_user_id' => $assignedUserId ? (string) $assignedUserId : null,
             'reason' => 'seed',
             'meta' => ['seeded' => true, 'unassigned_stock' => true],
         ]);
@@ -533,10 +533,10 @@ class LeadDemoSeeder extends Seeder
         }
 
         return LeadConversation::query()->create([
-            'dealer_id' => $dealer->id,
-            'lead_id' => $lead?->id,
-            'branch_id' => $branch?->id,
-            'stock_id' => $stock?->id,
+            'dealer_id' => (string) $dealer->id,
+            'lead_id' => $lead?->id ? (string) $lead->id : null,
+            'branch_id' => $branch?->id ? (string) $branch->id : null,
+            'stock_id' => $stock?->id ? (string) $stock->id : null,
 
             'channel' => $channel,
             'status' => $faker->randomElement(['open', 'open', 'open', 'closed']),
@@ -546,7 +546,7 @@ class LeadDemoSeeder extends Seeder
             'participant' => $participant,
 
             'channelable_type' => $channelableType,
-            'channelable_id' => $channelableId,
+            'channelable_id' => (string) $channelableId,
 
             'last_message_id' => null,
             'last_message_at' => null,
@@ -631,12 +631,12 @@ class LeadDemoSeeder extends Seeder
             }
 
             $msg = LeadMessage::query()->create([
-                'dealer_id' => $dealer->id,
-                'conversation_id' => $conversation->id,
+                'dealer_id' => (string) $dealer->id,
+                'conversation_id' => (string) $conversation->id,
 
-                'lead_id' => $lead?->id,
-                'branch_id' => $branch?->id,
-                'stock_id' => $stock?->id,
+                'lead_id' => $lead?->id ? (string) $lead->id : null,
+                'branch_id' => $branch?->id ? (string) $branch->id : null,
+                'stock_id' => $stock?->id ? (string) $stock->id : null,
 
                 'channel' => $conversation->channel,
                 'direction' => $direction,
@@ -653,10 +653,10 @@ class LeadDemoSeeder extends Seeder
                 'error_code' => null,
                 'error_message' => null,
 
-                'created_by_dealer_user_id' => $createdByDealerUserId,
+                'created_by_dealer_user_id' => $createdByDealerUserId ? (string) $createdByDealerUserId : null,
 
                 'messageable_type' => $messageableType,
-                'messageable_id' => $messageableId,
+                'messageable_id' => (string) $messageableId,
             ]);
 
             $lastMessageId = $msg->id;

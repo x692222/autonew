@@ -30,7 +30,7 @@ class DealerLeadDefaultsProvisioner
 
                 if (!$pipeline) {
                     $pipeline = new LeadPipeline();
-                    $pipeline->dealer_id = (int)$dealer->getKey();
+                    $pipeline->dealer_id = (string) $dealer->getKey();
                     $pipeline->name = $name;
                 }
 
@@ -78,7 +78,7 @@ class DealerLeadDefaultsProvisioner
 
                 if (!$stage) {
                     $stage = new LeadStage();
-                    $stage->pipeline_id = (int)$pipeline->getKey();
+                    $stage->pipeline_id = (string) $pipeline->getKey();
                     $stage->name = $stageName;
                 }
 

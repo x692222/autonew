@@ -8,10 +8,10 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('notes', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
-            $table->morphs('noteable');          // adds index automatically
-            $table->nullableMorphs('author');    // adds index automatically
+            $table->uuidMorphs('noteable');          // adds index automatically
+            $table->nullableUuidMorphs('author');    // adds index automatically
 
             $table->text('note');
             $table->boolean('backoffice_only')->default(false);

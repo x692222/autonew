@@ -16,13 +16,9 @@ class LocationDatasetSeeder extends Seeder
         $faker = fake();
 
         DB::transaction(function () use ($faker) {
-
             $countryNames = ['Namibia', 'South Africa'];
 
             foreach ($countryNames as $countryName) {
-                $country = new LocationCountry(['name' => 'Namibia']);
-                $country->save();
-                /** @var LocationCountry $country */
                 $country = LocationCountry::query()->create([
                     'name' => $countryName,
                 ]);
@@ -30,10 +26,8 @@ class LocationDatasetSeeder extends Seeder
                 $stateCount = $faker->numberBetween(1, 7);
 
                 for ($s = 1; $s <= $stateCount; $s++) {
-
-                    /** @var LocationState $state */
                     $state = LocationState::query()->create([
-                        'country_id' => $country->id,
+                        'country_id' => (string) $country->id,
                         'name' => $faker->unique()->state() . " {$s}",
                     ]);
 
@@ -43,9 +37,8 @@ class LocationDatasetSeeder extends Seeder
 
                     for ($c = 1; $c <= $cityCount; $c++) {
 
-                        /** @var LocationCity $city */
                         $city = LocationCity::query()->create([
-                            'state_id' => $state->id,
+                            'state_id' => (string) $state->id,
                             'name' => $faker->unique()->city() . " {$c}",
                         ]);
 
@@ -55,7 +48,7 @@ class LocationDatasetSeeder extends Seeder
 
                         for ($u = 1; $u <= $suburbCount; $u++) {
                             LocationSuburb::query()->create([
-                                'city_id' => $city->id,
+                                'city_id' => (string) $city->id,
                                 'name' => $faker->streetName() . " {$u}",
                             ]);
                         }

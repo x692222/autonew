@@ -9,9 +9,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('lead_goals', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
-            $table->foreignId('lead_id')
+            $table->foreignUuid('lead_id')
                 ->constrained('leads')
                 ->cascadeOnDelete();
 
@@ -19,18 +19,18 @@ return new class extends Migration
             $table->text('description')->nullable();
 
             // If the dealer user sets a goal, keep who created it
-            $table->foreignId('created_by_dealer_user_id')
+            $table->foreignUuid('created_by_dealer_user_id')
                 ->nullable()
                 ->constrained('dealer_users')
                 ->nullOnDelete();
 
-            $table->foreignId('created_by_backoffice_user_id')
+            $table->foreignUuid('created_by_backoffice_user_id')
                 ->nullable()
                 ->constrained('users')
                 ->nullOnDelete();
 
             $table->timestamp('achieved_at')->nullable();
-            $table->foreignId('achieved_by_dealer_user_id')
+            $table->foreignUuid('achieved_by_dealer_user_id')
                 ->nullable()
                 ->constrained('dealer_users')
                 ->nullOnDelete();

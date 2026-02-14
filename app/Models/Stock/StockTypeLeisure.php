@@ -2,6 +2,8 @@
 
 namespace App\Models\Stock;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Traits\HasActivityTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +11,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StockTypeLeisure extends Model
 {
+    use HasUuidPrimaryKey;
+
 
     use SoftDeletes;
     use HasActivityTrait;

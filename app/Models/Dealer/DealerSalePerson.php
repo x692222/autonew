@@ -2,6 +2,8 @@
 
 namespace App\Models\Dealer;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use App\ModelScopes\FilterSearchScope;
 use App\Traits\HasActivityTrait;
@@ -13,6 +15,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DealerSalePerson extends Model
 {
+    use HasUuidPrimaryKey;
+
 
     use SoftDeletes;
     use HasActivityTrait;

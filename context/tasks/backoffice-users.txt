@@ -1,0 +1,857 @@
+This is your new task
+
+# Overview
+
+# preferred directory structure
+
+Backoffice/System
+
+# route notes
+
+This is an authenticated interface and must live inside the "auth:backoffice" middleware already applied in the backoffice.php routes file
+
+# Who can access
+
+## dealer guard: no
+## backoffice guard:
+
+If the following keys are set:
+
+- indexUsers: for index() function
+- createUsers: for create() and store() function
+- editUsers: for edit() and update() function
+- deleteUsers: for destroy() function
+- resetPasswordUsers: for function that resets the password
+
+### controller
+
+Preferred controller name: UsersManagementController
+
+# vuejs abilities list
+
+Inside app/Http/Middleware/HandleInertiaRequests.php we set the "abilities" key inside auth => user - use this abilities to conditionally show the following link:
+
+## vuejs navigation resources/backoffice/js/Layouts/Layout.vue
+
+There is already a system => User Management menu item.
+
+If the user has the ability on the permissions key "indexUsers" then show this link otherwise not.
+
+## validation notes
+
+Ensure that the actions in the datatable shows and allows actions only based on the permission keys outlined and that actions in the datatable show only if allowed
+
+# what is needed
+
+The following is NOT limited to what needs to be done, but serves as a minimum guideline:
+
+- Controller
+- Gate / security implementation as explained in context/project_information.txt
+- vuejs files
+
+# context
+
+I need a full implement and working an interface where users can be created, edited, deleted and password reset.
+
+Below are legacy files and should be used as a guideline only. I will include the current paths of these files but do not enforce this if not needed, it is a guideline only
+
+It will also show you the legacy routes - though this doesnt need to be enforced and use your planned structure for route hierarchy
+
+I think this example of the responses does go through a resource / collection - however stick to the project_information.txt about resources and collections and implement according to the rules.
+
+# legacy files
+
+app/Http/Controllers/Backoffice/System/UserManagementController.php
+
+<?php
+
+namespace App\Http\Controllers\Backoffice\System;
+
+use App\Actions\System\Users\CreateUserAction;
+use App\Actions\System\Users\SetUserActiveStatusAction;
+use App\Actions\System\Users\UpdateUserAction;
+use App\Http\Controllers\Controller;
+use App\Models\System\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Spatie\Permission\Models\Role;
+
+class UserManagementController extends Controller
+{
+    private string $publicTitle = 'User Management';
+
+    public function index(Request $request)
+    {
+        // $this->authorize('viewAny', User::class);
+
+        $validator = Validator::make($request->all(), [
+            'search'     => ['nullable', 'string', 'max:100'],
+            ...config('shared.validationRules.tableFilters'),
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
+        $filters = $validator->validated();
+
+        // ---------------------------
+        // Base query (select only what we need)
+        // ---------------------------
+        $query = User::select([
+                'id',
+                'firstname',
+                'lastname',
+                'email',
+                'is_active',
+            ])
+            ->with([
+                'roles:id,name',
+            ]);
+
+        // ---------------------------
+        // Filters
+        // ---------------------------
+        $query->filterSearch($filters['search'] ?? null, ['firstname', 'lastname', 'email']);
+
+        // ---------------------------
+        // Columns (match your PaginatedTable conventions)
+        // ---------------------------
+        $columnKeys = [
+            'name',
+            'email',
+            'status',
+            'roles',
+        ];
+
+        $columns = collect($columnKeys)->map(function (string $key) {
+            $sortable = in_array($key, ['name', 'email', 'status'], true);
+
+            return [
+                'name'     => $key,
+                'label'    => Str::headline($key),
+                'sortable' => $sortable,
+                'align'    => 'left',
+                'field'    => $key,
+                'numeric'  => false,
+            ];
+        })->values()->all();
+
+        // ---------------------------
+        // Sorting
+        // ---------------------------
+        $sortBy     = $filters['sortBy'] ?? 'name';
+        $descending = filter_var($filters['descending'] ?? false, FILTER_VALIDATE_BOOLEAN) ? 'desc' : 'asc';
+
+        switch ($sortBy) {
+            case 'email':
+                $query->orderBy('email', $descending);
+                break;
+
+            case 'status':
+                $query->orderBy('is_active', $descending);
+                break;
+
+            case 'name':
+            default:
+                // name is firstname then lastname
+                $query->orderBy('firstname', $descending)
+                    ->orderBy('lastname', $descending);
+                break;
+        }
+
+        // ---------------------------
+        // Paginate + mutate rows (THROUGH like your example)
+        // ---------------------------
+        $records = $query
+            ->paginate((int)($filters['rowsPerPage'] ?? $this->paginationCount))
+            ->through(function (User $user) use ($request) {
+                // derived display fields
+                $user->name  = trim(($user->firstname ?? '') . ' ' . ($user->lastname ?? ''));
+                $user->roles = $user->roles?->pluck('name')->values()->all() ?? [];
+
+                // permissions (frontend expects row.can.*)
+                $actor = $request->user();
+                $user->can = [
+                    'update'         => $actor?->can('update', $user) ?? false,
+                    'delete'         => $actor?->can('delete', $user) ?? false,
+                    'toggle_active'  => $actor?->can('toggleActive', $user) ?? false,
+                    'reset_password' => $actor?->can('resetPassword', $user) ?? false,
+                ];
+
+                // clean relations (avoid shipping relationship objects)
+                $user->unsetRelation('roles');
+
+                return $user;
+            });
+
+        return Inertia::render('System/UserManagement/Index', [
+            'publicTitle' => $this->publicTitle,
+            'filters'     => $filters,
+            'columns'     => $columns,
+            'records'     => $records,
+        ]);
+    }
+
+    public function create()
+    {
+        // $this->authorize('create', User::class);
+
+        $roles = Role::query()
+            ->where('guard_name', 'backoffice')
+            ->orderBy('name')
+            ->get(['name'])
+            ->pluck('name')
+            ->values();
+
+        return Inertia::render('System/UserManagement/Create', [
+            'publicTitle' => $this->publicTitle,
+            'roles'       => $roles,
+        ]);
+    }
+
+    public function store(Request $request, CreateUserAction $action)
+    {
+        // $this->authorize('create', User::class);
+
+        $validator = Validator::make($request->all(), [
+            'firstname' => ['required', 'string', 'max:75'],
+            'lastname'  => ['required', 'string', 'max:75'],
+            'email'     => ['required', 'email', 'max:150', 'unique:users,email'],
+            'role'      => ['required', 'string'],
+            'is_active' => ['required', 'boolean'],
+            'password'  => ['nullable', 'string', 'min:8'],
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
+        $data = $validator->validated();
+
+        $action->execute($data);
+
+        return redirect()
+            ->route('backoffice.system.user-management.users.index')
+            ->with('success', 'User registered.');
+    }
+
+    public function edit(Request $request, User $user)
+    {
+        // $this->authorize('update', $user);
+
+        $roles = Role::query()
+            ->where('guard_name', 'backoffice')
+            ->orderBy('name')
+            ->get(['name'])
+            ->pluck('name')
+            ->values();
+
+        // load only what we need
+        $user->load(['roles:id,name']);
+
+        return Inertia::render('System/UserManagement/Edit', [
+            'publicTitle' => $this->publicTitle,
+            'roles'       => $roles,
+            'data'        => [
+                'id'        => $user->id,
+                'firstname' => $user->firstname,
+                'lastname'  => $user->lastname,
+                'email'     => $user->email,
+                'is_active' => (bool)$user->is_active,
+                'role'      => $user->roles?->pluck('name')->first(),
+            ],
+        ]);
+    }
+
+    public function update(Request $request, User $user, UpdateUserAction $action)
+    {
+        // $this->authorize('update', $user);
+
+        $validator = Validator::make($request->all(), [
+            'firstname' => ['required', 'string', 'max:75'],
+            'lastname'  => ['required', 'string', 'max:75'],
+            'email'     => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($user->getKey())],
+            'role'      => ['required', 'string'],
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
+        $data = $validator->validated();
+
+        $action->execute($user, $data);
+
+        return redirect()
+            ->route('backoffice.system.user-management.users.index')
+            ->with('success', 'User updated.');
+    }
+
+    public function destroy(Request $request, User $user)
+    {
+        // $this->authorize('delete', $user);
+
+        $user->delete();
+
+        return redirect()
+            ->route('backoffice.system.user-management.users.index')
+            ->with('success', 'User deleted.');
+    }
+
+    public function activate(Request $request, User $user, SetUserActiveStatusAction $action)
+    {
+        // $this->authorize('toggleActive', $user);
+
+        $action->execute($user, true);
+
+        return back()->with('success', 'User activated.');
+    }
+
+    public function deactivate(Request $request, User $user, SetUserActiveStatusAction $action)
+    {
+        // $this->authorize('toggleActive', $user);
+
+        $action->execute($user, false);
+
+        return back()->with('success', 'User deactivated.');
+    }
+
+    public function resetPassword(Request $request, User $user)
+    {
+        // $this->authorize('resetPassword', $user);
+
+        if ($user->is_active === false) {
+            return back()->with('error', 'User is inactive - unable to reset password');
+        }
+
+        $status = Password::broker('users')->sendResetLink([
+            'email' => $user->email,
+        ]);
+
+        if ($status === Password::RESET_LINK_SENT) {
+            return back()->with('success', __($status));
+        }
+
+        return back()->with('error', __($status));
+    }
+}
+
+---
+
+resources/backoffice/js/Pages/System/UserManagement/Create.vue
+
+<script setup>
+import { Head, router, useForm } from '@inertiajs/vue3'
+import { computed, inject } from 'vue'
+import Layout from 'bo@/Layouts/Layout.vue'
+
+defineOptions({ layout: Layout })
+
+const route = inject('route')
+
+const props = defineProps({
+    publicTitle: { type: String, default: 'User Management' },
+    roles: { type: Array, default: () => [] } // ['admin','user',...]
+})
+
+const roleOptions = computed(() =>
+    (props.roles || []).map(r => ({ label: r, value: r }))
+)
+
+const form = useForm({
+    firstname: '',
+    lastname: '',
+    email: '',
+    role: null,
+    is_active: true,
+    password: ''
+})
+
+const submit = () => {
+    form.post(route('backoffice.system.user-management.users.store'), {
+        preserveScroll: true,
+        onFinish: () => form.reset('password'),
+    })
+}
+
+const cancel = () => {
+    router.visit(route('backoffice.system.user-management.users.index'))
+}
+</script>
+
+<template>
+    <Head><title>{{ $page.props.appName }}</title></Head>
+
+    <div class="row nowrap justify-between items-center">
+        <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
+    </div>
+
+    <q-card flat bordered class="q-mt-md">
+        <q-card-section>
+            <div class="text-h6 q-pb-sm">Register User</div>
+
+            <q-form @submit.prevent="submit">
+                <q-input
+                    v-model="form.firstname"
+                    class="q-my-md"
+                    label="First name"
+                    filled
+                    dense
+                    :error="!!form.errors.firstname"
+                    :error-message="form.errors.firstname"
+                    autocomplete="off"
+                />
+
+                <q-input
+                    v-model="form.lastname"
+                    class="q-my-md"
+                    label="Last name"
+                    filled
+                    dense
+                    :error="!!form.errors.lastname"
+                    :error-message="form.errors.lastname"
+                    autocomplete="off"
+                />
+
+                <q-input
+                    v-model="form.email"
+                    class="q-my-md"
+                    type="email"
+                    label="Email"
+                    filled
+                    dense
+                    :error="!!form.errors.email"
+                    :error-message="form.errors.email"
+                    :input-attrs="{ autocomplete: 'off' }"
+                />
+
+                <q-select
+                    v-model="form.role"
+                    class="q-my-md"
+                    label="Role"
+                    :options="roleOptions"
+                    filled
+                    dense
+                    emit-value
+                    map-options
+                    :error="!!form.errors.role"
+                    :error-message="form.errors.role"
+                />
+
+                <q-select
+                    v-model="form.is_active"
+                    class="q-my-md"
+                    label="Status"
+                    :options="[
+                        { label: 'Active', value: true },
+                        { label: 'Inactive', value: false }
+                    ]"
+                    filled
+                    dense
+                    emit-value
+                    map-options
+                    :error="!!form.errors.is_active"
+                    :error-message="form.errors.is_active"
+                />
+
+                <q-input
+                    v-model="form.password"
+                    class="q-my-md"
+                    type="password"
+                    label="Password (optional)"
+                    filled
+                    dense
+                    :error="!!form.errors.password"
+                    :error-message="form.errors.password"
+                    :input-attrs="{ autocomplete: 'new-password' }"
+                />
+            </q-form>
+
+            <div class="row justify-end">
+                <div class="q-gutter-sm">
+                    <q-btn
+                        color="grey-4"
+                        text-color="standard"
+                        label="Cancel"
+                        no-wrap
+                        unelevated
+                        @click="cancel"
+                    />
+                    <q-btn
+                        color="primary"
+                        label="Save"
+                        no-wrap
+                        unelevated
+                        :loading="form.processing"
+                        :disable="form.processing"
+                        @click="submit"
+                    />
+                </div>
+            </div>
+        </q-card-section>
+    </q-card>
+</template>
+
+---
+
+resources/backoffice/js/Pages/System/UserManagement/Edit.vue
+
+<script setup>
+import { Head, router, useForm } from '@inertiajs/vue3'
+import { computed, inject } from 'vue'
+import Layout from 'bo@/Layouts/Layout.vue'
+
+defineOptions({ layout: Layout })
+
+const route = inject('route')
+
+const props = defineProps({
+    publicTitle: { type: String, default: 'User Management' },
+    roles: { type: Array, default: () => [] },
+    data: { type: Object, required: true } // { id, firstname, lastname, email, is_active, role }
+})
+
+const roleOptions = computed(() =>
+    (props.roles || []).map(r => ({ label: r, value: r }))
+)
+
+const form = useForm({
+    firstname: props.data.firstname ?? '',
+    lastname: props.data.lastname ?? '',
+    email: props.data.email ?? '',
+    role: props.data.role ?? null,
+    is_active: !!props.data.is_active,
+})
+
+const submit = () => {
+    form.patch(
+        route('backoffice.system.user-management.users.update', props.data.id),
+        { preserveScroll: true }
+    )
+}
+
+const cancel = () => {
+    router.visit(route('backoffice.system.user-management.users.index'))
+}
+</script>
+
+<template>
+    <Head><title>{{ $page.props.appName }}</title></Head>
+
+    <div class="row nowrap justify-between items-center">
+        <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
+    </div>
+
+    <q-card flat bordered class="q-mt-md">
+        <q-card-section>
+            <div class="text-h6 q-pb-sm">Edit User: {{ data.firstname }} {{ data.lastname }}</div>
+
+            <q-form @submit.prevent="submit">
+                <q-input
+                    v-model="form.firstname"
+                    class="q-my-md"
+                    label="First name"
+                    filled
+                    dense
+                    :error="!!form.errors.firstname"
+                    :error-message="form.errors.firstname"
+                    autocomplete="off"
+                />
+
+                <q-input
+                    v-model="form.lastname"
+                    class="q-my-md"
+                    label="Last name"
+                    filled
+                    dense
+                    :error="!!form.errors.lastname"
+                    :error-message="form.errors.lastname"
+                    autocomplete="off"
+                />
+
+                <q-input
+                    v-model="form.email"
+                    class="q-my-md"
+                    type="email"
+                    label="Email"
+                    filled
+                    dense
+                    :error="!!form.errors.email"
+                    :error-message="form.errors.email"
+                    :input-attrs="{ autocomplete: 'off' }"
+                />
+
+                <q-select
+                    v-model="form.role"
+                    class="q-my-md"
+                    label="Role"
+                    :options="roleOptions"
+                    filled
+                    dense
+                    emit-value
+                    map-options
+                    :error="!!form.errors.role"
+                    :error-message="form.errors.role"
+                />
+
+                <q-select
+                    v-model="form.is_active"
+                    class="q-my-md"
+                    label="Status"
+                    :options="[
+                        { label: 'Active', value: true },
+                        { label: 'Inactive', value: false }
+                    ]"
+                    filled
+                    dense
+                    emit-value
+                    map-options
+                    :error="!!form.errors.is_active"
+                    :error-message="form.errors.is_active"
+                />
+            </q-form>
+
+            <div class="row justify-end">
+                <div class="q-gutter-sm">
+                    <q-btn
+                        color="grey-4"
+                        text-color="standard"
+                        label="Cancel"
+                        no-wrap
+                        unelevated
+                        @click="cancel"
+                    />
+                    <q-btn
+                        color="primary"
+                        label="Save"
+                        no-wrap
+                        unelevated
+                        :loading="form.processing"
+                        :disable="form.processing"
+                        @click="submit"
+                    />
+                </div>
+            </div>
+        </q-card-section>
+    </q-card>
+</template>
+
+---
+
+resources/backoffice/js/Pages/System/UserManagement/Index.vue
+
+<script setup>
+import { Head, router, usePage } from '@inertiajs/vue3'
+import { computed, inject, ref } from 'vue'
+import Layout from 'bo@/Layouts/Layout.vue'
+import PaginatedTable from 'bo@/Components/Shared/PaginatedTable.vue'
+import { useConfirmAction } from 'bo@/Composables/useConfirmAction'
+
+defineOptions({ layout: Layout })
+
+const route = inject('route')
+const page = usePage()
+const abilities = page.props.auth?.abilities ?? {}
+
+const props = defineProps({
+    publicTitle: { type: String, default: 'User Management' },
+    filters: { type: Object, default: () => ({}) },
+    columns: { type: Array, required: true },
+    records: { type: Object, required: true },
+})
+
+const tableRef = ref(null)
+const loading = ref(false)
+const { confirmAction } = useConfirmAction(loading)
+
+// Filters
+const search = ref(props.filters?.search ?? '')
+
+const tableColumns = computed(() => [
+    ...(props.columns || []),
+    {
+        name: 'actions',
+        label: '',
+        sortable: false,
+        align: 'right',
+        field: 'actions',
+        numeric: false,
+    }
+])
+
+const goFirst = () => tableRef.value?.goFirstPage()
+
+const canCreate = !!abilities.system?.systemUser?.create
+
+const fetchUsers = (p, helpers) => {
+    router.get(
+        route('backoffice.system.user-management.users.index'),
+        {
+            page: p.page,
+            rowsPerPage: p.rowsPerPage,
+            sortBy: p.sortBy,
+            descending: p.descending,
+
+            search: search.value || '',
+        },
+        {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+            only: ['records', 'filters', 'columns', 'flash'],
+            onFinish: () => helpers.finish(),
+        }
+    )
+}
+
+const goCreate = () => {
+    router.visit(route('backoffice.system.user-management.users.create'))
+}
+
+const goEdit = (row) => {
+    router.visit(route('backoffice.system.user-management.users.edit', row.id))
+}
+
+const confirmToggleActive = (row) => {
+    const makingActive = !row.is_active
+
+    confirmAction({
+        title: makingActive ? 'Activate User' : 'Deactivate User',
+        message: `Are you sure you want to ${makingActive ? 'activate' : 'deactivate'} ${row.name}?`,
+        okLabel: makingActive ? 'Activate' : 'Deactivate',
+        okColor: makingActive ? 'primary' : 'negative',
+        cancelLabel: 'Cancel',
+        method: 'patch',
+        actionUrl: makingActive
+            ? route('backoffice.system.user-management.users.activate', row.id)
+            : route('backoffice.system.user-management.users.deactivate', row.id),
+        inertia: { preserveState: true }
+    })
+}
+
+const confirmResetPassword = (row) => {
+    confirmAction({
+        title: 'Reset Password',
+        message: `Queue a password reset for ${row.name}?`,
+        okLabel: 'Reset',
+        okColor: 'primary',
+        cancelLabel: 'Cancel',
+        method: 'post',
+        actionUrl: route('backoffice.system.user-management.users.reset-password', row.id),
+        inertia: { preserveState: true }
+    })
+}
+
+const confirmDeleteUser = (row) => {
+    confirmAction({
+        title: 'Delete User',
+        message: `Are you sure you want to delete ${row.name}? This cannot be undone.`,
+        okLabel: 'Delete',
+        okColor: 'negative',
+        cancelLabel: 'Cancel',
+        method: 'delete',
+        actionUrl: route('backoffice.system.user-management.users.destroy', row.id),
+        inertia: { preserveState: true }
+    })
+}
+</script>
+
+<template>
+    <Head><title>{{ $page.props.appName }}</title></Head>
+
+    <div class="row nowrap justify-between items-center q-mb-md">
+        <div>
+            <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
+        </div>
+
+        <div class="q-gutter-sm">
+            <q-btn
+                v-if="canCreate"
+                color="primary"
+                label="Register user"
+                no-wrap
+                unelevated
+                @click="goCreate"
+            />
+        </div>
+    </div>
+
+    <PaginatedTable
+        ref="tableRef"
+        title="Users"
+        row-key="id"
+        :records="records"
+        :columns="tableColumns"
+        :fetch="fetchUsers"
+        initial-sort-by="name"
+        :initial-descending="false"
+        status-column-name="status"
+        status-key="is_active"
+    >
+        <template #top-right>
+            <div class="row q-col-gutter-sm items-center">
+                <div class="col-auto" style="min-width: 360px">
+                    <q-input
+                        dense outlined debounce="1000" clearable
+                        v-model="search"
+                        placeholder="Search users..."
+                        :input-attrs="{ autocomplete: 'off' }"
+                        @update:model-value="goFirst"
+                    />
+                </div>
+            </div>
+        </template>
+
+        <template #actions="{ row }">
+            <q-btn
+                v-if="row.can?.update"
+                round dense flat icon="edit"
+                @click="goEdit(row)"
+            >
+                <q-tooltip>Edit</q-tooltip>
+            </q-btn>
+
+            <q-btn
+                v-if="row.can?.toggle_active"
+                round dense flat
+                :icon="row.is_active ? 'toggle_off' : 'toggle_on'"
+                :color="row.is_active ? 'negative' : 'primary'"
+                :disable="loading"
+                @click.stop="confirmToggleActive(row)"
+            >
+                <q-tooltip>{{ row.is_active ? 'Deactivate' : 'Activate' }}</q-tooltip>
+            </q-btn>
+
+            <q-btn
+                v-if="row.can?.reset_password"
+                round dense flat icon="lock_reset"
+                :disable="loading"
+                @click.stop="confirmResetPassword(row)"
+            >
+                <q-tooltip>Reset password</q-tooltip>
+            </q-btn>
+
+            <q-btn
+                v-if="row.can?.delete"
+                round dense flat icon="delete" color="negative"
+                :disable="loading"
+                @click.stop="confirmDeleteUser(row)"
+            >
+                <q-tooltip>Delete</q-tooltip>
+            </q-btn>
+        </template>
+
+        <template #no-data>
+            <div class="full-width row flex-center q-gutter-sm q-pa-md">
+                <q-icon name="search_off" size="24px" />
+                <span>No records found</span>
+            </div>
+        </template>
+    </PaginatedTable>
+</template>

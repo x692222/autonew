@@ -1,0 +1,21 @@
+I need you to update permissions, this will be in the policy where this key is being validated, and in the seeder and then afterwards run the relevant seeders
+
+createUsers => createSystemUsers
+createLocations => createSystemLocations
+deleteLocations => deleteSystemLocations
+deleteUsers => deleteSystemUsers
+editLocations => editSystemLocations
+editUsers => editSystemUsers
+impersonateUser => impersonateDealershipUser
+indexDealerBranches => indexDealershipBranches
+indexDealerSalesPeople => indexDealershipSalesPeople
+indexDealerStock => indexDealershipStock
+indexDealerUsers => indexDealershipUsers
+indexLocations => indexSystemLocations
+indexUsers => indexSystemUsers
+resetPasswordUsers => resetSystemUserPasswords
+showDealer => showDealerships
+showDealerAuditLog => showDealershipAuditLogs
+showDealerBillings => showDealershipBillings
+showDealerNotificationHistory => showDealershipNotificationHistory
+showDealerSettings => showDealershipSettings

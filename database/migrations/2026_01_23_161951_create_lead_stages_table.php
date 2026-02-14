@@ -8,9 +8,9 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::create('lead_stages', function (Blueprint $table) {
-            $table->id();
+            $table->uuid('id')->primary();
 
-            $table->foreignId('pipeline_id')->constrained('lead_pipelines')->restrictOnDelete();
+            $table->foreignUuid('pipeline_id')->constrained('lead_pipelines')->restrictOnDelete();
 
             $table->string('name');
             $table->unsignedInteger('sort_order')->default(0)->index();

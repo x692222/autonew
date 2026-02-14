@@ -2,6 +2,8 @@
 
 namespace App\Models\Ai;
 
+use App\Traits\HasUuidPrimaryKey;
+
 use App\Models\Dealer\Dealer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +12,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AiConversationMessage extends Model
 {
+    use HasUuidPrimaryKey;
+
     use SoftDeletes;
 
     protected $table = 'ai_conversation_messages';

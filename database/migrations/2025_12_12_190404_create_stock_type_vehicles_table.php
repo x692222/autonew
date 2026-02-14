@@ -13,10 +13,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('stock_type_vehicles', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('stock_id')->constrained('stock')->restrictOnDelete();
-            $table->foreignId('make_id')->constrained('stock')->restrictOnDelete();
-            $table->foreignId('model_id')->constrained('stock')->restrictOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('stock_id')->constrained('stock')->restrictOnDelete();
+            $table->foreignUuid('make_id')->constrained('stock')->restrictOnDelete();
+            $table->foreignUuid('model_id')->constrained('stock')->restrictOnDelete();
             $table->boolean('is_import')->default(false)->index();
             $table->integer('year_model')->index();
             $table->enum('category', StockTypeVehicle::CATEGORY_OPTIONS)->index();

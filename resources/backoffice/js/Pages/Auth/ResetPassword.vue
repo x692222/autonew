@@ -8,7 +8,8 @@ const $q = useQuasar()
 
 const props = defineProps({
     token: { type: String, required: true },
-    email: { type: String, default: '' }
+    email: { type: String, default: '' },
+    submitRoute: { type: String, default: 'backoffice.auth.password.update' }
 })
 
 const form = useForm({
@@ -19,7 +20,7 @@ const form = useForm({
 })
 
 const submit = () => {
-    form.post(route('backoffice.auth.password.update'), {
+    form.post(route(props.submitRoute), {
         preserveScroll: true,
         onSuccess: () => {
             $q.notify({ type: 'positive', message: 'Password updated. You can log in now.' })
