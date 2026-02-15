@@ -15,10 +15,3 @@ To continue this session, run codex resume 019c5a4c-5c33-7ee1-bf6c-1f472e256b6b
 To continue this session, run codex resume 019c5a4c-5c33-7ee1-bf6c-1f472e256b6b
 
 
--- as dealer create, moet kan se wat is primary user. moet ook n flag he, en priry users kan nie delete word nie
-en primary users - dink daaroor - kan seker net in my admin geset word, en as geval, stuur request deur
-mmm wat van as enige iemand request deurstuur, dink, en gee detailed beskryfwing
-maar ja primary user moet alle access he
-
-o ja, en dalk beter, nee fok die primary user - moet van my backoffice permissions kan assign vir dealer users, punt.
-

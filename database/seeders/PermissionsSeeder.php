@@ -48,6 +48,7 @@ class PermissionsSeeder extends Seeder
                 'deleteSystemUsers',
                 'resetSystemUserPasswords',
                 'assignPermissions',
+                'assignDealerPermisssions',
                 'indexSystemLocations',
                 'createSystemLocations',
                 'editSystemLocations',

@@ -87,7 +87,7 @@ const confirmResetPassword = (row) => {
             <q-btn v-if="row.can?.show_notes" round dense flat icon="sticky_note_2" @click.stop="notesRef?.open(row)"><q-badge v-if="row.notes_count > 0" color="red" class="text-weight-bold" floating>{{ row.notes_count }}</q-badge><q-tooltip>Notes</q-tooltip></q-btn>
             <q-btn v-if="row.can?.reset_password" round dense flat icon="lock_reset" :disable="loading" @click.stop="confirmResetPassword(row)"><q-tooltip>Reset password</q-tooltip></q-btn>
             <q-btn v-if="row.can?.edit" round dense flat icon="edit" @click="router.visit(route('backoffice.dealer-configuration.users.edit', { dealerUser: row.id, return_to: currentUrl }))"><q-tooltip>Edit</q-tooltip></q-btn>
-            <q-btn v-if="canAssignPermissions && row.can?.assign_permissions" round dense flat icon="verified_user" @click="router.visit(route('backoffice.dealer-configuration.users.permissions.edit', { dealerUser: row.id, return_to: currentUrl }))"><q-tooltip>Access permissions</q-tooltip></q-btn>
+            <q-btn v-if="canAssignPermissions && row.can?.assign_permissions" round dense flat icon="vpn_key" @click="router.visit(route('backoffice.dealer-configuration.users.permissions.edit', { dealerUser: row.id, return_to: currentUrl }))"><q-tooltip>Access permissions</q-tooltip></q-btn>
             <q-btn v-if="row.can?.delete" round dense flat icon="delete" color="negative" :disable="loading" @click.stop="confirmDelete(row)"><q-tooltip>Delete</q-tooltip></q-btn>
         </template>
     </PaginatedTable>

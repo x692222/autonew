@@ -199,7 +199,9 @@ const isDeferredLoading = (colName, row) => {
         if ((loadedVersion ?? '') !== (currentVersion ?? '')) return true
     }
 
-    return !group?.[row?.[props.rowKey]]
+    // A missing row payload in a loaded deferred group is valid (eg. zero counts).
+    // Keep rendering with fallback values instead of spinning forever.
+    return false
 }
 
 /**

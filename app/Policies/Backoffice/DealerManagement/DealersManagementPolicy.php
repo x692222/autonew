@@ -215,7 +215,7 @@ class DealersManagementPolicy
             return Response::deny('This user does not belong to the selected dealer.');
         }
 
-        return $user->hasPermissionTo('assignPermissions', 'backoffice')
+        return $user->hasPermissionTo('assignDealerPermisssions', 'backoffice')
             ? Response::allow()
             : Response::deny('You do not have permission to assign dealer user permissions.');
     }

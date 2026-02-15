@@ -28,7 +28,7 @@ const notesRef = ref(null)
 const { confirmAction } = useConfirmAction(loading)
 const search = ref(props.filters?.search ?? '')
 const currentUrl = computed(() => page.url || route('backoffice.dealer-management.dealers.users', props.dealer.id))
-const canAssignPermissions = computed(() => !!abilities.value.assignPermissions)
+const canAssignPermissions = computed(() => !!abilities.value.assignDealerPermisssions)
 
 const tableColumns = computed(() => ([
     ...(props.columns || []),
@@ -165,7 +165,7 @@ const confirmResetPassword = (row) => {
                 round
                 dense
                 flat
-                icon="verified_user"
+                icon="vpn_key"
                 @click="router.visit(route('backoffice.dealer-management.dealers.users.permissions.edit', { dealer: dealer.id, dealerUser: row.id, return_to: currentUrl }))"
             >
                 <q-tooltip>Access permissions</q-tooltip>
