@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Backoffice\DealerManagement\Dealers;
 
+use App\Models\WhatsappNumber;
 use App\Models\Dealer\Dealer;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -22,7 +23,10 @@ class StoreDealersManagementRequest extends FormRequest
                 'nullable',
                 'string',
                 Rule::exists('whatsapp_numbers', 'id')
-                    ->where(fn ($query) => $query->whereNull('dealer_id')->whereNull('deleted_at')),
+                    ->where(fn ($query) => $query
+                        ->where('type', WhatsappNumber::TYPE_DEALER)
+                        ->whereNull('dealer_id')
+                        ->whereNull('deleted_at')),
             ],
 
             'branches' => ['required', 'array', 'min:1'],

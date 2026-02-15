@@ -7,7 +7,9 @@ use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerBranch;
 use App\Models\Dealer\DealerUser;
 use App\Models\Dealer\DealerSalePerson;
+use App\Models\Leads\Lead;
 use App\Models\Note;
+use App\Models\Stock\Stock;
 use App\Models\System\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -178,15 +180,9 @@ class NotesController extends Controller
 
     private function resolveNoteable(string $noteableType, string $noteableId): Model
     {
-        $class = match ($noteableType) {
-            'dealer' => Dealer::class,
-            'dealer-branch' => DealerBranch::class,
-            'dealer-sale-person' => DealerSalePerson::class,
-            'dealer-user' => DealerUser::class,
-            default => null,
-        };
+        $class = config("notes.noteables.{$noteableType}");
 
-        if (!$class) {
+        if (! is_string($class) || ! class_exists($class) || ! is_subclass_of($class, Model::class)) {
             abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'Unsupported note target.');
         }
 
@@ -267,6 +263,14 @@ class NotesController extends Controller
 
         if ($noteable instanceof DealerUser) {
             return trim((string) $noteable->firstname . ' ' . (string) $noteable->lastname);
+        }
+
+        if ($noteable instanceof Stock) {
+            return (string) ($noteable->name ?: $noteable->internal_reference ?: $noteable->getKey());
+        }
+
+        if ($noteable instanceof Lead) {
+            return (string) ($noteable->name ?: $noteable->internal_reference ?: $noteable->getKey());
         }
 
         return (string) $noteable->getKey();
@@ -388,6 +392,16 @@ class NotesController extends Controller
         }
 
         if ($noteable instanceof DealerUser) {
+            $noteable->loadMissing('dealer:id');
+            return $noteable->dealer;
+        }
+
+        if ($noteable instanceof Stock) {
+            $noteable->loadMissing('branch:id,dealer_id', 'branch.dealer:id');
+            return $noteable->branch?->dealer;
+        }
+
+        if ($noteable instanceof Lead) {
             $noteable->loadMissing('dealer:id');
             return $noteable->dealer;
         }

@@ -6,7 +6,7 @@ use App\Models\Stock\StockPublishLog;
 
 class StockLookup
 {
-    public static function latestPublishedRecord(int $stockId): ?StockPublishLog
+    public static function latestPublishedRecord(string $stockId): ?StockPublishLog
     {
         return StockPublishLog::query()
             ->where('stock_id', $stockId)
@@ -15,7 +15,7 @@ class StockLookup
             ->first();
     }
 
-    public static function canEditReference(int $stockId): bool
+    public static function canEditReference(string $stockId): bool
     {
         $latestPublish = self::latestPublishedRecord($stockId);
 

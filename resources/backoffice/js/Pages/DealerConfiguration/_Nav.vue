@@ -18,6 +18,11 @@ const tabs = computed(() => {
         { name: 'branches', label: 'Branches', permission: 'indexDealershipBranches', routeName: 'backoffice.dealer-configuration.branches.index' },
         { name: 'sales-people', label: 'Sales People', permission: 'indexDealershipSalesPeople', routeName: 'backoffice.dealer-configuration.sales-people.index' },
         { name: 'users', label: 'Platform Users', permission: 'indexDealershipUsers', routeName: 'backoffice.dealer-configuration.users.index' },
+        { name: 'stock', label: 'Stock', permission: 'indexStock', routeName: 'backoffice.dealer-configuration.stock.index' },
+        { name: 'leads', label: 'Leads', permission: 'manageLeads', routeName: 'backoffice.dealer-configuration.leads.index' },
+        { name: 'lead-pipelines', label: 'Lead Pipelines', permission: 'indexPipelines', routeName: 'backoffice.dealer-configuration.lead-pipelines.index' },
+        { name: 'lead-stages', label: 'Lead Stages', permission: 'indexPipelineStages', routeName: 'backoffice.dealer-configuration.lead-stages.index' },
+        { name: 'settings', label: 'Settings', permission: 'canConfigureSettings', routeName: 'backoffice.dealer-configuration.settings.index' },
     ]
 
     return allTabs.filter((item) => !!abilities.value[item.permission])

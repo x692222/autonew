@@ -71,6 +71,7 @@ class Stock extends Model implements HasMedia
         'internal_reference',
         'type',
         'name',
+        'description',
         'price',
     ];
 

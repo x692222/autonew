@@ -58,6 +58,16 @@ const cancel = () => {
 
     <div class="row nowrap justify-between items-center">
         <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
+        <div>
+            <q-btn
+                color="grey-4"
+                text-color="standard"
+                label="Back"
+                no-wrap
+                unelevated
+                @click="cancel"
+            />
+        </div>
     </div>
 
     <q-card flat bordered class="q-mt-md">
@@ -112,14 +122,6 @@ const cancel = () => {
 
             <div class="row justify-end">
                 <div class="q-gutter-sm q-mt-lg">
-                    <q-btn
-                        color="grey-4"
-                        text-color="standard"
-                        label="Cancel"
-                        no-wrap
-                        unelevated
-                        @click="cancel"
-                    />
                     <q-btn
                         color="primary"
                         label="Save"

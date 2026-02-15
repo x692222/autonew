@@ -1,17 +1,3 @@
-- backoffice users - password - moet set of hoe gemaak
-
-<Token usage: total=2,024,915 input=1,829,417 (+ 48,712,704 cached) output=195,498 (reasoning 69,319)
+<Token usage: total=6,786,536 input=6,039,908 (+ 194,353,024 cached) output=746,628 (reasoning 190,023)
 To continue this session, run codex resume 019c5a4c-5c33-7ee1-bf6c-1f472e256b6b
-
-
-
-BRANCH-DUAL-CONTROLLER-001.
-
-
-<Token usage: total=3,011,675 input=2,678,786 (+ 81,356,928 cached) output=332,889 (reasoning 94,799)
-To continue this session, run codex resume 019c5a4c-5c33-7ee1-bf6c-1f472e256b6b
-
-<Token usage: total=3,559,739 input=3,164,120 (+ 103,435,264 cached) output=395,619 (reasoning 113,516)
-To continue this session, run codex resume 019c5a4c-5c33-7ee1-bf6c-1f472e256b6b
-
 

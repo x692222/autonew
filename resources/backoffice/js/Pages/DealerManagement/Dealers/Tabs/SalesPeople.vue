@@ -11,6 +11,7 @@ defineOptions({ layout: Layout })
 
 const route = inject('route')
 const page = usePage()
+const abilities = computed(() => page.props.auth?.user?.abilities || {})
 
 const props = defineProps({
     publicTitle: { type: String, default: 'Dealer Management' },
@@ -28,6 +29,7 @@ const notesRef = ref(null)
 const { confirmAction } = useConfirmAction(loading)
 const selectedBranch = ref(props.filters?.branch_id ?? null)
 const currentUrl = computed(() => page.url || route('backoffice.dealer-management.dealers.sales-people', props.dealer.id))
+const canCreateSalesPeople = computed(() => !!abilities.value.createDealershipSalesPeople)
 
 const tableColumns = computed(() => ([
     ...(props.columns || []),
@@ -79,6 +81,14 @@ const confirmDelete = (row) => {
             <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
             <div class="text-caption text-grey-7">{{ dealer.name }}</div>
         </div>
+        <q-btn
+            v-if="canCreateSalesPeople"
+            color="primary"
+            label="Create Sales Person"
+            no-wrap
+            unelevated
+            @click="router.visit(route('backoffice.dealer-management.dealers.sales-people.create', { dealer: dealer.id, return_to: currentUrl }))"
+        />
     </div>
 
     <DealerTabs :page-tab="pageTab" :dealer-id="dealer.id" />

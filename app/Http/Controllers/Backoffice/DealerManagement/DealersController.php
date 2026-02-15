@@ -177,6 +177,7 @@ class DealersController extends Controller
                     ->toArray(),
                 'whatsappNumbers' => WhatsappNumber::query()
                     ->select(['id as value', 'msisdn as label'])
+                    ->where('type', WhatsappNumber::TYPE_DEALER)
                     ->whereNull('dealer_id')
                     ->whereNull('deleted_at')
                     ->orderBy('msisdn')
@@ -236,6 +237,7 @@ class DealersController extends Controller
             if (!empty($data['whatsapp_number_id'])) {
                 $whatsappNumber = WhatsappNumber::query()
                     ->whereKey($data['whatsapp_number_id'])
+                    ->where('type', WhatsappNumber::TYPE_DEALER)
                     ->whereNull('dealer_id')
                     ->first();
 

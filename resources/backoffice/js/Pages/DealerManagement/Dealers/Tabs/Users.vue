@@ -29,6 +29,7 @@ const { confirmAction } = useConfirmAction(loading)
 const search = ref(props.filters?.search ?? '')
 const currentUrl = computed(() => page.url || route('backoffice.dealer-management.dealers.users', props.dealer.id))
 const canAssignPermissions = computed(() => !!abilities.value.assignDealerPermisssions)
+const canCreateDealerUsers = computed(() => !!abilities.value.createDealershipUsers)
 
 const tableColumns = computed(() => ([
     ...(props.columns || []),
@@ -93,6 +94,14 @@ const confirmResetPassword = (row) => {
             <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
             <div class="text-caption text-grey-7">{{ dealer.name }}</div>
         </div>
+        <q-btn
+            v-if="canCreateDealerUsers"
+            color="primary"
+            label="Create User"
+            no-wrap
+            unelevated
+            @click="router.visit(route('backoffice.dealer-management.dealers.users.create', { dealer: dealer.id, return_to: currentUrl }))"
+        />
     </div>
 
     <DealerTabs :page-tab="pageTab" :dealer-id="dealer.id" />

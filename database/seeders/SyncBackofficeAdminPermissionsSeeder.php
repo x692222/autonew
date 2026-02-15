@@ -24,8 +24,7 @@ class SyncBackofficeAdminPermissionsSeeder extends Seeder
 
         $permissions = Permission::query()
             ->where('guard_name', 'backoffice')
-            ->pluck('name')
-            ->all();
+            ->get();
 
         // Re-running this keeps it idempotent: existing direct permissions are replaced.
         $user->syncPermissions($permissions);
@@ -34,7 +33,7 @@ class SyncBackofficeAdminPermissionsSeeder extends Seeder
 
         $this->command?->info(sprintf(
             'Synced %d backoffice permissions for %s.',
-            count($permissions),
+            $permissions->count(),
             $user->email
         ));
     }

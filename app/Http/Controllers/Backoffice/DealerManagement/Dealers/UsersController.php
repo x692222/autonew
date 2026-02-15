@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Backoffice\DealerManagement\Dealers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Backoffice\DealerManagement\Dealers\Users\CreateDealerUsersRequest;
 use App\Http\Requests\Backoffice\DealerManagement\Dealers\Users\DestroyDealerUsersRequest;
 use App\Http\Requests\Backoffice\DealerManagement\Dealers\Users\EditDealerUsersRequest;
 use App\Http\Requests\Backoffice\DealerManagement\Dealers\Users\IndexDealerUsersRequest;
 use App\Http\Requests\Backoffice\DealerManagement\Dealers\Users\ResetPasswordDealerUsersRequest;
+use App\Http\Requests\Backoffice\DealerManagement\Dealers\Users\StoreDealerUsersRequest;
 use App\Http\Requests\Backoffice\DealerManagement\Dealers\Users\UpdateDealerUsersRequest;
 use App\Http\Resources\Backoffice\DealerManagement\Dealers\Users\DealerUsersIndexResource;
 use App\Models\Dealer\Dealer;
@@ -93,6 +95,29 @@ class UsersController extends Controller
                 'email' => $dealerUser->email,
             ],
         ]);
+    }
+
+    public function create(CreateDealerUsersRequest $request, Dealer $dealer): Response
+    {
+        return Inertia::render('DealerManagement/Dealers/Users/Create', [
+            'publicTitle' => 'Dealer Management',
+            'dealer' => [
+                'id' => $dealer->id,
+                'name' => $dealer->name,
+            ],
+            'pageTab' => 'users',
+            'returnTo' => $request->input('return_to', route('backoffice.dealer-management.dealers.users', $dealer->id)),
+        ]);
+    }
+
+    public function store(StoreDealerUsersRequest $request, Dealer $dealer): RedirectResponse
+    {
+        $data = $request->safe()->except(['return_to']);
+        $dealerUser = $dealer->users()->create($data);
+        Password::broker('dealers')->sendResetLink(['email' => $dealerUser->email]);
+
+        return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.users', $dealer->id)))
+            ->with('success', 'Dealer user created.');
     }
 
     public function update(UpdateDealerUsersRequest $request, Dealer $dealer, DealerUser $dealerUser): RedirectResponse

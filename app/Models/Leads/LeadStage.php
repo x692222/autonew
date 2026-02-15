@@ -24,11 +24,10 @@ class LeadStage extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'sort_order'                    => 'integer',
-        'is_terminal'                   => 'boolean',
-        'is_won'                        => 'boolean',
-        'is_lost'                       => 'boolean',
-        'sla_minutes_to_first_response' => 'integer',
+        'sort_order' => 'integer',
+        'is_terminal' => 'boolean',
+        'is_won' => 'boolean',
+        'is_lost' => 'boolean',
     ];
 
     public function pipeline(): BelongsTo

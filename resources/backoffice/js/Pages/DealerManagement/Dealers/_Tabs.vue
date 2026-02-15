@@ -18,9 +18,11 @@ const tabs = computed(() => {
         { name: 'sales-people', label: 'Sales People', permission: 'indexDealershipSalesPeople', routeName: 'backoffice.dealer-management.dealers.sales-people' },
         { name: 'users', label: 'Dealer Users', permission: 'indexDealershipUsers', routeName: 'backoffice.dealer-management.dealers.users' },
         { name: 'stock', label: 'Stock', permission: 'indexDealershipStock', routeName: 'backoffice.dealer-management.dealers.stock' },
-        { name: 'notes', label: 'Notes', permission: 'showNotes', routeName: 'backoffice.dealer-management.dealers.notes' },
+        { name: 'leads', label: 'Leads', permission: 'manageDealershipLeads', routeName: 'backoffice.dealer-management.dealers.leads' },
+        { name: 'lead-pipelines', label: 'Lead Pipelines', permission: 'indexDealershipPipelines', routeName: 'backoffice.dealer-management.dealers.lead-pipelines.index' },
+        { name: 'lead-stages', label: 'Lead Stages', permission: 'indexDealershipPipelineStages', routeName: 'backoffice.dealer-management.dealers.lead-stages.index' },
         { name: 'notification-history', label: 'Notification History', permission: 'showDealershipNotificationHistory', routeName: 'backoffice.dealer-management.dealers.notification-history' },
-        { name: 'settings', label: 'Settings', permission: 'showDealershipSettings', routeName: 'backoffice.dealer-management.dealers.settings' },
+        { name: 'settings', label: 'Settings', permission: 'canConfigureDealershipSettings', routeName: 'backoffice.dealer-management.dealers.settings' },
         { name: 'billings', label: 'Billings', permission: 'showDealershipBillings', routeName: 'backoffice.dealer-management.dealers.billings' },
         { name: 'audit-log', label: 'Audit Log', permission: 'showDealershipAuditLogs', routeName: 'backoffice.dealer-management.dealers.audit-log' },
     ]

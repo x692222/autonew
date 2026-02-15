@@ -5,6 +5,7 @@ namespace App\Models\Dealer;
 use App\Traits\HasUuidPrimaryKey;
 
 use App\Models\Ai\AiConversation;
+use App\Models\Dealer\Configuration\DealerConfiguration;
 use App\Models\Leads\Lead;
 use App\Models\Leads\LeadConversation;
 use App\Models\Leads\LeadMessage;
@@ -136,6 +137,18 @@ class Dealer extends Model
         return $this->hasMany(LeadPipeline::class, 'dealer_id');
     }
 
+    public function stages(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            LeadStage::class,
+            LeadPipeline::class,
+            'dealer_id',
+            'pipeline_id',
+            'id',
+            'id'
+        );
+    }
+
     public function whatsappNumbers(): HasMany
     {
         return $this->hasMany(WhatsappNumber::class, 'dealer_id');
@@ -144,6 +157,11 @@ class Dealer extends Model
     public function whatsappTemplates(): HasMany
     {
         return $this->hasMany(WhatsappTemplate::class, 'dealer_id');
+    }
+
+    public function configurations(): HasMany
+    {
+        return $this->hasMany(DealerConfiguration::class, 'dealer_id');
     }
 
 

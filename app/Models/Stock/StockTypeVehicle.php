@@ -145,6 +145,6 @@ class StockTypeVehicle extends Model
 
     public function model(): BelongsTo
     {
-        return $this->belongsTo(StockModel::class, 'make_id');
+        return $this->belongsTo(StockModel::class, 'model_id');
     }
 }

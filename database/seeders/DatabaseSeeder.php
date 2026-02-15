@@ -25,7 +25,8 @@ class DatabaseSeeder extends Seeder
             StockSeeder::class,
             // LeadDemoSeeder::class,
             WhatsappNumberSeeder::class,
-            WhatsappTemplatesSeeder::class
+            WhatsappTemplatesSeeder::class,
+            SettingsConfigurationsSeeder::class,
         ]);
 
     }

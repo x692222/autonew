@@ -19,8 +19,6 @@ return new class extends Migration {
             $table->boolean('is_won')->default(false);
             $table->boolean('is_lost')->default(false);
 
-            $table->unsignedInteger('sla_minutes_to_first_response')->nullable();
-
             $table->timestamps();
             $table->softDeletes();
         });

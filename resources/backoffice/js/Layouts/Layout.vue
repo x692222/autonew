@@ -16,6 +16,7 @@ const impersonationDialog = ref(false)
 const impersonationEmail = ref('')
 
 const abilities = computed(() => page.props.auth?.user?.abilities || {})
+const pendingCounts = computed(() => page.props.pending_counts || { system_requests: 0, feature_tags: 0 })
 const impersonation = computed(() => page.props.impersonation || {})
 const authGuard = computed(() => page.props.auth?.guard ?? '')
 const authUser = computed(() => page.props.auth?.user ?? null)
@@ -28,8 +29,17 @@ const canViewDealerConfiguration = computed(() => authGuard.value === 'dealer' &
     !!abilities.value.editDealership ||
     !!abilities.value.indexDealershipBranches ||
     !!abilities.value.indexDealershipSalesPeople ||
-    !!abilities.value.indexDealershipUsers
+    !!abilities.value.indexDealershipUsers ||
+    !!abilities.value.indexStock ||
+    !!abilities.value.manageLeads ||
+    !!abilities.value.indexPipelines ||
+    !!abilities.value.indexPipelineStages ||
+    !!abilities.value.canConfigureSettings
 ))
+const canViewDealerStock = computed(() => authGuard.value === 'dealer' && !!abilities.value.indexStock)
+const canViewDealerLeads = computed(() => authGuard.value === 'dealer' && !!abilities.value.manageLeads)
+const canProcessSystemRequests = computed(() => isBackofficeGuard.value && !!abilities.value.processSystemRequests)
+const canConfigureSystemSettings = computed(() => isBackofficeGuard.value && !!abilities.value.canConfigureSystemSettings)
 
 const isImpersonating = computed(() => !!impersonation.value.active)
 const isBackofficeGuard = computed(() => authGuard.value === 'backoffice')
@@ -114,12 +124,40 @@ watch(
 
                     <div class="q-pl-sm q-gutter-sm row items-center no-wrap">
 
-                        <q-btn round flat dense icon="notifications">
-                            <q-badge floating color="red" rounded>1</q-badge>
+                        <q-btn
+                            round
+                            flat
+                            dense
+                            icon="notifications"
+                        />
+
+                        <q-btn
+                            round
+                            flat
+                            dense
+                            icon="mail"
+                        />
+
+                        <q-btn
+                            v-if="isBackofficeGuard && canProcessSystemRequests"
+                            round
+                            flat
+                            dense
+                            icon="assignment_late"
+                            @click="router.visit(route('backoffice.system.system-requests.index'))"
+                        >
+                            <q-badge floating color="red" rounded>{{ pendingCounts.system_requests || 0 }}</q-badge>
                         </q-btn>
 
-                        <q-btn round flat dense icon="mail">
-                            <q-badge floating color="red" rounded>1</q-badge>
+                        <q-btn
+                            v-if="isBackofficeGuard && canProcessSystemRequests"
+                            round
+                            flat
+                            dense
+                            icon="new_releases"
+                            @click="router.visit(route('backoffice.system.pending-feature-tags.index'))"
+                        >
+                            <q-badge floating color="red" rounded>{{ pendingCounts.feature_tags || 0 }}</q-badge>
                         </q-btn>
 
                         <q-btn dense flat no-wrap>
@@ -216,11 +254,34 @@ watch(
                             <q-item v-if="abilities.indexDealershipUsers" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.users.index'))">
                                 <q-item-section>Platform Users</q-item-section>
                             </q-item>
+                            <q-item v-if="abilities.indexStock" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.stock.index'))">
+                                <q-item-section>Stock</q-item-section>
+                            </q-item>
+                            <q-item v-if="abilities.manageLeads" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.leads.index'))">
+                                <q-item-section>Leads</q-item-section>
+                            </q-item>
+                            <q-item v-if="abilities.indexPipelines" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.lead-pipelines.index'))">
+                                <q-item-section>Lead Pipelines</q-item-section>
+                            </q-item>
+                            <q-item v-if="abilities.indexPipelineStages" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.lead-stages.index'))">
+                                <q-item-section>Lead Stages</q-item-section>
+                            </q-item>
+                            <q-item v-if="abilities.canConfigureSettings" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.settings.index'))">
+                                <q-item-section>Settings</q-item-section>
+                            </q-item>
                         </q-list>
                     </q-menu>
                 </q-route-tab>
-                <q-route-tab label="Stock" @click="router.visit(route('backoffice.index'))" />
-                <q-route-tab label="Leads" @click="router.visit(route('backoffice.index'))" />
+                <q-route-tab
+                    v-if="canViewDealerStock"
+                    label="Stock"
+                    @click="router.visit(route('backoffice.dealer-configuration.stock.index'))"
+                />
+                <q-route-tab
+                    v-if="canViewDealerLeads"
+                    label="Leads"
+                    @click="router.visit(route('backoffice.dealer-configuration.leads.index'))"
+                />
                 <q-route-tab label="Analytics">
                     <q-menu>
                         <q-list style="min-width: 100px">
@@ -254,6 +315,22 @@ watch(
                             <q-item clickable v-close-popup>
                                 <q-item-section>New</q-item-section>
                             </q-item>
+                            <q-item
+                                v-if="canProcessSystemRequests"
+                                clickable
+                                v-close-popup
+                                @click="router.visit(route('backoffice.system.system-requests.index'))"
+                            >
+                                <q-item-section>System Requests</q-item-section>
+                            </q-item>
+                            <q-item
+                                v-if="canProcessSystemRequests"
+                                clickable
+                                v-close-popup
+                                @click="router.visit(route('backoffice.system.pending-feature-tags.index'))"
+                            >
+                                <q-item-section>Pending Feature Tags</q-item-section>
+                            </q-item>
                             <q-separator />
                             <q-item clickable>
                                 <q-item-section>System Configuration</q-item-section>
@@ -272,10 +349,12 @@ watch(
                                             <q-item-section>Location Management</q-item-section>
                                         </q-item>
                                         <q-item
+                                            v-if="canConfigureSystemSettings"
+                                            @click="router.visit(route('backoffice.system.settings.index'))"
                                             dense
                                             clickable
                                         >
-                                            <q-item-section>3rd level Label</q-item-section>
+                                            <q-item-section>System Settings</q-item-section>
                                         </q-item>
                                     </q-list>
                                 </q-menu>

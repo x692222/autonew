@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Backoffice\DealerManagement\Dealers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Backoffice\DealerManagement\Dealers\SalesPeople\CreateDealerSalesPeopleRequest;
 use App\Http\Requests\Backoffice\DealerManagement\Dealers\SalesPeople\DestroyDealerSalesPeopleRequest;
 use App\Http\Requests\Backoffice\DealerManagement\Dealers\SalesPeople\EditDealerSalesPeopleRequest;
 use App\Http\Requests\Backoffice\DealerManagement\Dealers\SalesPeople\IndexDealerSalesPeopleRequest;
+use App\Http\Requests\Backoffice\DealerManagement\Dealers\SalesPeople\StoreDealerSalesPeopleRequest;
 use App\Http\Requests\Backoffice\DealerManagement\Dealers\SalesPeople\UpdateDealerSalesPeopleRequest;
 use App\Http\Resources\Backoffice\DealerManagement\Dealers\SalesPeople\DealerSalesPeopleIndexResource;
 use App\Models\Dealer\DealerBranch;
@@ -118,6 +120,38 @@ class SalesPeopleController extends Controller
                 'email' => $salesPerson->email,
             ],
         ]);
+    }
+
+    public function create(CreateDealerSalesPeopleRequest $request, Dealer $dealer): Response
+    {
+        return Inertia::render('DealerManagement/Dealers/SalesPeople/Create', [
+            'publicTitle' => 'Dealer Management',
+            'dealer' => [
+                'id' => $dealer->id,
+                'name' => $dealer->name,
+            ],
+            'pageTab' => 'sales-people',
+            'returnTo' => $request->input('return_to', route('backoffice.dealer-management.dealers.sales-people', $dealer->id)),
+            'branchOptions' => $dealer->branches()
+                ->select(['id as value', 'name as label'])
+                ->orderBy('name')
+                ->get()
+                ->toArray(),
+        ]);
+    }
+
+    public function store(StoreDealerSalesPeopleRequest $request, Dealer $dealer): RedirectResponse
+    {
+        $data = $request->safe()->except(['return_to']);
+        $branchBelongsToDealer = $dealer->branches()->whereKey($data['branch_id'])->exists();
+        if (! $branchBelongsToDealer) {
+            return back()->withErrors(['branch_id' => 'Selected branch is invalid for this dealer.'])->withInput();
+        }
+
+        DealerSalePerson::query()->create($data);
+
+        return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.sales-people', $dealer->id)))
+            ->with('success', 'Sales person created.');
     }
 
     public function update(UpdateDealerSalesPeopleRequest $request, Dealer $dealer, DealerSalePerson $salesPerson): RedirectResponse

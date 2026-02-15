@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\System\User;
+use App\Models\System\SystemRequest;
+use App\Models\System\Configuration\SystemConfiguration;
 use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerUser;
 use App\Models\Dealer\DealerBranch;
@@ -11,10 +13,16 @@ use App\Models\Location\LocationCity;
 use App\Models\Location\LocationCountry;
 use App\Models\Location\LocationState;
 use App\Models\Location\LocationSuburb;
+use App\Models\Leads\Lead;
+use App\Models\Leads\LeadPipeline;
+use App\Models\Leads\LeadStage;
+use App\Models\Stock\Stock;
 use App\Policies\Backoffice\Auth\ImpersonationsPolicy;
 use App\Policies\Backoffice\DealerManagement\DealersManagementPolicy;
 use App\Policies\Backoffice\System\LocationsManagementPolicy;
+use App\Policies\Backoffice\System\SystemConfigurationsPolicy;
 use App\Policies\Backoffice\System\UsersManagementPolicy;
+use App\Observers\SystemRequestObserver;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -35,12 +43,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(User::class, UsersManagementPolicy::class);
+        SystemRequest::observe(SystemRequestObserver::class);
         Gate::policy(Dealer::class, DealersManagementPolicy::class);
         Gate::policy(DealerUser::class, ImpersonationsPolicy::class);
         Gate::policy(LocationCountry::class, LocationsManagementPolicy::class);
         Gate::policy(LocationState::class, LocationsManagementPolicy::class);
         Gate::policy(LocationCity::class, LocationsManagementPolicy::class);
         Gate::policy(LocationSuburb::class, LocationsManagementPolicy::class);
+        Gate::policy(SystemConfiguration::class, SystemConfigurationsPolicy::class);
 
         Gate::define('dealerConfigurationEditDealership', function ($actor, Dealer $dealer): Response {
             if (! $actor instanceof DealerUser) {
@@ -256,6 +266,277 @@ class AppServiceProvider extends ServiceProvider
             return $actor->hasPermissionTo('showNotes', 'dealer')
                 ? Response::allow()
                 : Response::deny('You do not have permission to view notes.');
+        });
+
+        Gate::define('dealerConfigurationIndexStock', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('indexStock', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to view stock.');
+        });
+
+        Gate::define('dealerConfigurationShowStock', function ($actor, Stock $stock): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            $stock->loadMissing('branch:id,dealer_id');
+            if ((string) $actor->dealer_id !== (string) $stock->branch?->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('showStock', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to view stock.');
+        });
+
+        Gate::define('dealerConfigurationCreateStock', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('createStock', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to create stock.');
+        });
+
+        Gate::define('dealerConfigurationEditStock', function ($actor, Stock $stock): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            $stock->loadMissing('branch:id,dealer_id');
+            if ((string) $actor->dealer_id !== (string) $stock->branch?->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('editStock', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to edit stock.');
+        });
+
+        Gate::define('dealerConfigurationDeleteStock', function ($actor, Stock $stock): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            $stock->loadMissing('branch:id,dealer_id');
+            if ((string) $actor->dealer_id !== (string) $stock->branch?->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('deleteStock', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to delete stock.');
+        });
+
+        Gate::define('dealerConfigurationConfigureSettings', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('canConfigureSettings', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to configure settings.');
+        });
+
+        Gate::define('dealerConfigurationManageLeads', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('manageLeads', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to manage leads.');
+        });
+
+        Gate::define('dealerConfigurationCreateLead', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('manageLeads', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to create leads.');
+        });
+
+        Gate::define('dealerConfigurationViewLead', function ($actor, Lead $lead): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $lead->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('manageLeads', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to view leads.');
+        });
+
+        Gate::define('dealerConfigurationEditLead', function ($actor, Lead $lead): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $lead->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('manageLeads', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to edit leads.');
+        });
+
+        Gate::define('dealerConfigurationDeleteLead', function ($actor, Lead $lead): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $lead->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('manageLeads', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to delete leads.');
+        });
+
+        Gate::define('dealerConfigurationIndexPipelines', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('indexPipelines', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to view pipelines.');
+        });
+
+        Gate::define('dealerConfigurationCreatePipeline', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('createPipelines', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to create pipelines.');
+        });
+
+        Gate::define('dealerConfigurationEditPipeline', function ($actor, LeadPipeline $pipeline): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $pipeline->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('editPipelines', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to edit pipelines.');
+        });
+
+        Gate::define('dealerConfigurationDeletePipeline', function ($actor, LeadPipeline $pipeline): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $pipeline->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('deletePipelines', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to delete pipelines.');
+        });
+
+        Gate::define('dealerConfigurationIndexPipelineStages', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('indexPipelineStages', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to view pipeline stages.');
+        });
+
+        Gate::define('dealerConfigurationCreatePipelineStage', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('createPipelineStages', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to create pipeline stages.');
+        });
+
+        Gate::define('dealerConfigurationEditPipelineStage', function ($actor, LeadStage $stage): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            $stage->loadMissing('pipeline:id,dealer_id');
+            if ((string) $actor->dealer_id !== (string) $stage->pipeline?->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('editPipelineStages', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to edit pipeline stages.');
+        });
+
+        Gate::define('dealerConfigurationDeletePipelineStage', function ($actor, LeadStage $stage): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            $stage->loadMissing('pipeline:id,dealer_id');
+            if ((string) $actor->dealer_id !== (string) $stage->pipeline?->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('deletePipelineStages', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to delete pipeline stages.');
         });
     }
 }

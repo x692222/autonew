@@ -2,14 +2,17 @@
 
 namespace App\Models\System;
 
+use App\Enums\SystemRequestStatusEnum;
 use App\Traits\HasUuidPrimaryKey;
 
 use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerUser;
 use App\Traits\HasActivityTrait;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class SystemRequest extends Model
 {
@@ -21,6 +24,7 @@ class SystemRequest extends Model
         'contact',
         'system',
         'other',
+        'feature_tag',
     ];
 
     protected $table = 'system_requests';
@@ -28,9 +32,13 @@ class SystemRequest extends Model
     protected $fillable = [
         'user_id',
         'dealer_user_id',
+        'requestable_type',
+        'requestable_id',
         'type',
         'subject',
         'message',
+        'status',
+        'response',
     ];
 
     protected $hidden = [
@@ -40,7 +48,7 @@ class SystemRequest extends Model
     protected function casts(): array
     {
         return [
-
+            'status' => SystemRequestStatusEnum::class,
         ];
     }
 
@@ -70,5 +78,15 @@ class SystemRequest extends Model
             'dealer_user_id',
             'dealer_id'
         );
+    }
+
+    public function requestable(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    public function scopeSubmitted(Builder $query): Builder
+    {
+        return $query->where('status', SystemRequestStatusEnum::SUBMITTED->value);
     }
 }

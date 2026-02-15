@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Models\Dealer\DealerUser;
+use App\Models\Stock\StockFeatureTag;
+use App\Models\System\SystemRequest;
 use App\Support\AbilityValidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -43,7 +45,7 @@ class HandleInertiaRequests extends Middleware
             auth('backoffice')->check() => 'backoffice',
             default => 'web',
         };
-//dd($guard);
+
         $basics = [
             'auth'  => function() use ($request, $guard) {
                 if (stripos(Route::currentRouteName(), 'console.') !== false) {
@@ -88,6 +90,14 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'success' => fn() => $request->session()->get('success'),
                 'error'   => fn() => $request->session()->get('error'),
+            ],
+            'pending_counts' => fn () => [
+                'system_requests' => auth('backoffice')->check()
+                    ? SystemRequest::query()->submitted()->count()
+                    : 0,
+                'feature_tags' => auth('backoffice')->check()
+                    ? StockFeatureTag::query()->pendingReview()->count()
+                    : 0,
             ],
         ];
 

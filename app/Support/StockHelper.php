@@ -68,8 +68,8 @@ class StockHelper
 
     public static function applyTypeAttributeFilters(Builder $query, array $filters, ?string $type, array $cap): void
     {
-        $makeId    = !empty($filters['make_id']) ? (int)$filters['make_id'] : null;
-        $modelId   = !empty($filters['model_id']) ? (int)$filters['model_id'] : null;
+        $makeId    = !empty($filters['make_id']) ? (string) $filters['make_id'] : null;
+        $modelId   = !empty($filters['model_id']) ? (string) $filters['model_id'] : null;
         $condition = $filters['condition'] ?? null;
         $color     = $filters['color'] ?? null;
 
@@ -147,7 +147,7 @@ class StockHelper
         // ----------------------------
         // Import filter
         // ----------------------------
-        if (isSessionBackoffice() && $relation && $isImport && $cap['import']) {
+        if ($relation && $isImport && $cap['import']) {
             $whereRelation($relation, fn(Builder $q) => $q->where('is_import', $isImport === 'yes'));
         }
 

@@ -2,6 +2,7 @@
 import { Head } from '@inertiajs/vue3'
 import Layout from 'bo@/Layouts/Layout.vue'
 import DealerTabs from 'bo@/Pages/DealerManagement/Dealers/_Tabs.vue'
+import SettingsForm from 'bo@/Components/Settings/SettingsForm.vue'
 
 defineOptions({ layout: Layout })
 
@@ -9,6 +10,11 @@ defineProps({
     publicTitle: { type: String, default: 'Dealer Management' },
     dealer: { type: Object, required: true },
     pageTab: { type: String, default: 'settings' },
+    settings: { type: Array, default: () => [] },
+    timezoneOptions: { type: Array, default: () => [] },
+    stockTypeOptions: { type: Array, default: () => [] },
+    updateRoute: { type: String, required: true },
+    canUpdate: { type: Boolean, default: false },
 })
 </script>
 
@@ -24,10 +30,12 @@ defineProps({
 
     <DealerTabs :page-tab="pageTab" :dealer-id="dealer.id" />
 
-    <q-card flat bordered>
-        <q-card-section>
-            <div class="text-h6 q-pb-sm">Settings</div>
-            <div class="text-body2 text-grey-8">Dealer settings tab placeholder.</div>
-        </q-card-section>
-    </q-card>
+    <SettingsForm
+        :settings="settings"
+        :timezone-options="timezoneOptions"
+        :stock-type-options="stockTypeOptions"
+        :update-route="updateRoute"
+        :can-update="canUpdate"
+        :show-backoffice-only-badge="true"
+    />
 </template>

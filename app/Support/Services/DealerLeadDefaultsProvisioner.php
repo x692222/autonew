@@ -88,8 +88,6 @@ class DealerLeadDefaultsProvisioner
                 $stage->is_won = (bool)($stageRow['is_won'] ?? false);
                 $stage->is_lost = (bool)($stageRow['is_lost'] ?? false);
 
-                $sla = $stageRow['sla_minutes_to_first_response'] ?? null;
-                $stage->sla_minutes_to_first_response = ($sla === '' || $sla === null) ? null : (int)$sla;
 
                 if ($stage->trashed()) {
                     $stage->restore();
@@ -126,7 +124,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Sales Pipeline',
@@ -135,7 +132,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Sales Pipeline',
@@ -144,7 +140,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Sales Pipeline',
@@ -153,7 +148,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Sales Pipeline',
@@ -162,7 +156,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Sales Pipeline',
@@ -171,7 +164,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Sales Pipeline',
@@ -180,7 +172,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => true,
                     'is_won' => true,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Sales Pipeline',
@@ -189,7 +180,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => true,
                     'is_won' => false,
                     'is_lost' => true,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Test Drive & Follow-up',
@@ -198,7 +188,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Test Drive & Follow-up',
@@ -207,7 +196,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Test Drive & Follow-up',
@@ -216,7 +204,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Test Drive & Follow-up',
@@ -225,7 +212,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Test Drive & Follow-up',
@@ -234,7 +220,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => true,
                     'is_won' => false,
                     'is_lost' => true,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Finance & Approvals',
@@ -243,7 +228,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Finance & Approvals',
@@ -252,7 +236,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Finance & Approvals',
@@ -261,7 +244,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Finance & Approvals',
@@ -270,7 +252,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => true,
                     'is_won' => true,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Finance & Approvals',
@@ -279,7 +260,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => true,
                     'is_won' => false,
                     'is_lost' => true,
-                    'sla_minutes_to_first_response' => null,
                 ],
                 [
                     'pipeline' => 'Finance & Approvals',
@@ -288,7 +268,6 @@ class DealerLeadDefaultsProvisioner
                     'is_terminal' => false,
                     'is_won' => false,
                     'is_lost' => false,
-                    'sla_minutes_to_first_response' => null,
                 ],
             ],
         ];
