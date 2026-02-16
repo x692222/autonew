@@ -11,6 +11,7 @@ use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\Bil
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\BranchesController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\NotificationHistoriesController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\OverviewsController;
+use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\QuotationsController as DealerManagementQuotationsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\LeadsController as DealerManagementLeadsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\LeadPipelinesController as DealerManagementLeadPipelinesController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\LeadStagesController as DealerManagementLeadStagesController;
@@ -31,12 +32,15 @@ use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\LeadPipeline
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\LeadStagesController as DealerConfigurationLeadStagesController;
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\StockImagesController as DealerConfigurationStockImagesController;
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\StocksController as DealerConfigurationStocksController;
+use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\QuotationsController as DealerConfigurationQuotationsController;
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\UsersController as DealerConfigurationUsersController;
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\UserPermissionsController as DealerConfigurationUserPermissionsController;
 use App\Http\Controllers\Backoffice\Shared\NotesController as BackofficeNotesController;
+use App\Http\Controllers\Backoffice\Shared\QuotationLookupsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\LocationsManagementController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\PendingFeatureTagsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\SystemConfigurationsController;
+use App\Http\Controllers\Backoffice\GuardBackoffice\System\QuotationsController as SystemQuotationsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\SystemRequestsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\UsersManagementController;
 use App\Http\Middleware\BackofficeRedirectIfAuthenticated;
@@ -134,6 +138,11 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                 Route::resource('system-requests', SystemRequestsController::class)
                     ->parameters(['system-requests' => 'systemRequest'])
                     ->only(['index', 'update', 'destroy']);
+                Route::resource('quotations', SystemQuotationsController::class)
+                    ->parameters(['quotations' => 'quotation'])
+                    ->except(['show']);
+                Route::get('quotations/{quotation}/export', [SystemQuotationsController::class, 'export'])
+                    ->name('quotations.export');
                 Route::get('settings', [SystemConfigurationsController::class, 'index'])
                     ->name('settings.index');
                 Route::patch('settings', [SystemConfigurationsController::class, 'update'])
@@ -258,6 +267,12 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                         Route::patch('/{leadStage}', [DealerManagementLeadStagesController::class, 'update'])->name('update');
                         Route::delete('/{leadStage}', [DealerManagementLeadStagesController::class, 'destroy'])->name('destroy');
                     });
+                Route::resource('dealers/{dealer}/quotations', DealerManagementQuotationsController::class)
+                    ->parameters(['quotations' => 'quotation'])
+                    ->names('dealers.quotations')
+                    ->except(['show']);
+                Route::get('dealers/{dealer}/quotations/{quotation}/export', [DealerManagementQuotationsController::class, 'export'])
+                    ->name('dealers.quotations.export');
                 Route::get('dealers/{dealer}/notification-history', [NotificationHistoriesController::class, 'show'])
                     ->name('dealers.notification-history');
                 Route::get('dealers/{dealer}/settings', [SettingsController::class, 'show'])
@@ -296,6 +311,24 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                     ->name('dealers.stock.images.reorder');
                 Route::post('dealers/{dealer}/stock/{stock}/images/move-back-to-bucket', [DealerManagementStockImagesController::class, 'moveBackToBucket'])
                     ->name('dealers.stock.images.move-back-to-bucket');
+                Route::get('dealers/{dealer}/quotations/customers/search', [QuotationLookupsController::class, 'searchDealerCustomers'])
+                    ->name('dealers.quotations.customers.search');
+                Route::post('dealers/{dealer}/quotations/customers', [QuotationLookupsController::class, 'storeDealerCustomer'])
+                    ->name('dealers.quotations.customers.store');
+                Route::get('dealers/{dealer}/quotations/line-item-suggestions', [QuotationLookupsController::class, 'lineItemSuggestionsForDealer'])
+                    ->name('dealers.quotations.line-item-suggestions');
+            });
+
+        Route::prefix('system/quotations')
+            ->as('system.quotations.')
+            ->middleware('ajax')
+            ->group(function () {
+                Route::get('customers/search', [QuotationLookupsController::class, 'searchSystemCustomers'])
+                    ->name('customers.search');
+                Route::post('customers', [QuotationLookupsController::class, 'storeSystemCustomer'])
+                    ->name('customers.store');
+                Route::get('line-item-suggestions', [QuotationLookupsController::class, 'lineItemSuggestionsForSystem'])
+                    ->name('line-item-suggestions');
             });
     });
 
@@ -396,6 +429,11 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                 Route::resource('lead-stages', DealerConfigurationLeadStagesController::class)
                     ->parameters(['lead-stages' => 'leadStage'])
                     ->except(['show']);
+                Route::resource('quotations', DealerConfigurationQuotationsController::class)
+                    ->parameters(['quotations' => 'quotation'])
+                    ->except(['show']);
+                Route::get('quotations/{quotation}/export', [DealerConfigurationQuotationsController::class, 'export'])
+                    ->name('quotations.export');
             });
 
         Route::prefix('configuration')
@@ -414,6 +452,12 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                     ->name('stock.images.reorder');
                 Route::post('stock/{stock}/images/move-back-to-bucket', [DealerConfigurationStockImagesController::class, 'moveBackToBucket'])
                     ->name('stock.images.move-back-to-bucket');
+                Route::get('quotations/customers/search', [QuotationLookupsController::class, 'searchDealerConfigurationCustomers'])
+                    ->name('quotations.customers.search');
+                Route::post('quotations/customers', [QuotationLookupsController::class, 'storeDealerConfigurationCustomer'])
+                    ->name('quotations.customers.store');
+                Route::get('quotations/line-item-suggestions', [QuotationLookupsController::class, 'lineItemSuggestionsForDealerConfiguration'])
+                    ->name('quotations.line-item-suggestions');
             });
     });
 });

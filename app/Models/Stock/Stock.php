@@ -8,6 +8,7 @@ use App\Models\Dealer\Dealer;
 use App\Models\Dealer\Configuration\DealerConfiguration;
 use App\Models\Dealer\DealerBranch;
 use App\Models\Leads\Lead;
+use App\Models\Quotation\QuotationLineItem;
 use App\ModelScopes\FilterSearchScope;
 use App\Traits\HasActivityTrait;
 use App\Traits\HasNotes;
@@ -207,6 +208,11 @@ class Stock extends Model implements HasMedia
     public function viewSummaries(): HasMany
     {
         return $this->hasMany(StockViewSummary::class, 'stock_id');
+    }
+
+    public function quotationLineItems(): HasMany
+    {
+        return $this->hasMany(QuotationLineItem::class, 'stock_id');
     }
 
     public function registerMediaCollections(): void

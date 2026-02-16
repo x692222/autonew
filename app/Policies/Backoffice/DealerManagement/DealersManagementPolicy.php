@@ -9,6 +9,7 @@ use App\Models\Dealer\DealerUser;
 use App\Models\Leads\Lead;
 use App\Models\Leads\LeadPipeline;
 use App\Models\Leads\LeadStage;
+use App\Models\Quotation\Quotation;
 use App\Models\Stock\Stock;
 use App\Models\System\User;
 use Illuminate\Auth\Access\Response;
@@ -152,6 +153,42 @@ class DealersManagementPolicy
         return $user->hasPermissionTo('indexDealershipPipelineStages', 'backoffice')
             ? Response::allow()
             : Response::deny('You do not have permission to view lead stages.');
+    }
+
+    public function showQuotations(User $user, Dealer $dealer): Response
+    {
+        return $user->hasPermissionTo('indexDealershipQuotations', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to view dealer quotations.');
+    }
+
+    public function createQuotation(User $user, Dealer $dealer): Response
+    {
+        return $user->hasPermissionTo('createDealershipQuotations', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to create dealer quotations.');
+    }
+
+    public function editQuotation(User $user, Dealer $dealer, Quotation $quotation): Response
+    {
+        if ((string) $quotation->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This quotation does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('editDealershipQuotations', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to edit dealer quotations.');
+    }
+
+    public function deleteQuotation(User $user, Dealer $dealer, Quotation $quotation): Response
+    {
+        if ((string) $quotation->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This quotation does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('deleteDealershipQuotations', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to delete dealer quotations.');
     }
 
     public function createLeadStage(User $user, Dealer $dealer): Response

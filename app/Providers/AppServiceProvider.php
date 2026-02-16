@@ -16,11 +16,13 @@ use App\Models\Location\LocationSuburb;
 use App\Models\Leads\Lead;
 use App\Models\Leads\LeadPipeline;
 use App\Models\Leads\LeadStage;
+use App\Models\Quotation\Quotation;
 use App\Models\Stock\Stock;
 use App\Policies\Backoffice\Auth\ImpersonationsPolicy;
 use App\Policies\Backoffice\DealerManagement\DealersManagementPolicy;
 use App\Policies\Backoffice\System\LocationsManagementPolicy;
 use App\Policies\Backoffice\System\SystemConfigurationsPolicy;
+use App\Policies\Backoffice\System\SystemQuotationsPolicy;
 use App\Policies\Backoffice\System\UsersManagementPolicy;
 use App\Observers\SystemRequestObserver;
 use Illuminate\Auth\Access\Response;
@@ -51,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(LocationCity::class, LocationsManagementPolicy::class);
         Gate::policy(LocationSuburb::class, LocationsManagementPolicy::class);
         Gate::policy(SystemConfiguration::class, SystemConfigurationsPolicy::class);
+        Gate::policy(Quotation::class, SystemQuotationsPolicy::class);
 
         Gate::define('dealerConfigurationEditDealership', function ($actor, Dealer $dealer): Response {
             if (! $actor instanceof DealerUser) {
@@ -537,6 +540,62 @@ class AppServiceProvider extends ServiceProvider
             return $actor->hasPermissionTo('deletePipelineStages', 'dealer')
                 ? Response::allow()
                 : Response::deny('You do not have permission to delete pipeline stages.');
+        });
+
+        Gate::define('dealerConfigurationIndexQuotations', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('indexQuotations', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to view quotations.');
+        });
+
+        Gate::define('dealerConfigurationCreateQuotation', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('createDealershipQuotations', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to create quotations.');
+        });
+
+        Gate::define('dealerConfigurationEditQuotation', function ($actor, Quotation $quotation): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $quotation->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('editDealershipQuotations', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to edit quotations.');
+        });
+
+        Gate::define('dealerConfigurationDeleteQuotation', function ($actor, Quotation $quotation): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $quotation->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('deleteDealershipQuotations', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to delete quotations.');
         });
     }
 }

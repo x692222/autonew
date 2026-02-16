@@ -6,10 +6,12 @@ use App\Traits\HasUuidPrimaryKey;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\ModelScopes\FilterSearchScope;
+use App\Models\Quotation\Quotation;
 use App\Notifications\Auth\BackofficeResetPasswordNotification;
 use App\Traits\HasActivityTrait;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -94,5 +96,15 @@ class User extends Authenticatable
     public function sendPasswordResetNotification($token): void
     {
         $this->notify(new BackofficeResetPasswordNotification($token));
+    }
+
+    public function createdQuotations(): MorphMany
+    {
+        return $this->morphMany(Quotation::class, 'created_by');
+    }
+
+    public function updatedQuotations(): MorphMany
+    {
+        return $this->morphMany(Quotation::class, 'updated_by');
     }
 }

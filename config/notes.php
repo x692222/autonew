@@ -12,6 +12,7 @@ return [
         'dealer-user'       => \App\Models\Dealer\DealerUser::class,
         'stock'            => \App\Models\Stock\Stock::class,
         'lead'            => \App\Models\Leads\Lead::class,
+        'quotation'       => \App\Models\Quotation\Quotation::class,
     ],
 
     // max note length (match your style)

@@ -41,6 +41,27 @@ class ConfigurationCatalog
                 'default' => 'US',
                 'description' => 'Default ISO country code used for country-specific defaults and formatting.',
             ],
+            'system_is_vat_registered' => [
+                'label' => 'System VAT Registered',
+                'category' => ConfigurationCategoryEnum::GENERAL,
+                'type' => ConfigurationValueTypeEnum::BOOLEAN,
+                'default' => false,
+                'description' => 'When enabled, VAT calculations are applied to system quotations.',
+            ],
+            'system_vat_percentage' => [
+                'label' => 'System VAT Percentage',
+                'category' => ConfigurationCategoryEnum::GENERAL,
+                'type' => ConfigurationValueTypeEnum::FLOAT,
+                'default' => null,
+                'description' => 'VAT rate percentage used for system quotations when VAT is enabled.',
+            ],
+            'system_vat_number' => [
+                'label' => 'System VAT Number',
+                'category' => ConfigurationCategoryEnum::GENERAL,
+                'type' => ConfigurationValueTypeEnum::TEXT,
+                'default' => null,
+                'description' => 'VAT registration number printed on system quotations when VAT is enabled.',
+            ],
         ];
     }
 
@@ -53,6 +74,30 @@ class ConfigurationCatalog
                 'type' => ConfigurationValueTypeEnum::TEXT,
                 'default' => 'N$',
                 'description' => 'Currency symbol prefix used before this dealer\'s displayed monetary values.',
+                'backoffice_only' => false,
+            ],
+            'dealer_is_vat_registered' => [
+                'label' => 'Dealer VAT Registered',
+                'category' => ConfigurationCategoryEnum::GENERAL,
+                'type' => ConfigurationValueTypeEnum::BOOLEAN,
+                'default' => false,
+                'description' => 'When enabled, VAT calculations are applied to dealer quotations.',
+                'backoffice_only' => false,
+            ],
+            'dealer_vat_percentage' => [
+                'label' => 'Dealer VAT Percentage',
+                'category' => ConfigurationCategoryEnum::GENERAL,
+                'type' => ConfigurationValueTypeEnum::FLOAT,
+                'default' => null,
+                'description' => 'VAT rate percentage used for dealer quotations when VAT is enabled.',
+                'backoffice_only' => false,
+            ],
+            'dealer_vat_number' => [
+                'label' => 'Dealer VAT Number',
+                'category' => ConfigurationCategoryEnum::GENERAL,
+                'type' => ConfigurationValueTypeEnum::TEXT,
+                'default' => null,
+                'description' => 'VAT registration number printed on dealer quotations when VAT is enabled.',
                 'backoffice_only' => false,
             ],
             'maximum_files_in_bucket' => [
@@ -275,6 +320,16 @@ class ConfigurationCatalog
 
             if ($key === 'minimum_images_required_for_live') {
                 $rules["settings.{$key}"] = ['nullable', 'integer', 'min:1', 'max:50'];
+                continue;
+            }
+
+            if (in_array($key, ['system_vat_percentage', 'dealer_vat_percentage'], true)) {
+                $rules["settings.{$key}"] = ['nullable', 'numeric', 'gt:0', 'lt:100'];
+                continue;
+            }
+
+            if (in_array($key, ['system_vat_number', 'dealer_vat_number'], true)) {
+                $rules["settings.{$key}"] = ['nullable', 'string', 'max:255'];
                 continue;
             }
 

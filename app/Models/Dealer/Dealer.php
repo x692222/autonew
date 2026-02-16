@@ -12,6 +12,9 @@ use App\Models\Leads\LeadMessage;
 use App\Models\Leads\LeadPipeline;
 use App\Models\Leads\LeadStage;
 use App\Models\Messaging\WhatsappTemplate;
+use App\Models\Quotation\Customer;
+use App\Models\Quotation\Quotation;
+use App\Models\Quotation\QuotationLineItem;
 use App\Models\Stock\Stock;
 use App\Models\WhatsappNumber;
 use App\ModelScopes\FilterSearchScope;
@@ -162,6 +165,21 @@ class Dealer extends Model
     public function configurations(): HasMany
     {
         return $this->hasMany(DealerConfiguration::class, 'dealer_id');
+    }
+
+    public function customers(): HasMany
+    {
+        return $this->hasMany(Customer::class, 'dealer_id');
+    }
+
+    public function quotations(): HasMany
+    {
+        return $this->hasMany(Quotation::class, 'dealer_id');
+    }
+
+    public function quotationLineItems(): HasMany
+    {
+        return $this->hasMany(QuotationLineItem::class, 'dealer_id');
     }
 
 
