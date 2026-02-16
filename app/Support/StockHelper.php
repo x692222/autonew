@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Enums\PoliceClearanceStatusEnum;
 use App\Models\Stock\Stock;
 use App\Models\Stock\StockTypeCommercial;
 use App\Models\Stock\StockTypeGear;
@@ -14,7 +15,7 @@ class StockHelper
 {
     public static function stockRelationMeta(): array
     {
-        return cache()->rememberForever('stock:relation_meta:v2', function() {
+        return cache()->rememberForever('stock:relation_meta:v3', function() {
             $base = [
                 Stock::STOCK_TYPE_VEHICLE    => [
                     'relation' => 'vehicleItem',
@@ -52,6 +53,7 @@ class StockHelper
                 'fuel'    => 'fuel_type',
                 'millage' => 'millage',
                 'color'   => 'color',
+                'police_clearance' => 'is_police_clearance_ready',
             ];
 
             return collect($base)->map(function(array $meta) use ($propertyColumns) {
@@ -78,6 +80,7 @@ class StockHelper
         $drive    = $filters['drive_type'] ?? null;
         $fuel     = $filters['fuel_type'] ?? null;
         $millage  = $filters['millage_range'] ?? null;
+        $policeClearanceReady = $filters['police_clearance_ready'] ?? null;
 
         $relation = match ($type) {
             Stock::STOCK_TYPE_VEHICLE => 'vehicleItem',
@@ -194,6 +197,22 @@ class StockHelper
         }
 
         // ----------------------------
+        // Police clearance filter
+        // ----------------------------
+        if (in_array($policeClearanceReady, PoliceClearanceStatusEnum::values(), true)) {
+            if ($type) {
+                if ($relation && ($cap['police_clearance'] ?? false)) {
+                    $whereRelation($relation, fn (Builder $q) => $q->where('is_police_clearance_ready', $policeClearanceReady));
+                }
+            } else {
+                $orWhereRelations(
+                    ['vehicleItem', 'commercialItem'],
+                    fn (Builder $q) => $q->where('is_police_clearance_ready', $policeClearanceReady)
+                );
+            }
+        }
+
+        // ----------------------------
         // Condition filter (always valid)
         // ----------------------------
         if ($condition) {
@@ -212,13 +231,38 @@ class StockHelper
         // ----------------------------
         // search filter
         // ----------------------------
-        $query->when(($filters['search'] ?? null), function(Builder $q, $search) {
-            $search = trim((string)$search);
-            if ($search === '') return;
-
-            if (method_exists(Stock::class, 'scopeFilterSearch')) {
-                $q->filterSearch($search, ['name', 'internal_reference']);
+        $query->when(($filters['search'] ?? null), function (Builder $q, $search) {
+            $search = trim((string) $search);
+            if ($search === '') {
+                return;
             }
+
+            $terms = array_values(array_filter(array_map('trim', explode(',', $search))));
+            if ($terms === []) {
+                return;
+            }
+
+            $q->where(function (Builder $outer) use ($terms) {
+                foreach ($terms as $term) {
+                    $outer->where(function (Builder $perTerm) use ($term) {
+                        $like = '%' . $term . '%';
+
+                        $perTerm
+                            ->where('name', 'like', $like)
+                            ->orWhere('internal_reference', 'like', $like)
+                            ->orWhereHas('vehicleItem', function (Builder $typed) use ($like) {
+                                $typed->where('vin_number', 'like', $like)
+                                    ->orWhere('engine_number', 'like', $like)
+                                    ->orWhere('mm_code', 'like', $like);
+                            })
+                            ->orWhereHas('commercialItem', function (Builder $typed) use ($like) {
+                                $typed->where('vin_number', 'like', $like)
+                                    ->orWhere('engine_number', 'like', $like)
+                                    ->orWhere('mm_code', 'like', $like);
+                            });
+                    });
+                }
+            });
         });
     }
 

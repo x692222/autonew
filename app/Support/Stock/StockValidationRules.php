@@ -2,6 +2,7 @@
 
 namespace App\Support\Stock;
 
+use App\Enums\PoliceClearanceStatusEnum;
 use App\Models\Stock\Stock;
 use App\Rules\MaxWordCountRule;
 use Illuminate\Validation\Rule;
@@ -24,8 +25,10 @@ class StockValidationRules
             'name' => ['required', 'string', 'max:75'],
             'description' => ['nullable', 'string', new MaxWordCountRule(self::DESCRIPTION_MAX_WORDS)],
             'price' => ['required', 'integer', 'min:0'],
+            'discounted_price' => ['nullable', 'integer', 'min:0', 'lte:price'],
             'internal_reference' => ['nullable', 'string', 'max:50', 'regex:/^[A-Za-z0-9-]+$/'],
             'published_at' => ['nullable', 'date'],
+            'date_acquired' => ['nullable', 'date'],
             'typed' => ['required', 'array'],
             'feature_ids' => ['nullable', 'array'],
             'feature_ids.*' => ['string', 'exists:stock_feature_tags,id'],
@@ -43,6 +46,7 @@ class StockValidationRules
             'name' => ['required', 'string', 'max:75'],
             'description' => ['nullable', 'string', new MaxWordCountRule(self::DESCRIPTION_MAX_WORDS)],
             'price' => ['required', 'integer', 'min:0'],
+            'discounted_price' => ['nullable', 'integer', 'min:0', 'lte:price'],
             'internal_reference' => [
                 'nullable',
                 'string',
@@ -51,6 +55,7 @@ class StockValidationRules
                 Rule::unique('stock', 'internal_reference')->ignore((string) $stock->id),
             ],
             'published_at' => ['nullable', 'date'],
+            'date_acquired' => ['nullable', 'date'],
             'typed' => ['required', 'array'],
             'feature_ids' => ['nullable', 'array'],
             'feature_ids.*' => ['string', 'exists:stock_feature_tags,id'],
@@ -68,6 +73,9 @@ class StockValidationRules
                 'typed.model_id' => ['required', 'string', 'exists:stock_models,id'],
                 'typed.is_import' => ['required', 'boolean'],
                 'typed.year_model' => ['required', 'integer', 'min:' . self::YEAR_MODEL_MIN, 'max:' . self::YEAR_MODEL_MAX],
+                'typed.vin_number' => ['nullable', 'string', 'max:100'],
+                'typed.engine_number' => ['nullable', 'string', 'max:100'],
+                'typed.mm_code' => ['nullable', 'string', 'max:50'],
                 'typed.category' => ['required', 'string', 'max:50'],
                 'typed.color' => ['required', 'string', 'max:50'],
                 'typed.condition' => ['required', 'string', 'max:50'],
@@ -77,15 +85,22 @@ class StockValidationRules
                 'typed.millage' => ['required', 'integer', 'min:0'],
                 'typed.number_of_seats' => ['required', 'integer', 'min:' . self::VEHICLE_SEATS_MIN, 'max:' . self::VEHICLE_SEATS_MAX],
                 'typed.number_of_doors' => ['required', 'integer', 'min:' . self::VEHICLE_DOORS_MIN, 'max:' . self::VEHICLE_DOORS_MAX],
+                'typed.is_police_clearance_ready' => ['nullable', Rule::in(PoliceClearanceStatusEnum::values())],
+                'typed.registration_date' => ['nullable', 'date'],
             ],
             Stock::STOCK_TYPE_COMMERCIAL => [
                 'typed.make_id' => ['required', 'string', 'exists:stock_makes,id'],
                 'typed.year_model' => ['required', 'integer', 'min:' . self::YEAR_MODEL_MIN, 'max:' . self::YEAR_MODEL_MAX],
+                'typed.vin_number' => ['nullable', 'string', 'max:100'],
+                'typed.engine_number' => ['nullable', 'string', 'max:100'],
+                'typed.mm_code' => ['nullable', 'string', 'max:50'],
                 'typed.color' => ['required', 'string', 'max:50'],
                 'typed.condition' => ['required', 'string', 'max:50'],
                 'typed.gearbox_type' => ['required', 'string', 'max:50'],
                 'typed.fuel_type' => ['required', 'string', 'max:50'],
                 'typed.millage' => ['required', 'integer', 'min:0'],
+                'typed.is_police_clearance_ready' => ['nullable', Rule::in(PoliceClearanceStatusEnum::values())],
+                'typed.registration_date' => ['nullable', 'date'],
             ],
             Stock::STOCK_TYPE_MOTORBIKE => [
                 'typed.make_id' => ['required', 'string', 'exists:stock_makes,id'],

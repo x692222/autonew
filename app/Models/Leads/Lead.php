@@ -2,6 +2,7 @@
 
 namespace App\Models\Leads;
 
+use App\Enums\LeadCorrespondenceLanguageEnum;
 use App\Traits\HasUuidPrimaryKey;
 
 use App\Models\Dealer\Dealer;
@@ -58,6 +59,8 @@ class Lead extends Model
     protected $guarded = [];
 
     protected $casts = [
+        'correspondence_language' => LeadCorrespondenceLanguageEnum::class,
+        'registration_date' => 'date',
     ];
 
     /*

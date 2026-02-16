@@ -2,6 +2,7 @@
 
 namespace App\Support\Stock;
 
+use App\Enums\PoliceClearanceStatusEnum;
 use App\Models\Stock\Stock;
 use App\Models\Stock\StockTypeCommercial;
 use App\Models\Stock\StockTypeGear;
@@ -32,6 +33,7 @@ class StockIndexService
             'fuel' => false,
             'millage' => false,
             'color' => false,
+            'police_clearance' => true,
         ];
 
         if (! $type || ! isset($meta[$type])) {
@@ -61,6 +63,7 @@ class StockIndexService
             ['name' => 'internal_reference', 'label' => 'Reference', 'sortable' => true, 'align' => 'left', 'field' => 'internal_reference'],
             ['name' => 'is_live', 'label' => 'Is Live', 'sortable' => false, 'align' => 'center', 'field' => 'is_live'],
             ['name' => 'price', 'label' => 'Price', 'sortable' => true, 'align' => 'right', 'field' => 'price', 'numeric' => true],
+            ['name' => 'discounted_price', 'label' => 'Discounted Price', 'sortable' => true, 'align' => 'right', 'field' => 'discounted_price', 'numeric' => true],
             ['name' => 'condition', 'label' => 'Condition', 'sortable' => true, 'align' => 'left', 'field' => 'condition'],
             ['name' => 'stock_images_count', 'label' => 'Images', 'sortable' => true, 'align' => 'right', 'field' => 'stock_images_count', 'numeric' => true],
             ['name' => 'published_at', 'label' => 'Published', 'sortable' => true, 'align' => 'left', 'field' => 'published_at'],
@@ -118,6 +121,14 @@ class StockIndexService
             'typeOptions' => StockOptions::types(withAll: true)->resolve(),
             'activeStatusOptions' => GeneralOptions::activeOptions(withAll: true)->resolve(),
             'soldStatusOptions' => GeneralOptions::isSoldOptions(withAll: true)->resolve(),
+            'policeClearanceReadyOptions' => collect(PoliceClearanceStatusEnum::cases())
+                ->map(fn (PoliceClearanceStatusEnum $item) => [
+                    'label' => ucfirst($item->value),
+                    'value' => $item->value,
+                ])
+                ->prepend(['label' => 'All', 'value' => ''])
+                ->values()
+                ->all(),
             'conditionOptions' => StockOptions::conditions($type, withAll: true)->resolve(),
             'colorOptions' => StockOptions::colors($type, withAll: true)->resolve(),
             'makes' => StockOptions::makesByType($type, withAll: true)->resolve(),
@@ -146,6 +157,7 @@ class StockIndexService
                 'type',
                 'name',
                 'price',
+                'discounted_price',
             ])
             ->with([
                 'branch:id,dealer_id,name',
@@ -312,6 +324,7 @@ class StockIndexService
             case 'name':
             case 'internal_reference':
             case 'price':
+            case 'discounted_price':
             case 'published_at':
                 $query->orderBy($sortBy, $direction);
                 break;

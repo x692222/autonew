@@ -99,6 +99,7 @@ class HandleInertiaRequests extends Middleware
                     ? StockFeatureTag::query()->pendingReview()->count()
                     : 0,
             ],
+            'server_now' => fn () => now()->toIso8601String(),
         ];
 
         return [

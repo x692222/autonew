@@ -91,6 +91,7 @@ class StockFormOptionsService
             'fuel_type' => StockOptions::enumOptions($type, 'FUEL_TYPE_OPTIONS', withAll: false)->resolve(),
             'drive_type' => StockOptions::enumOptions($type, 'DRIVE_TYPE_OPTIONS', withAll: false)->resolve(),
             'category' => StockOptions::enumOptions($type, 'CATEGORY_OPTIONS', withAll: false)->resolve(),
+            'police_clearance_ready' => StockOptions::enumOptions($type, 'POLICE_CLEARANCE_STATUS_OPTIONS', withAll: false)->resolve(),
         ];
     }
 }

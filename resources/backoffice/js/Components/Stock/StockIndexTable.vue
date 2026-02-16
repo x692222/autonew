@@ -35,6 +35,7 @@ const props = defineProps({
     typeOptions: { type: Array, default: () => [] },
     activeStatusOptions: { type: Array, default: () => [] },
     soldStatusOptions: { type: Array, default: () => [] },
+    policeClearanceReadyOptions: { type: Array, default: () => [] },
     conditionOptions: { type: Array, default: () => [] },
     colorOptions: { type: Array, default: () => [] },
     isImportOptions: { type: Array, default: () => [] },
@@ -57,6 +58,7 @@ const dealerId = ref(props.filters?.dealer_id ?? (props.dealer?.id ?? null))
 const branchId = ref(props.filters?.branch_id ?? '')
 const activeStatus = ref(props.filters?.active_status ?? '')
 const soldStatus = ref(props.filters?.sold_status ?? '')
+const policeClearanceReady = ref(props.filters?.police_clearance_ready ?? '')
 const type = ref(props.filters?.type ?? '')
 const isImport = ref(props.filters?.is_import ?? '')
 const gearboxType = ref(props.filters?.gearbox_type ?? '')
@@ -102,6 +104,7 @@ const onTypeChange = () => {
     fuelType.value = ''
     millageRange.value = ''
     color.value = ''
+    policeClearanceReady.value = ''
     goFirst()
 }
 
@@ -118,6 +121,7 @@ const fetchStock = (p, helpers) => {
             search: search.value || '',
             active_status: activeStatus.value || '',
             sold_status: soldStatus.value || '',
+            police_clearance_ready: policeClearanceReady.value || '',
             type: type.value || '',
             is_import: props.capabilities?.import ? (isImport.value || '') : '',
             gearbox_type: props.capabilities?.gearbox ? (gearboxType.value || '') : '',
@@ -143,6 +147,7 @@ const fetchStock = (p, helpers) => {
                 'typeOptions',
                 'activeStatusOptions',
                 'soldStatusOptions',
+                'policeClearanceReadyOptions',
                 'conditionOptions',
                 'colorOptions',
                 'isImportOptions',
@@ -246,7 +251,7 @@ const confirmDelete = (row) => {
                             outlined
                             debounce="700"
                             clearable
-                            placeholder="Search name, internal ref..."
+                            placeholder="Search name, internal ref, VIN, engine, MM code..."
                             :input-attrs="{ autocomplete: 'off' }"
                             @update:model-value="goFirst"
                         />
@@ -310,6 +315,22 @@ const confirmDelete = (row) => {
                 <div class="col-md-3">
                     <div class="col-auto" style="min-width: 180px">
                         <q-select v-model="soldStatus" dense outlined emit-value map-options label="Sold" :options="soldStatusOptions" @update:model-value="goFirst" />
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="col-auto" style="min-width: 220px">
+                        <q-select
+                            v-model="policeClearanceReady"
+                            dense
+                            outlined
+                            emit-value
+                            map-options
+                            label="Police Clearance Ready"
+                            :options="policeClearanceReadyOptions"
+                            :disable="!!type && !capabilities?.police_clearance"
+                            @update:model-value="goFirst"
+                        />
                     </div>
                 </div>
 
@@ -535,6 +556,10 @@ const confirmDelete = (row) => {
 
         <template #cell-price="{ row }">
             <div class="text-right">{{ row.price === null || row.price === undefined ? '-' : `${props.currencySymbol}${formatCurrency(row.price)}` }}</div>
+        </template>
+
+        <template #cell-discounted_price="{ row }">
+            <div class="text-right">{{ row.discounted_price === null || row.discounted_price === undefined ? '-' : `${props.currencySymbol}${formatCurrency(row.discounted_price)}` }}</div>
         </template>
 
         <template #cell-millage="{ row }">

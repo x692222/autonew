@@ -5,6 +5,7 @@ namespace App\Models\Stock;
 use App\Traits\HasUuidPrimaryKey;
 
 use App\Models\Dealer\Dealer;
+use App\Models\Dealer\Configuration\DealerConfiguration;
 use App\Models\Dealer\DealerBranch;
 use App\Models\Leads\Lead;
 use App\ModelScopes\FilterSearchScope;
@@ -68,11 +69,13 @@ class Stock extends Model implements HasMedia
         'is_active',
         'is_sold',
         'published_at',
+        'date_acquired',
         'internal_reference',
         'type',
         'name',
         'description',
         'price',
+        'discounted_price',
     ];
 
     protected function casts(): array
@@ -81,6 +84,8 @@ class Stock extends Model implements HasMedia
             'is_active' => 'boolean',
             'is_new'    => 'boolean',
             'is_sold'   => 'boolean',
+            'date_acquired' => 'date',
+            'published_at' => 'datetime',
         ];
     }
 
@@ -229,6 +234,11 @@ class Stock extends Model implements HasMedia
 
     public function isLive(Stock $stock): bool
     {
+        // stock item must be active
+        if (!(bool) $this->is_active) {
+            return false;
+        }
+
         // must have published_at set and in the past
         if (!$this->published_at) {
             return false;
@@ -251,7 +261,7 @@ class Stock extends Model implements HasMedia
             return false;
         }
 
-        // must have at least 8 images
+        // must have at least the configured minimum amount of images
         $count = $stock->stock_images_count;
 
         // Allow common preloaded count attribute name too (if caller didn't pass)
@@ -264,6 +274,32 @@ class Stock extends Model implements HasMedia
             $count = $this->getMedia('stock_images')->count();
         }
 
-        return $count >= 1;
+        $minimumImagesRequired = $this->minimumImagesRequiredForLive($dealer ? (string) $dealer->id : null);
+
+        return $count >= $minimumImagesRequired;
+    }
+
+    private function minimumImagesRequiredForLive(?string $dealerId): int
+    {
+        static $resolvedPerDealer = [];
+
+        $default = max(1, (int) config('stock.live_min_images', 3));
+
+        if (! $dealerId) {
+            return $default;
+        }
+
+        if (array_key_exists($dealerId, $resolvedPerDealer)) {
+            return $resolvedPerDealer[$dealerId];
+        }
+
+        $raw = DealerConfiguration::query()
+            ->where('dealer_id', $dealerId)
+            ->where('key', 'minimum_images_required_for_live')
+            ->value('value');
+
+        $resolved = is_numeric($raw) ? (int) $raw : $default;
+
+        return $resolvedPerDealer[$dealerId] = max(1, $resolved);
     }
 }

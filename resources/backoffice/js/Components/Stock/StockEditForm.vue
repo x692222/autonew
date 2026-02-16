@@ -18,6 +18,7 @@ const props = defineProps({
     makes: { type: Array, required: true },
     vehicleModelsByMakeId: { type: Object, required: true },
     totalImagesCount: { type: Number, default: 0 },
+    minimumImagesRequiredForLive: { type: Number, default: 3 },
     routeNames: { type: Object, required: true },
     routeParams: { type: Array, default: () => [] },
     returnTo: { type: String, required: true },
@@ -41,6 +42,8 @@ const form = useForm({
     name: props.stock.name ?? '',
     description: props.stock.description ?? '',
     price: props.stock.price ?? null,
+    discounted_price: props.stock.discounted_price ?? null,
+    date_acquired: props.stock.date_acquired ?? null,
     internal_reference: props.stock.internal_reference ?? '',
     published_at: props.stock.published_at ? String(props.stock.published_at).slice(0, 10) : null,
     typed: normalizeTyped(props.stock.type, props.stock.typed || {}),
@@ -96,6 +99,10 @@ const descriptionWordCount = computed(() => countWords(form.description))
 const descriptionProgress = computed(() => Math.min(descriptionWordCount.value / DESCRIPTION_MAX_WORDS, 1))
 const descriptionIsOverLimit = computed(() => descriptionWordCount.value > DESCRIPTION_MAX_WORDS)
 const descriptionCounterColor = computed(() => (descriptionIsOverLimit.value ? 'negative' : 'grey-7'))
+const isDiscountedPriceEnabled = computed(() => form.price !== null && form.price !== '' && Number(form.price) >= 0)
+const discountedPriceRules = [
+    (value) => value === null || value === '' || Number(value) <= Number(form.price) || 'Discounted price cannot be greater than price.',
+]
 
 const countWords = (value) => {
     const matches = String(value || '').match(/[\p{L}\p{N}']+/gu)
@@ -116,6 +123,18 @@ watch(() => form.typed?.year_model, (value) => {
 watch(() => form.description, (value) => {
     if (countWords(value) <= DESCRIPTION_MAX_WORDS) {
         form.clearErrors('description')
+    }
+})
+
+watch(() => form.price, (value) => {
+    if (value === null || value === '' || Number(value) < 0) {
+        form.discounted_price = null
+        form.clearErrors('discounted_price')
+        return
+    }
+
+    if (form.discounted_price !== null && form.discounted_price !== '' && Number(form.discounted_price) > Number(value)) {
+        form.discounted_price = null
     }
 })
 
@@ -198,12 +217,19 @@ const submit = () => {
         return
     }
     form.clearErrors('description')
+    if (form.discounted_price !== null && form.discounted_price !== '' && Number(form.discounted_price) > Number(form.price)) {
+        form.setError('discounted_price', 'Discounted price cannot be greater than price.')
+        return
+    }
+    form.clearErrors('discounted_price')
 
     submitting.value = true
 
     form.transform((data) => ({
         ...data,
         description: data.description ? String(data.description).trim() : null,
+        discounted_price: data.discounted_price === '' || data.discounted_price === null ? null : data.discounted_price,
+        date_acquired: data.date_acquired || null,
         typed: data.typed || {},
         feature_ids: data.feature_ids || [],
         new_feature_names: data.new_feature_names || [],
@@ -270,6 +296,9 @@ function normalizeTyped(type, typed) {
                 model_id: typed.model_id ?? null,
                 is_import: !!typed.is_import,
                 year_model: typed.year_model ?? null,
+                vin_number: typed.vin_number ?? null,
+                engine_number: typed.engine_number ?? null,
+                mm_code: typed.mm_code ?? null,
                 category: typed.category ?? null,
                 color: typed.color ?? null,
                 condition: typed.condition ?? null,
@@ -279,9 +308,11 @@ function normalizeTyped(type, typed) {
                 millage: typed.millage ?? null,
                 number_of_seats: typed.number_of_seats ?? null,
                 number_of_doors: typed.number_of_doors ?? null,
+                is_police_clearance_ready: typed.is_police_clearance_ready ?? 'undefined',
+                registration_date: typed.registration_date ?? null,
             }
         case 'commercial':
-            return base({ make_id: typed.make_id ?? null, year_model: typed.year_model ?? null, color: typed.color ?? null, condition: typed.condition ?? null, gearbox_type: typed.gearbox_type ?? null, fuel_type: typed.fuel_type ?? null, millage: typed.millage ?? null }, ['make_id', 'year_model', 'color', 'condition', 'gearbox_type', 'fuel_type', 'millage'])
+            return base({ make_id: typed.make_id ?? null, year_model: typed.year_model ?? null, vin_number: typed.vin_number ?? null, engine_number: typed.engine_number ?? null, mm_code: typed.mm_code ?? null, color: typed.color ?? null, condition: typed.condition ?? null, gearbox_type: typed.gearbox_type ?? null, fuel_type: typed.fuel_type ?? null, millage: typed.millage ?? null, is_police_clearance_ready: typed.is_police_clearance_ready ?? 'undefined', registration_date: typed.registration_date ?? null }, ['make_id', 'year_model', 'vin_number', 'engine_number', 'mm_code', 'color', 'condition', 'gearbox_type', 'fuel_type', 'millage', 'is_police_clearance_ready', 'registration_date'])
         case 'motorbike':
             return base({ make_id: typed.make_id ?? null, year_model: typed.year_model ?? null, category: typed.category ?? null, color: typed.color ?? null, condition: typed.condition ?? null, gearbox_type: typed.gearbox_type ?? null, fuel_type: typed.fuel_type ?? null, millage: typed.millage ?? null }, ['make_id', 'year_model', 'category', 'color', 'condition', 'gearbox_type', 'fuel_type', 'millage'])
         case 'leisure':
@@ -341,6 +372,14 @@ function normalizeTyped(type, typed) {
                             </q-input>
                         </div>
                         <div class="col-md-6 col-sm-12"><q-input dense outlined v-model.number="form.price" label="Price" type="number" :prefix="currencySymbol" :error="!!form.errors.price" :error-message="form.errors.price" /></div>
+                        <div class="col-md-6 col-sm-12"><q-input dense outlined v-model.number="form.discounted_price" label="Discounted Price" type="number" :prefix="currencySymbol" :disable="!isDiscountedPriceEnabled" :rules="discountedPriceRules" lazy-rules :error="!!form.errors.discounted_price" :error-message="form.errors.discounted_price" /></div>
+                        <div class="col-md-6 col-sm-12">
+                            <q-input dense outlined v-model="form.date_acquired" label="Date Acquired" hint="Typically used for dealer inventory management." :error="!!form.errors.date_acquired" :error-message="form.errors.date_acquired">
+                                <template #append>
+                                    <q-icon name="event" class="cursor-pointer"><q-popup-proxy cover transition-show="scale" transition-hide="scale"><q-date v-model="form.date_acquired" mask="YYYY-MM-DD" /></q-popup-proxy></q-icon>
+                                </template>
+                            </q-input>
+                        </div>
 
                         <div class="col-12">
                             <q-textarea
@@ -391,6 +430,23 @@ function normalizeTyped(type, typed) {
                         </div>
 
                         <div class="row q-col-gutter-md q-mt-xs">
+                            <div class="col-md-4 col-sm-12"><q-input dense outlined v-model="form.typed.vin_number" label="VIN Number" maxlength="100" :error="!!form.errors['typed.vin_number']" :error-message="form.errors['typed.vin_number']" /></div>
+                            <div class="col-md-4 col-sm-12"><q-input dense outlined v-model="form.typed.engine_number" label="Engine Number" maxlength="100" :error="!!form.errors['typed.engine_number']" :error-message="form.errors['typed.engine_number']" /></div>
+                            <div class="col-md-4 col-sm-12"><q-input dense outlined v-model="form.typed.mm_code" label="MM Code" maxlength="50" :error="!!form.errors['typed.mm_code']" :error-message="form.errors['typed.mm_code']" /></div>
+                        </div>
+
+                        <div class="row q-col-gutter-md q-mt-xs">
+                            <div class="col-md-6 col-sm-12"><q-select dense outlined emit-value map-options v-model="form.typed.is_police_clearance_ready" label="Police Clearance Ready" :options="enumForType.police_clearance_ready || []" :error="!!form.errors['typed.is_police_clearance_ready']" :error-message="form.errors['typed.is_police_clearance_ready']" /></div>
+                            <div class="col-md-6 col-sm-12">
+                                <q-input dense outlined v-model="form.typed.registration_date" label="Registration Date" :error="!!form.errors['typed.registration_date']" :error-message="form.errors['typed.registration_date']">
+                                    <template #append>
+                                        <q-icon name="event" class="cursor-pointer"><q-popup-proxy cover transition-show="scale" transition-hide="scale"><q-date v-model="form.typed.registration_date" mask="YYYY-MM-DD" /></q-popup-proxy></q-icon>
+                                    </template>
+                                </q-input>
+                            </div>
+                        </div>
+
+                        <div class="row q-col-gutter-md q-mt-xs">
                             <div class="col-md-6 col-sm-12"><q-input dense outlined v-model.number="form.typed.number_of_seats" label="Number of Seats" type="number" :min="VEHICLE_SEATS_MIN" :max="VEHICLE_SEATS_MAX" :rules="seatsRules" lazy-rules :error="!!form.errors['typed.number_of_seats']" :error-message="form.errors['typed.number_of_seats']" /></div>
                             <div class="col-md-6 col-sm-12"><q-input dense outlined v-model.number="form.typed.number_of_doors" label="Number of Doors" type="number" :min="VEHICLE_DOORS_MIN" :max="VEHICLE_DOORS_MAX" :rules="doorsRules" lazy-rules :error="!!form.errors['typed.number_of_doors']" :error-message="form.errors['typed.number_of_doors']" /></div>
                         </div>
@@ -409,6 +465,23 @@ function normalizeTyped(type, typed) {
                         <div class="row q-col-gutter-md q-mt-xs">
                             <div class="col-md-6 col-sm-12"><q-select dense outlined emit-value map-options v-model="form.typed.gearbox_type" label="Gearbox" :options="enumForType.gearbox_type || []" :error="!!form.errors['typed.gearbox_type']" :error-message="form.errors['typed.gearbox_type']" /></div>
                             <div class="col-md-6 col-sm-12"><q-select dense outlined emit-value map-options v-model="form.typed.fuel_type" label="Fuel" :options="enumForType.fuel_type || []" :error="!!form.errors['typed.fuel_type']" :error-message="form.errors['typed.fuel_type']" /></div>
+                        </div>
+
+                        <div class="row q-col-gutter-md q-mt-xs">
+                            <div class="col-md-4 col-sm-12"><q-input dense outlined v-model="form.typed.vin_number" label="VIN Number" maxlength="100" :error="!!form.errors['typed.vin_number']" :error-message="form.errors['typed.vin_number']" /></div>
+                            <div class="col-md-4 col-sm-12"><q-input dense outlined v-model="form.typed.engine_number" label="Engine Number" maxlength="100" :error="!!form.errors['typed.engine_number']" :error-message="form.errors['typed.engine_number']" /></div>
+                            <div class="col-md-4 col-sm-12"><q-input dense outlined v-model="form.typed.mm_code" label="MM Code" maxlength="50" :error="!!form.errors['typed.mm_code']" :error-message="form.errors['typed.mm_code']" /></div>
+                        </div>
+
+                        <div class="row q-col-gutter-md q-mt-xs">
+                            <div class="col-md-6 col-sm-12"><q-select dense outlined emit-value map-options v-model="form.typed.is_police_clearance_ready" label="Police Clearance Ready" :options="enumForType.police_clearance_ready || []" :error="!!form.errors['typed.is_police_clearance_ready']" :error-message="form.errors['typed.is_police_clearance_ready']" /></div>
+                            <div class="col-md-6 col-sm-12">
+                                <q-input dense outlined v-model="form.typed.registration_date" label="Registration Date" :error="!!form.errors['typed.registration_date']" :error-message="form.errors['typed.registration_date']">
+                                    <template #append>
+                                        <q-icon name="event" class="cursor-pointer"><q-popup-proxy cover transition-show="scale" transition-hide="scale"><q-date v-model="form.typed.registration_date" mask="YYYY-MM-DD" /></q-popup-proxy></q-icon>
+                                    </template>
+                                </q-input>
+                            </div>
                         </div>
                     </div>
 
@@ -455,7 +528,13 @@ function normalizeTyped(type, typed) {
                 </div>
             </q-banner>
 
-            <PublishStatusCard :dealer="dealer" :stock="stock" :total-images-count="props.totalImagesCount" class="q-mb-md" />
+            <PublishStatusCard
+                :dealer="dealer"
+                :stock="stock"
+                :total-images-count="props.totalImagesCount"
+                :images-required="props.minimumImagesRequiredForLive"
+                class="q-mb-md"
+            />
 
             <q-card flat bordered class="q-mt-md">
                 <q-card-section>

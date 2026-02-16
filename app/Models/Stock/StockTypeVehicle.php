@@ -2,6 +2,7 @@
 
 namespace App\Models\Stock;
 
+use App\Enums\PoliceClearanceStatusEnum;
 use App\Traits\HasUuidPrimaryKey;
 
 use App\Traits\HasActivityTrait;
@@ -98,6 +99,12 @@ class StockTypeVehicle extends Model
         self::DRIVE_TYPE_4X4
     ];
 
+    const POLICE_CLEARANCE_STATUS_OPTIONS = [
+        PoliceClearanceStatusEnum::YES->value,
+        PoliceClearanceStatusEnum::NO->value,
+        PoliceClearanceStatusEnum::UNDEFINED->value,
+    ];
+
     protected $table = 'stock_type_vehicles';
 
     protected $fillable = [
@@ -106,6 +113,9 @@ class StockTypeVehicle extends Model
         'model_id',
         'is_import',
         'year_model',
+        'vin_number',
+        'engine_number',
+        'mm_code',
         'category',
         'color',
         'condition',
@@ -115,6 +125,8 @@ class StockTypeVehicle extends Model
         'millage',
         'number_of_seats',
         'number_of_doors',
+        'is_police_clearance_ready',
+        'registration_date',
     ];
 
     protected $hidden = [
@@ -125,6 +137,7 @@ class StockTypeVehicle extends Model
     {
         return [
             'is_import' => 'boolean',
+            'registration_date' => 'date',
         ];
     }
 

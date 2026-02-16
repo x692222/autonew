@@ -1,3 +1,31 @@
 <Token usage: total=6,786,536 input=6,039,908 (+ 194,353,024 cached) output=746,628 (reasoning 190,023)
 To continue this session, run codex resume 019c5a4c-5c33-7ee1-bf6c-1f472e256b6b
 
+
+
+
+total sales / stats
+total published / stats
+total leads / stats en by source
+conversations, by type
+
+
+leads - last action
+
+quotations, en send met whatsapp, en track dat gesend is - moet tracking deurdink, en export to pdf
+quotes, deurdink, en items, maar moet discount he, sale price, deductions (soos trade in) en payable
+en quote, aan wie uitmaak, dan vehicle details: condition, vin number, engine number, stock reference, color
+
+
+
+maak quote versions, en as uwe een create, dan based of that version
+
+
+
+@todo contact numbers @todo contact numbers @todo contact numbers @todo contact numbers @todo contact numbers
+
+
+
+
+
+

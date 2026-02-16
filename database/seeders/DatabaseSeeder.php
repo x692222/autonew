@@ -2,8 +2,15 @@
 
 namespace Database\Seeders;
 
-use App\Models\System\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Database\Seeders\Development\AssignAdminAllPermissionsSeeder;
+use Database\Seeders\Development\AssignDealerUserAllPermissionsSeeder;
+use Database\Seeders\Development\DealerDatasetSeeder;
+use Database\Seeders\Development\LocationDatasetSeeder;
+use Database\Seeders\Development\StockSeeder;
+use Database\Seeders\Development\WhatsappNumberSeeder;
+use Database\Seeders\Development\WhatsappTemplatesSeeder;
+use Database\Seeders\Production\PermissionsSeeder;
+use Database\Seeders\Production\SettingsConfigurationsSeeder;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -18,15 +25,19 @@ class DatabaseSeeder extends Seeder
         // User::factory(10)->create();
 
         $this->call([
+            PermissionsSeeder::class,
+            AssignAdminAllPermissionsSeeder::class,
+            AssignDealerUserAllPermissionsSeeder::class,
+
             // DummyCustomerSeeder::class,
-            LocationDatasetSeeder::class,
-            DealerDatasetSeeder::class,
+//            LocationDatasetSeeder::class,
+//            DealerDatasetSeeder::class,
             // DealerBranchStockSeeder::class,
-            StockSeeder::class,
+//            StockSeeder::class,
             // LeadDemoSeeder::class,
-            WhatsappNumberSeeder::class,
-            WhatsappTemplatesSeeder::class,
-            SettingsConfigurationsSeeder::class,
+//            WhatsappNumberSeeder::class,
+//            WhatsappTemplatesSeeder::class,
+//            SettingsConfigurationsSeeder::class,
         ]);
 
     }

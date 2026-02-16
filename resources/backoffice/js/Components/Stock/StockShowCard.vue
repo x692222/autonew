@@ -1,5 +1,5 @@
 <script setup>
-import { router } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import PublishStatusCard from 'bo@/Components/Stock/PublishStatusCard.vue'
 
@@ -8,11 +8,14 @@ const props = defineProps({
     dealer: { type: Object, required: true },
     stock: { type: Object, required: true },
     totalImagesCount: { type: Number, default: 0 },
+    minimumImagesRequiredForLive: { type: Number, default: 3 },
     backUrl: { type: String, required: true },
     editUrl: { type: String, required: true },
 })
 
-const enumKeys = new Set(['condition', 'color', 'gearbox_type', 'drive_type', 'fuel_type', 'category'])
+const page = usePage()
+
+const enumKeys = new Set(['condition', 'color', 'gearbox_type', 'drive_type', 'fuel_type', 'category', 'is_police_clearance_ready'])
 const hiddenTypedKeys = new Set(['id', 'stock_id', 'make_id', 'model_id', 'created_at', 'updated_at', 'deleted_at'])
 
 const typedRows = computed(() => {
@@ -31,10 +34,14 @@ const baseRows = computed(() => ([
     { key: 'name', label: 'Name', value: props.stock?.name || '—', isBoolean: false },
     { key: 'type', label: 'Type', value: props.stock?.type_label || props.stock?.type || '—', isBoolean: false },
     { key: 'price', label: 'Price', value: props.stock?.price ?? '—', isBoolean: false },
+    { key: 'discounted_price', label: 'Discounted Price', value: props.stock?.discounted_price ?? '—', isBoolean: false },
     { key: 'internal_reference', label: 'Internal Reference', value: props.stock?.internal_reference || '—', isBoolean: false },
     { key: 'description', label: 'Description', value: props.stock?.description || '—', isBoolean: false },
     { key: 'branch_name', label: 'Branch', value: props.stock?.branch_name || '—', isBoolean: false },
     { key: 'published_at', label: 'Published At', value: props.stock?.published_at || '—', isBoolean: false },
+    { key: 'date_acquired', label: 'Date Acquired', value: props.stock?.date_acquired || '—', isBoolean: false },
+    { key: 'days_since_acquired', label: 'Days Since Acquired', value: props.stock?.days_since_acquired ?? '—', isBoolean: false },
+    { key: 'server_now', label: 'Server Time', value: page.props.server_now || '—', isBoolean: false },
     { key: 'is_live', label: 'Is Live', value: !!props.stock?.is_live, isBoolean: true },
     { key: 'is_active', label: 'Is Active', value: !!props.stock?.is_active, isBoolean: true },
     { key: 'is_sold', label: 'Is Sold', value: !!props.stock?.is_sold, isBoolean: true },
@@ -112,7 +119,13 @@ const formatTypedValue = (key, value) => {
         </div>
 
         <div class="col-lg-4 col-sm-12">
-            <PublishStatusCard :dealer="dealer" :stock="stock" :total-images-count="totalImagesCount" class="q-mb-md" />
+            <PublishStatusCard
+                :dealer="dealer"
+                :stock="stock"
+                :total-images-count="totalImagesCount"
+                :images-required="minimumImagesRequiredForLive"
+                class="q-mb-md"
+            />
 
             <q-card flat bordered>
                 <q-card-section>

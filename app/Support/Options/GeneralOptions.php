@@ -58,6 +58,24 @@ final class GeneralOptions extends AbstractOptions
         return new GeneralCollection($options);
     }
 
+    public static function yesNoOptions(bool $withAll = false): GeneralCollection
+    {
+        $items = cache()->rememberForever("general:yes_no_options:{$withAll}:v1", function () {
+            return collect([
+                ['label' => 'Yes', 'value' => 'yes'],
+                ['label' => 'No', 'value' => 'no'],
+            ])->values()->all();
+        });
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
+    }
+
     public static function dialingCodesOptions(bool $withAll = false): GeneralCollection
     {
         $items = cache()->rememberForever("general:dialing_code_options:{$withAll}:v1", function () {

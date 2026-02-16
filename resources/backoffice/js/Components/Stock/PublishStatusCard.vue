@@ -5,7 +5,7 @@ const props = defineProps({
     dealer: { type: Object, required: true },
     stock: { type: Object, required: true },
     totalImagesCount: { type: Number, default: 0 },
-    imagesRequired: { type: Number, default: 4 },
+    imagesRequired: { type: Number, default: 3 },
 })
 
 const publishAt = computed(() => {
@@ -21,6 +21,13 @@ const hasMinImages = computed(() => imagesCount.value >= props.imagesRequired)
 
 const checks = computed(() => ([
     {
+        key: 'stock_active',
+        label: 'Stock Item Active',
+        ok: !!props.stock?.is_active,
+        icon: props.stock?.is_active ? 'toggle_on' : 'toggle_off',
+        hint: props.stock?.is_active ? 'Stock item is active' : 'Stock item is inactive and cannot go live',
+    },
+    {
         key: 'dealer_status',
         label: 'Dealer status',
         ok: !!props.dealer?.is_active,
@@ -35,8 +42,8 @@ const checks = computed(() => ([
         hint: publishAt.value ? `Current: ${publishAt.value.toLocaleString()}` : 'No publish date set',
     },
     {
-        key: 'images',
-        label: `At least ${props.imagesRequired} images uploaded`,
+        key: 'images_minimum',
+        label: `Minimum ${props.imagesRequired} image(s) required`,
         ok: hasMinImages.value,
         icon: hasMinImages.value ? 'photo_library' : 'photo',
         hint: `${imagesCount.value} / ${props.imagesRequired} images`,

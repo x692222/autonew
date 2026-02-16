@@ -2,6 +2,7 @@
 
 namespace App\Support\Options;
 
+use App\Enums\LeadCorrespondenceLanguageEnum;
 use App\Http\Resources\KeyValueOptions\GeneralCollection;
 use App\Models\Leads\Lead;
 use Illuminate\Support\Str;
@@ -58,6 +59,27 @@ final class LeadOptions extends AbstractOptions
                 ->map(fn (string $source) => [
                     'label' => Str::headline($source),
                     'value' => $source,
+                ])
+                ->values()
+                ->all();
+        });
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
+    }
+
+    public static function correspondenceLanguageOptions(bool $withAll = false): GeneralCollection
+    {
+        $items = cache()->rememberForever("lead:correspondence_language_options:{$withAll}:v1", function () {
+            return collect(LeadCorrespondenceLanguageEnum::cases())
+                ->map(fn (LeadCorrespondenceLanguageEnum $language) => [
+                    'label' => Str::headline($language->value),
+                    'value' => $language->value,
                 ])
                 ->values()
                 ->all();

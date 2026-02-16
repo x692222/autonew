@@ -71,6 +71,14 @@ class ConfigurationCatalog
                 'description' => 'Maximum number of images allowed for a single stock item. 0 means unlimited.',
                 'backoffice_only' => true,
             ],
+            'minimum_images_required_for_live' => [
+                'label' => 'Minimum Images Required for Live Status',
+                'category' => ConfigurationCategoryEnum::STOCK,
+                'type' => ConfigurationValueTypeEnum::NUMBER,
+                'default' => (int) config('stock.live_min_images', 3),
+                'description' => 'Minimum number of uploaded images required before a stock item can be live.',
+                'backoffice_only' => true,
+            ],
             'default_stock_type_filter' => [
                 'label' => 'Default Type Filter',
                 'category' => ConfigurationCategoryEnum::STOCK,
@@ -262,6 +270,11 @@ class ConfigurationCatalog
 
             if ($key === 'default_stock_type_filter') {
                 $rules["settings.{$key}"] = ['nullable', Rule::in(Stock::STOCK_TYPE_OPTIONS)];
+                continue;
+            }
+
+            if ($key === 'minimum_images_required_for_live') {
+                $rules["settings.{$key}"] = ['nullable', 'integer', 'min:1', 'max:50'];
                 continue;
             }
 

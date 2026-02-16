@@ -29,8 +29,10 @@ class StockWriteService
                 'name' => (string) $data['name'],
                 'description' => filled($data['description'] ?? null) ? trim((string) $data['description']) : null,
                 'price' => (int) $data['price'],
+                'discounted_price' => isset($data['discounted_price']) && $data['discounted_price'] !== '' ? (int) $data['discounted_price'] : null,
                 'internal_reference' => $data['internal_reference'] ?? null,
                 'published_at' => $data['published_at'] ?? null,
+                'date_acquired' => $data['date_acquired'] ?? null,
                 'is_sold' => false,
             ]);
 
@@ -72,8 +74,10 @@ class StockWriteService
                 'name' => (string) $data['name'],
                 'description' => filled($data['description'] ?? null) ? trim((string) $data['description']) : null,
                 'price' => (int) $data['price'],
+                'discounted_price' => isset($data['discounted_price']) && $data['discounted_price'] !== '' ? (int) $data['discounted_price'] : null,
                 'internal_reference' => $data['internal_reference'] ?: $stock->internal_reference,
                 'published_at' => $data['published_at'] ?? null,
+                'date_acquired' => $data['date_acquired'] ?? null,
             ]);
 
             $typedRelation = $meta[$type]['relation'];

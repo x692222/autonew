@@ -2,6 +2,7 @@
 
 namespace App\Models\Stock;
 
+use App\Enums\PoliceClearanceStatusEnum;
 use App\Traits\HasUuidPrimaryKey;
 
 use App\Traits\HasActivityTrait;
@@ -57,17 +58,28 @@ class StockTypeCommercial extends Model
         self::FUEL_TYPE_HYBRID
     ];
 
+    const POLICE_CLEARANCE_STATUS_OPTIONS = [
+        PoliceClearanceStatusEnum::YES->value,
+        PoliceClearanceStatusEnum::NO->value,
+        PoliceClearanceStatusEnum::UNDEFINED->value,
+    ];
+
     protected $table = 'stock_type_commercial';
 
     protected $fillable = [
         'stock_id',
         'make_id',
         'year_model',
+        'vin_number',
+        'engine_number',
+        'mm_code',
         'color',
         'condition',
         'gearbox_type',
         'fuel_type',
         'millage',
+        'is_police_clearance_ready',
+        'registration_date',
     ];
 
     protected $hidden = [
@@ -77,7 +89,7 @@ class StockTypeCommercial extends Model
     protected function casts(): array
     {
         return [
-
+            'registration_date' => 'date',
         ];
     }
 
