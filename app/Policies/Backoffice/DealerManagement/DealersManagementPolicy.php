@@ -9,6 +9,7 @@ use App\Models\Dealer\DealerUser;
 use App\Models\Leads\Lead;
 use App\Models\Leads\LeadPipeline;
 use App\Models\Leads\LeadStage;
+use App\Models\Invoice\Invoice;
 use App\Models\Quotation\Quotation;
 use App\Models\Stock\Stock;
 use App\Models\System\User;
@@ -189,6 +190,42 @@ class DealersManagementPolicy
         return $user->hasPermissionTo('deleteDealershipQuotations', 'backoffice')
             ? Response::allow()
             : Response::deny('You do not have permission to delete dealer quotations.');
+    }
+
+    public function showInvoices(User $user, Dealer $dealer): Response
+    {
+        return $user->hasPermissionTo('indexDealershipInvoices', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to view dealer invoices.');
+    }
+
+    public function createInvoice(User $user, Dealer $dealer): Response
+    {
+        return $user->hasPermissionTo('createDealershipInvoices', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to create dealer invoices.');
+    }
+
+    public function editInvoice(User $user, Dealer $dealer, Invoice $invoice): Response
+    {
+        if ((string) $invoice->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This invoice does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('editDealershipInvoices', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to edit dealer invoices.');
+    }
+
+    public function deleteInvoice(User $user, Dealer $dealer, Invoice $invoice): Response
+    {
+        if ((string) $invoice->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This invoice does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('deleteDealershipInvoices', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to delete dealer invoices.');
     }
 
     public function createLeadStage(User $user, Dealer $dealer): Response

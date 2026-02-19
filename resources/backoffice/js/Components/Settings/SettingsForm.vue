@@ -11,11 +11,14 @@ const props = defineProps({
     showBackofficeOnlyBadge: { type: Boolean, default: false },
 })
 
+const BANKING_DETAILS_MAX_LENGTH = 200
+
 const initialSettings = Object.fromEntries((props.settings || []).map((row) => [row.key, row.value]))
 const form = useForm({ settings: initialSettings })
 
 const groupedSettings = computed(() => {
     const groups = {}
+    const preferredCategoryOrder = ['general', 'billing']
 
     for (const setting of props.settings || []) {
         if (!groups[setting.category]) {
@@ -24,14 +27,38 @@ const groupedSettings = computed(() => {
         groups[setting.category].push(setting)
     }
 
+    const categoryRank = (category) => {
+        const index = preferredCategoryOrder.indexOf(category)
+        return index === -1 ? preferredCategoryOrder.length : index
+    }
+
     return Object.entries(groups)
-        .sort((a, b) => a[0].localeCompare(b[0]))
+        .sort((a, b) => {
+            const rankDiff = categoryRank(a[0]) - categoryRank(b[0])
+            if (rankDiff !== 0) return rankDiff
+            return a[0].localeCompare(b[0])
+        })
         .map(([category, items]) => ({ category, items }))
 })
 
 const categoryLabel = (category) => category.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase())
 
 const fieldError = (key) => form.errors[`settings.${key}`]
+
+const sanitizeContactNoPrefix = (key, value) => {
+    if (key !== 'contact_no_prefix') return
+    form.settings[key] = String(value || '').replace(/\s+/g, '')
+}
+
+const isBankingDetails = (key) => key === 'banking_details'
+
+const bankingDetailsRemaining = (key) => {
+    if (!isBankingDetails(key)) return null
+    const length = String(form.settings[key] || '').length
+    return Math.max(BANKING_DETAILS_MAX_LENGTH - length, 0)
+}
+
+const fieldColumnClass = (key) => (isBankingDetails(key) ? 'col-12' : 'col-12 col-md-6')
 
 const submit = () => {
     form.patch(props.updateRoute, {
@@ -48,7 +75,7 @@ const submit = () => {
                     <div class="text-h6 q-pb-sm">{{ categoryLabel(group.category) }}</div>
 
                     <div class="row q-col-gutter-md">
-                        <div v-for="setting in group.items" :key="setting.key" class="col-12 col-md-6">
+                        <div v-for="setting in group.items" :key="setting.key" :class="fieldColumnClass(setting.key)">
                             <div class="text-subtitle2 text-grey-9 row items-center q-gutter-xs">
                                 <span>{{ setting.label }}</span>
                                 <q-badge
@@ -107,6 +134,24 @@ const submit = () => {
                             />
 
                             <q-input
+                                v-else-if="isBankingDetails(setting.key)"
+                                v-model="form.settings[setting.key]"
+                                type="textarea"
+                                rows="5"
+                                dense
+                                outlined
+                                counter
+                                :maxlength="BANKING_DETAILS_MAX_LENGTH"
+                                :disable="!canUpdate || form.processing"
+                                :error="!!fieldError(setting.key)"
+                                :error-message="fieldError(setting.key)"
+                            >
+                                <template #hint>
+                                    {{ bankingDetailsRemaining(setting.key) }} characters left
+                                </template>
+                            </q-input>
+
+                            <q-input
                                 v-else
                                 v-model="form.settings[setting.key]"
                                 :type="setting.type === 'number' || setting.type === 'float' ? 'number' : 'text'"
@@ -117,6 +162,7 @@ const submit = () => {
                                 :disable="!canUpdate || form.processing"
                                 :error="!!fieldError(setting.key)"
                                 :error-message="fieldError(setting.key)"
+                                @update:model-value="(value) => sanitizeContactNoPrefix(setting.key, value)"
                             />
                         </div>
                     </div>

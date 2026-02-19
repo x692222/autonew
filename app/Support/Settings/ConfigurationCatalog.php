@@ -15,10 +15,17 @@ class ConfigurationCatalog
         return [
             'system_currency' => [
                 'label' => 'System Currency',
-                'category' => ConfigurationCategoryEnum::GENERAL,
+                'category' => ConfigurationCategoryEnum::BILLING,
                 'type' => ConfigurationValueTypeEnum::TEXT,
                 'default' => 'N$',
                 'description' => 'Currency symbol prefix used before displayed monetary values across the platform.',
+            ],
+            'contact_no_prefix' => [
+                'label' => 'Contact Number Prefix',
+                'category' => ConfigurationCategoryEnum::GENERAL,
+                'type' => ConfigurationValueTypeEnum::TEXT,
+                'default' => null,
+                'description' => 'Default international dialing prefix used to prefill contact number inputs (example: +264).',
             ],
             'system_timezone' => [
                 'label' => 'System Timezone',
@@ -43,24 +50,31 @@ class ConfigurationCatalog
             ],
             'system_is_vat_registered' => [
                 'label' => 'System VAT Registered',
-                'category' => ConfigurationCategoryEnum::GENERAL,
+                'category' => ConfigurationCategoryEnum::BILLING,
                 'type' => ConfigurationValueTypeEnum::BOOLEAN,
                 'default' => false,
                 'description' => 'When enabled, VAT calculations are applied to system quotations.',
             ],
             'system_vat_percentage' => [
                 'label' => 'System VAT Percentage',
-                'category' => ConfigurationCategoryEnum::GENERAL,
+                'category' => ConfigurationCategoryEnum::BILLING,
                 'type' => ConfigurationValueTypeEnum::FLOAT,
                 'default' => null,
                 'description' => 'VAT rate percentage used for system quotations when VAT is enabled.',
             ],
             'system_vat_number' => [
                 'label' => 'System VAT Number',
-                'category' => ConfigurationCategoryEnum::GENERAL,
+                'category' => ConfigurationCategoryEnum::BILLING,
                 'type' => ConfigurationValueTypeEnum::TEXT,
                 'default' => null,
                 'description' => 'VAT registration number printed on system quotations when VAT is enabled.',
+            ],
+            'banking_details' => [
+                'label' => 'Banking Details',
+                'category' => ConfigurationCategoryEnum::BILLING,
+                'type' => ConfigurationValueTypeEnum::TEXT,
+                'default' => null,
+                'description' => 'Banking details to be displayed on quotations and invoices.',
             ],
         ];
     }
@@ -74,6 +88,14 @@ class ConfigurationCatalog
                 'type' => ConfigurationValueTypeEnum::TEXT,
                 'default' => 'N$',
                 'description' => 'Currency symbol prefix used before this dealer\'s displayed monetary values.',
+                'backoffice_only' => false,
+            ],
+            'contact_no_prefix' => [
+                'label' => 'Contact Number Prefix',
+                'category' => ConfigurationCategoryEnum::GENERAL,
+                'type' => ConfigurationValueTypeEnum::TEXT,
+                'default' => null,
+                'description' => 'Default international dialing prefix used to prefill customer contact number inputs (example: +264).',
                 'backoffice_only' => false,
             ],
             'dealer_is_vat_registered' => [
@@ -195,6 +217,30 @@ class ConfigurationCatalog
                 'default' => 0,
                 'description' => 'Billing rate per one million AI output tokens generated.',
                 'backoffice_only' => true,
+            ],
+            'can_edit_invoice_after_partial_payment' => [
+                'label' => 'Allow Invoice Edit After Partial Payment',
+                'category' => ConfigurationCategoryEnum::BILLING,
+                'type' => ConfigurationValueTypeEnum::BOOLEAN,
+                'default' => false,
+                'description' => 'When enabled, invoices remain editable after partial payments have been captured.',
+                'backoffice_only' => false,
+            ],
+            'can_edit_invoice_after_full_payment' => [
+                'label' => 'Allow Invoice Edit After Full Payment',
+                'category' => ConfigurationCategoryEnum::BILLING,
+                'type' => ConfigurationValueTypeEnum::BOOLEAN,
+                'default' => false,
+                'description' => 'When enabled, fully paid invoices can still be edited (use with caution for accounting integrity).',
+                'backoffice_only' => false,
+            ],
+            'banking_details' => [
+                'label' => 'Banking Details',
+                'category' => ConfigurationCategoryEnum::BILLING,
+                'type' => ConfigurationValueTypeEnum::TEXT,
+                'default' => null,
+                'description' => 'Banking details to be displayed on quotations and invoices.',
+                'backoffice_only' => false,
             ],
             'max_concurrent_published_stock_items' => [
                 'label' => 'Max Concurrent Published Stock Items',
@@ -330,6 +376,16 @@ class ConfigurationCatalog
 
             if (in_array($key, ['system_vat_number', 'dealer_vat_number'], true)) {
                 $rules["settings.{$key}"] = ['nullable', 'string', 'max:255'];
+                continue;
+            }
+
+            if ($key === 'contact_no_prefix') {
+                $rules["settings.{$key}"] = ['nullable', 'string', 'max:7', 'regex:/^\\+[0-9]+$/'];
+                continue;
+            }
+
+            if ($key === 'banking_details') {
+                $rules["settings.{$key}"] = ['nullable', 'string', 'max:200'];
                 continue;
             }
 

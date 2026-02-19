@@ -15,6 +15,8 @@ use App\Models\Messaging\WhatsappTemplate;
 use App\Models\Quotation\Customer;
 use App\Models\Quotation\Quotation;
 use App\Models\Quotation\QuotationLineItem;
+use App\Models\Invoice\Invoice;
+use App\Models\Invoice\InvoiceLineItem;
 use App\Models\Stock\Stock;
 use App\Models\WhatsappNumber;
 use App\ModelScopes\FilterSearchScope;
@@ -180,6 +182,16 @@ class Dealer extends Model
     public function quotationLineItems(): HasMany
     {
         return $this->hasMany(QuotationLineItem::class, 'dealer_id');
+    }
+
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class, 'dealer_id');
+    }
+
+    public function invoiceLineItems(): HasMany
+    {
+        return $this->hasMany(InvoiceLineItem::class, 'dealer_id');
     }
 
 
