@@ -554,6 +554,14 @@ const confirmDelete = (row) => {
             </div>
         </template>
 
+        <template #cell-payment_status="{ row }">
+            <div class="row items-center justify-center">
+                <q-icon v-if="row.payment_status === 'full'" name="check_circle" color="positive" size="20px" />
+                <span v-else-if="row.payment_status === 'partial'" class="text-caption text-weight-medium">partial</span>
+                <span v-else>&nbsp;</span>
+            </div>
+        </template>
+
         <template #cell-price="{ row }">
             <div class="text-right">{{ row.price === null || row.price === undefined ? '-' : `${props.currencySymbol}${formatCurrency(row.price)}` }}</div>
         </template>

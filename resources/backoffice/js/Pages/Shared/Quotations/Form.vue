@@ -5,6 +5,7 @@ import axios from 'axios'
 import { useQuasar } from 'quasar'
 import Layout from 'bo@/Layouts/Layout.vue'
 import NotesHost from 'bo@/Components/Notes/NotesHost.vue'
+import AssociatedStockList from 'bo@/Components/Stock/AssociatedStockList.vue'
 import DealerTabs from 'bo@/Pages/GuardBackoffice/DealerManagement/Dealers/_Tabs.vue'
 import DealerConfigurationNav from 'bo@/Pages/GuardDealer/DealerConfiguration/_Nav.vue'
 import { useConfirmAction } from 'bo@/Composables/useConfirmAction'
@@ -24,6 +25,7 @@ const props = defineProps({
     canDelete: { type: Boolean, default: false },
     canExport: { type: Boolean, default: false },
     canShowNotes: { type: Boolean, default: false },
+    canCreateCustomer: { type: Boolean, default: false },
     canConvertToInvoice: { type: Boolean, default: false },
     convertToInvoiceRoute: { type: String, default: null },
     linkedInvoices: { type: Array, default: () => [] },
@@ -408,6 +410,7 @@ const selectedCustomer = computed(() => {
 })
 
 const openAddCustomer = () => {
+    if (!props.canCreateCustomer) return
     customerForm.reset()
     customerForm.contact_number = defaultContactNoPrefix
     customerForm.clearErrors()
@@ -508,40 +511,6 @@ const hasFormErrors = computed(() => Object.keys(form.errors || {}).length > 0)
 const showUnsavedChanges = computed(() => !!props.data?.id && form.isDirty)
 const isEditing = computed(() => !!props.data?.id)
 const lineItemError = (index, field) => form.errors?.[`line_items.${index}.${field}`] || null
-const uppercaseOrDash = (value) => {
-    const normalized = String(value ?? '').trim()
-    if (!normalized) return '-'
-    if (normalized.toLowerCase() === 'undefined') return '-'
-    return normalized.toUpperCase()
-}
-
-const canShowAssociatedField = (stock, field) => {
-    if (Object.prototype.hasOwnProperty.call(stock?.fields || {}, field)) {
-        return !!stock.fields[field]
-    }
-
-    return stock?.[field] !== null && stock?.[field] !== undefined && String(stock[field]).trim() !== ''
-}
-
-const associatedStockSummary = (stock) => {
-    const parts = [
-        `${stock?.name || '-'} | Type: ${uppercaseOrDash(stock?.type)} | Active: ${stock?.is_active ? 'Yes' : 'No'} | Sold: ${stock?.is_sold ? 'Yes' : 'No'}`,
-    ]
-
-    if (canShowAssociatedField(stock, 'make')) parts.push(`Make: ${stock?.make || '-'}`)
-    if (canShowAssociatedField(stock, 'model')) parts.push(`Model: ${stock?.model || '-'}`)
-    if (canShowAssociatedField(stock, 'millage')) parts.push(`Millage: ${stock?.millage ?? '-'}`)
-    if (canShowAssociatedField(stock, 'is_police_clearance_ready')) parts.push(`Police Clearance: ${uppercaseOrDash(stock?.is_police_clearance_ready)}`)
-    if (canShowAssociatedField(stock, 'condition')) parts.push(`Condition: ${uppercaseOrDash(stock?.condition)}`)
-    if (canShowAssociatedField(stock, 'is_import')) parts.push(`Import: ${stock?.is_import === true ? 'Yes' : (stock?.is_import === false ? 'No' : '-')}`)
-    if (canShowAssociatedField(stock, 'gearbox_type')) parts.push(`Gearbox: ${uppercaseOrDash(stock?.gearbox_type)}`)
-    if (canShowAssociatedField(stock, 'drive_type')) parts.push(`Drive: ${uppercaseOrDash(stock?.drive_type)}`)
-    if (canShowAssociatedField(stock, 'fuel_type')) parts.push(`Fuel: ${uppercaseOrDash(stock?.fuel_type)}`)
-    if (canShowAssociatedField(stock, 'color')) parts.push(`Color: ${uppercaseOrDash(stock?.color)}`)
-
-    return parts.join(' | ')
-}
-
 const openNotes = () => {
     if (!props.data?.id) return
     notesRef.value?.open({ id: props.data.id, quote_identifier: props.data.quote_identifier })
@@ -715,6 +684,7 @@ const confirmConvertToInvoice = () => {
                             />
                             <div class="text-caption text-grey-6 q-pt-xs">{{ customerSearchHint }}</div>
                             <q-btn
+                                v-if="canCreateCustomer"
                                 class="q-mt-sm"
                                 flat
                                 dense
@@ -926,6 +896,7 @@ const confirmConvertToInvoice = () => {
                             hide-bottom-space
                             type="number"
                             min="0"
+                            max="999999999.99"
                             step="0.01"
                             :prefix="currencySymbol"
                             label="Amount"
@@ -942,6 +913,7 @@ const confirmConvertToInvoice = () => {
                             hide-bottom-space
                             type="number"
                             min="0"
+                            max="999999999.99"
                             step="0.01"
                             label="Qty"
                             :error="!!lineItemError(lineItemRow.index, 'qty')"
@@ -957,6 +929,7 @@ const confirmConvertToInvoice = () => {
                             hide-bottom-space
                             type="number"
                             min="0"
+                            max="999999999.99"
                             step="0.01"
                             readonly
                             :prefix="currencySymbol"
@@ -1027,27 +1000,7 @@ const confirmConvertToInvoice = () => {
         </q-card-section>
     </q-card>
 
-    <q-card v-if="data?.associated_stock?.length" flat bordered class="q-mb-md">
-        <q-card-section>
-            <div class="text-h6">Associated Stock</div>
-        </q-card-section>
-        <q-separator />
-        <q-card-section>
-            <q-list dense>
-                <template v-for="(stock, index) in data.associated_stock" :key="stock.stock_id">
-                <q-item>
-                    <q-item-section>
-                        <q-item-label>{{ stock.internal_reference || stock.name }}</q-item-label>
-                        <q-item-label caption>
-                            {{ associatedStockSummary(stock) }}
-                        </q-item-label>
-                    </q-item-section>
-                </q-item>
-                <q-separator v-if="index < data.associated_stock.length - 1" class="q-my-sm" />
-                </template>
-            </q-list>
-        </q-card-section>
-    </q-card>
+    <AssociatedStockList :items="data?.associated_stock || []" title="Associated Stock" />
 
     <q-card flat bordered class="q-mb-md">
         <q-card-section>

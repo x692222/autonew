@@ -24,8 +24,10 @@ const authUser = computed(() => page.props.auth?.user ?? null)
 const canViewUsersManagement = computed(() => !!abilities.value.indexSystemUsers)
 const canViewLocationsManagement = computed(() => !!abilities.value.indexSystemLocations)
 const canViewDealershipManagement = computed(() => !!abilities.value.showDealerships)
+const canViewSystemCustomers = computed(() => isBackofficeGuard.value && !!abilities.value.indexSystemCustomers)
 const canViewSystemQuotations = computed(() => isBackofficeGuard.value && !!abilities.value.indexSystemQuotations)
 const canViewSystemInvoices = computed(() => isBackofficeGuard.value && !!abilities.value.indexSystemInvoices)
+const canViewSystemPayments = computed(() => isBackofficeGuard.value && !!abilities.value.indexSystemPayments)
 const canImpersonateUser = computed(() => !!abilities.value.impersonateDealershipUser)
 const canViewDealerConfiguration = computed(() => authGuard.value === 'dealer' && (
     !!abilities.value.editDealership ||
@@ -36,14 +38,19 @@ const canViewDealerConfiguration = computed(() => authGuard.value === 'dealer' &
     !!abilities.value.manageLeads ||
     !!abilities.value.indexPipelines ||
     !!abilities.value.indexPipelineStages ||
+    !!abilities.value.indexCustomers ||
     !!abilities.value.indexQuotations ||
     !!abilities.value.indexInvoices ||
+    !!abilities.value.indexPayments ||
+    !!abilities.value.indexBankingDetails ||
     !!abilities.value.canConfigureSettings
 ))
 const canViewDealerStock = computed(() => authGuard.value === 'dealer' && !!abilities.value.indexStock)
 const canViewDealerLeads = computed(() => authGuard.value === 'dealer' && !!abilities.value.manageLeads)
 const canViewDealerQuotations = computed(() => authGuard.value === 'dealer' && !!abilities.value.indexQuotations)
 const canViewDealerInvoices = computed(() => authGuard.value === 'dealer' && !!abilities.value.indexInvoices)
+const canViewDealerPayments = computed(() => authGuard.value === 'dealer' && !!abilities.value.indexPayments)
+const canViewDealerCustomers = computed(() => authGuard.value === 'dealer' && !!abilities.value.indexCustomers)
 const canProcessSystemRequests = computed(() => isBackofficeGuard.value && !!abilities.value.processSystemRequests)
 const canConfigureSystemSettings = computed(() => isBackofficeGuard.value && !!abilities.value.canConfigureSystemSettings)
 
@@ -246,6 +253,11 @@ watch(
                     @click="router.visit(route('backoffice.dealer-management.dealers.index'))"
                 />
                 <q-route-tab
+                    v-if="canViewSystemCustomers"
+                    label="Customers"
+                    @click="router.visit(route('backoffice.system.customers.index'))"
+                />
+                <q-route-tab
                     v-if="canViewSystemQuotations"
                     label="Quotations"
                     @click="router.visit(route('backoffice.system.quotations.index'))"
@@ -254,6 +266,11 @@ watch(
                     v-if="canViewSystemInvoices"
                     label="Invoices"
                     @click="router.visit(route('backoffice.system.invoices.index'))"
+                />
+                <q-route-tab
+                    v-if="canViewSystemPayments"
+                    label="Payments"
+                    @click="router.visit(route('backoffice.system.payments.index'))"
                 />
                 <q-route-tab v-if="canViewDealerConfiguration" label="Configuration">
                     <q-menu>
@@ -282,11 +299,20 @@ watch(
                             <q-item v-if="abilities.indexPipelineStages" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.lead-stages.index'))">
                                 <q-item-section>Lead Stages</q-item-section>
                             </q-item>
+                            <q-item v-if="abilities.indexCustomers" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.customers.index'))">
+                                <q-item-section>Customers</q-item-section>
+                            </q-item>
                             <q-item v-if="abilities.indexQuotations" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.quotations.index'))">
                                 <q-item-section>Quotations</q-item-section>
                             </q-item>
                             <q-item v-if="abilities.indexInvoices" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.invoices.index'))">
                                 <q-item-section>Invoices</q-item-section>
+                            </q-item>
+                            <q-item v-if="abilities.indexPayments" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.payments.index'))">
+                                <q-item-section>Payments</q-item-section>
+                            </q-item>
+                            <q-item v-if="abilities.indexBankingDetails" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.banking-details.index'))">
+                                <q-item-section>Banking Details</q-item-section>
                             </q-item>
                             <q-item v-if="abilities.canConfigureSettings" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.settings.index'))">
                                 <q-item-section>Settings</q-item-section>
@@ -305,6 +331,11 @@ watch(
                     @click="router.visit(route('backoffice.dealer-configuration.leads.index'))"
                 />
                 <q-route-tab
+                    v-if="canViewDealerCustomers"
+                    label="Customers"
+                    @click="router.visit(route('backoffice.dealer-configuration.customers.index'))"
+                />
+                <q-route-tab
                     v-if="canViewDealerQuotations"
                     label="Quotations"
                     @click="router.visit(route('backoffice.dealer-configuration.quotations.index'))"
@@ -313,6 +344,11 @@ watch(
                     v-if="canViewDealerInvoices"
                     label="Invoices"
                     @click="router.visit(route('backoffice.dealer-configuration.invoices.index'))"
+                />
+                <q-route-tab
+                    v-if="canViewDealerPayments"
+                    label="Payments"
+                    @click="router.visit(route('backoffice.dealer-configuration.payments.index'))"
                 />
                 <q-route-tab label="Analytics">
                     <q-menu>
@@ -387,6 +423,14 @@ watch(
                                             clickable
                                         >
                                             <q-item-section>System Settings</q-item-section>
+                                        </q-item>
+                                        <q-item
+                                            v-if="abilities.indexSystemBankingDetails"
+                                            @click="router.visit(route('backoffice.system.banking-details.index'))"
+                                            dense
+                                            clickable
+                                        >
+                                            <q-item-section>Banking Details</q-item-section>
                                         </q-item>
                                     </q-list>
                                 </q-menu>

@@ -62,6 +62,7 @@ class StockIndexService
             ['name' => 'type_title', 'label' => 'Type', 'sortable' => true, 'align' => 'left', 'field' => 'type_title'],
             ['name' => 'internal_reference', 'label' => 'Reference', 'sortable' => true, 'align' => 'left', 'field' => 'internal_reference'],
             ['name' => 'is_live', 'label' => 'Is Live', 'sortable' => false, 'align' => 'center', 'field' => 'is_live'],
+            ['name' => 'payment_status', 'label' => 'Payments', 'sortable' => false, 'align' => 'center', 'field' => 'payment_status'],
             ['name' => 'price', 'label' => 'Price', 'sortable' => true, 'align' => 'right', 'field' => 'price', 'numeric' => true],
             ['name' => 'discounted_price', 'label' => 'Discounted Price', 'sortable' => true, 'align' => 'right', 'field' => 'discounted_price', 'numeric' => true],
             ['name' => 'condition', 'label' => 'Condition', 'sortable' => true, 'align' => 'left', 'field' => 'condition'],
@@ -151,6 +152,7 @@ class StockIndexService
                 'id',
                 'branch_id',
                 'is_active',
+                'is_paid',
                 'is_sold',
                 'published_at',
                 'internal_reference',
@@ -159,6 +161,27 @@ class StockIndexService
                 'price',
                 'discounted_price',
             ])
+            ->selectRaw("
+                EXISTS(
+                    SELECT 1
+                    FROM invoice_line_items ili
+                    INNER JOIN invoices i ON i.id = ili.invoice_id
+                    WHERE ili.stock_id = stock.id
+                      AND i.deleted_at IS NULL
+                      AND i.is_fully_paid = 1
+                ) AS has_full_payment
+            ")
+            ->selectRaw("
+                EXISTS(
+                    SELECT 1
+                    FROM invoice_line_items ili
+                    INNER JOIN invoices i ON i.id = ili.invoice_id
+                    INNER JOIN payments p ON p.invoice_id = i.id AND p.deleted_at IS NULL
+                    WHERE ili.stock_id = stock.id
+                      AND i.deleted_at IS NULL
+                      AND i.is_fully_paid = 0
+                ) AS has_partial_payment
+            ")
             ->with([
                 'branch:id,dealer_id,name',
                 'branch.dealer:id,name,is_active',

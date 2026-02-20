@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers;
 
 use App\Actions\Backoffice\Shared\Invoices\UpsertInvoiceAction;
+use App\Enums\PaymentMethodEnum;
+use App\Models\Billing\BankingDetail;
 use App\Enums\InvoiceCustomerTypeEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Invoices\CreateDealerInvoicesRequest;
@@ -20,7 +22,7 @@ use App\Support\Invoices\InvoiceEditabilityService;
 use App\Support\Invoices\InvoiceIndexService;
 use App\Support\Invoices\InvoiceSectionOptions;
 use App\Support\Invoices\InvoiceVatSnapshotResolver;
-use App\Support\Settings\DealerSettingsResolver;
+use App\Support\Settings\DocumentSettingsPresenter;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -33,7 +35,7 @@ class InvoicesController extends Controller
         private readonly InvoiceVatSnapshotResolver $vatSnapshotResolver,
         private readonly InvoiceEditabilityService $editabilityService,
         private readonly UpsertInvoiceAction $upsertInvoiceAction,
-        private readonly DealerSettingsResolver $dealerSettingsResolver
+        private readonly DocumentSettingsPresenter $documentSettings
     ) {
     }
 
@@ -41,7 +43,7 @@ class InvoicesController extends Controller
     {
         $actor = $request->user('backoffice');
         $filters = $request->validated();
-        $settings = $this->dealerSettingsResolver->resolve($dealer->id, ['dealer_currency']);
+        $documentSettings = $this->documentSettings->dealer($dealer->id);
         $canCreate = $actor->hasPermissionTo('createDealershipInvoices', 'backoffice');
         $canEdit = $actor->hasPermissionTo('editDealershipInvoices', 'backoffice');
         $canDelete = $actor->hasPermissionTo('deleteDealershipInvoices', 'backoffice');
@@ -67,19 +69,22 @@ class InvoicesController extends Controller
 
         $columns = collect([
             'invoice_date',
+            'is_fully_paid',
             'invoice_identifier',
             'total_items_general_accessories',
             'payable_by',
             'customer_firstname',
             'customer_lastname',
             'total_amount',
+            'total_paid_amount',
+            'total_due',
         ])->map(fn (string $key) => [
             'name' => $key,
             'label' => Str::headline($key),
             'sortable' => true,
-            'align' => in_array($key, ['total_items_general_accessories', 'total_amount'], true) ? 'right' : 'left',
+            'align' => in_array($key, ['total_items_general_accessories', 'total_amount', 'total_paid_amount', 'total_due'], true) ? 'right' : 'left',
             'field' => $key,
-            'numeric' => in_array($key, ['total_items_general_accessories', 'total_amount'], true),
+            'numeric' => in_array($key, ['total_items_general_accessories', 'total_amount', 'total_paid_amount', 'total_due'], true),
         ])->values()->all();
 
         return Inertia::render('Shared/Invoices/Index', [
@@ -101,17 +106,15 @@ class InvoicesController extends Controller
             'deleteRouteName' => 'backoffice.dealer-management.dealers.invoices.destroy',
             'exportRouteName' => 'backoffice.dealer-management.dealers.invoices.export',
             'canCreate' => $canCreate,
-            'currencySymbol' => (string) ($settings['dealer_currency'] ?? 'N$'),
+            'currencySymbol' => $documentSettings['currencySymbol'],
         ]);
     }
 
     public function create(CreateDealerInvoicesRequest $request, Dealer $dealer): Response
     {
         $vatSnapshot = $this->vatSnapshotResolver->forDealer($dealer);
-        $settings = $this->dealerSettingsResolver->resolve($dealer->id, [
-            'dealer_currency',
-            'contact_no_prefix',
-        ]);
+        $documentSettings = $this->documentSettings->dealer($dealer->id, includeContactNoPrefix: true);
+        $canCreateCustomer = $request->user('backoffice')?->hasPermissionTo('createDealershipCustomers', 'backoffice') ?? false;
 
         return Inertia::render('Shared/Invoices/Form', [
             'publicTitle' => 'Dealer Management',
@@ -134,6 +137,7 @@ class InvoicesController extends Controller
             'canDelete' => false,
             'canExport' => false,
             'canShowNotes' => false,
+            'canCreateCustomer' => $canCreateCustomer,
             'indexRoute' => route('backoffice.dealer-management.dealers.invoices.index', $dealer),
             'storeRoute' => route('backoffice.dealer-management.dealers.invoices.store', $dealer),
             'updateRoute' => null,
@@ -143,8 +147,8 @@ class InvoicesController extends Controller
             'customerStoreRoute' => route('backoffice.dealer-management.dealers.invoices.customers.store', $dealer),
             'lineItemSuggestionRoute' => route('backoffice.dealer-management.dealers.invoices.line-item-suggestions', $dealer),
             'returnTo' => $request->input('return_to', route('backoffice.dealer-management.dealers.invoices.index', $dealer)),
-            'currencySymbol' => (string) ($settings['dealer_currency'] ?? 'N$'),
-            'contactNoPrefix' => (string) ($settings['contact_no_prefix'] ?? ''),
+            'currencySymbol' => $documentSettings['currencySymbol'],
+            'contactNoPrefix' => $documentSettings['contactNoPrefix'],
         ]);
     }
 
@@ -167,13 +171,14 @@ class InvoicesController extends Controller
 
     public function edit(EditDealerInvoicesRequest $request, Dealer $dealer, Invoice $invoice): Response|RedirectResponse
     {
-        $settings = $this->dealerSettingsResolver->resolve($dealer->id, [
-            'dealer_currency',
-            'contact_no_prefix',
-        ]);
+        $documentSettings = $this->documentSettings->dealer($dealer->id, includeContactNoPrefix: true);
+        $canEditInvoice = $this->editabilityService->dealerCanEdit($invoice, $dealer);
+        $canRecordPayment = $this->editabilityService->canRecordPayment($invoice);
 
         $invoice->load([
             'customer',
+            'payments.bankingDetail',
+            'payments.createdBy',
             'lineItems.stock',
             'lineItems.stock.vehicleItem.make',
             'lineItems.stock.vehicleItem.model',
@@ -182,11 +187,6 @@ class InvoicesController extends Controller
             'lineItems.stock.motorbikeItem.make',
             'lineItems.stock.motorbikeItem.model',
         ]);
-
-        if (! $this->editabilityService->dealerCanEdit($invoice, $dealer)) {
-            return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.invoices.index', $dealer)))
-                ->with('error', 'This invoice can no longer be edited because VAT settings changed since it was created.');
-        }
 
         return Inertia::render('Shared/Invoices/Form', [
             'publicTitle' => 'Dealer Management',
@@ -209,10 +209,46 @@ class InvoicesController extends Controller
                 'vat_percentage' => $invoice->vat_percentage !== null ? (float) $invoice->vat_percentage : null,
                 'vat_number' => $invoice->vat_number,
             ],
-            'canEdit' => true,
+            'canEdit' => $canEditInvoice,
             'canDelete' => true,
             'canExport' => true,
             'canShowNotes' => true,
+            'canCreateCustomer' => $request->user('backoffice')?->hasPermissionTo('createDealershipCustomers', 'backoffice') ?? false,
+            'payments' => $invoice->payments
+                ->sortByDesc('payment_date')
+                ->map(fn ($payment) => [
+                    'id' => $payment->id,
+                    'description' => $payment->description,
+                    'amount' => $payment->amount !== null ? (float) $payment->amount : null,
+                    'payment_date' => optional($payment->payment_date)?->format('Y-m-d'),
+                    'payment_method' => $payment->payment_method?->value ?? (string) $payment->payment_method,
+                    'banking_detail_id' => $payment->banking_detail_id,
+                    'banking_detail_label' => $payment->bankingDetail?->label,
+                    'is_approved' => (bool) $payment->is_approved,
+                    'recorded_by' => $payment->recordedByLabel(),
+                    'recorded_ip' => $payment->created_from_ip,
+                ])
+                ->values()
+                ->all(),
+            'bankingDetailOptions' => BankingDetail::query()
+                ->forDealer($dealer->id)
+                ->select(['id as value', 'label'])
+                ->orderBy('label')
+                ->get()
+                ->map(fn ($row) => ['value' => $row->value, 'label' => $row->label])
+                ->values()
+                ->all(),
+            'paymentMethodOptions' => collect(PaymentMethodEnum::cases())
+                ->map(fn (PaymentMethodEnum $method) => ['value' => $method->value, 'label' => str($method->value)->replace('_', ' ')->upper()->toString()])
+                ->values()
+                ->all(),
+            'paymentRoutes' => [
+                'store' => route('backoffice.dealer-management.dealers.invoices.payments.store', [$dealer, $invoice]),
+                'showName' => 'backoffice.dealer-management.dealers.payments.show',
+                'updateName' => 'backoffice.dealer-management.dealers.payments.update',
+                'deleteName' => 'backoffice.dealer-management.dealers.payments.destroy',
+            ],
+            'canRecordPayment' => $canRecordPayment,
             'indexRoute' => route('backoffice.dealer-management.dealers.invoices.index', $dealer),
             'storeRoute' => route('backoffice.dealer-management.dealers.invoices.store', $dealer),
             'updateRoute' => route('backoffice.dealer-management.dealers.invoices.update', [$dealer, $invoice]),
@@ -222,15 +258,15 @@ class InvoicesController extends Controller
             'customerStoreRoute' => route('backoffice.dealer-management.dealers.invoices.customers.store', $dealer),
             'lineItemSuggestionRoute' => route('backoffice.dealer-management.dealers.invoices.line-item-suggestions', $dealer),
             'returnTo' => $request->input('return_to', route('backoffice.dealer-management.dealers.invoices.index', $dealer)),
-            'currencySymbol' => (string) ($settings['dealer_currency'] ?? 'N$'),
-            'contactNoPrefix' => (string) ($settings['contact_no_prefix'] ?? ''),
+            'currencySymbol' => $documentSettings['currencySymbol'],
+            'contactNoPrefix' => $documentSettings['contactNoPrefix'],
         ]);
     }
 
     public function update(UpdateDealerInvoicesRequest $request, Dealer $dealer, Invoice $invoice): RedirectResponse
     {
         if (! $this->editabilityService->dealerCanEdit($invoice, $dealer)) {
-            return back()->with('error', 'This invoice can no longer be edited because VAT settings changed since it was created.');
+            return back()->with('error', 'This invoice can no longer be edited due to current VAT/payment edit settings.');
         }
 
         $actor = $request->user('backoffice');

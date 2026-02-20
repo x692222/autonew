@@ -18,6 +18,7 @@ use App\Models\Dealer\Dealer;
 use App\Models\Stock\Stock;
 use App\Support\Lookups\StockLookup;
 use App\Support\Settings\DealerSettingsResolver;
+use App\Support\Invoices\InvoiceAmountSummaryService;
 use App\Support\Stock\StockFormOptionsService;
 use App\Support\Stock\StockIndexService;
 use App\Support\Stock\StockWriteService;
@@ -34,6 +35,7 @@ class StocksController extends Controller
         private readonly StockFormOptionsService $stockFormOptionsService,
         private readonly StockWriteService $stockWriteService,
         private readonly DealerSettingsResolver $dealerSettingsResolver,
+        private readonly InvoiceAmountSummaryService $amountSummaryService,
     ) {
     }
 
@@ -184,6 +186,34 @@ class StocksController extends Controller
             $daysSinceAcquired = Carbon::parse((string) $stock->date_acquired)->startOfDay()->diffInDays(now()->startOfDay());
         }
 
+        $linkedInvoices = \App\Models\Invoice\Invoice::query()
+            ->forDealer((string) $dealer->id)
+            ->whereHas('lineItems', fn ($query) => $query->where('stock_id', $stock->id))
+            ->orderByDesc('invoice_date')
+            ->withSum('payments as paid_amount', 'amount')
+            ->select(['id', 'invoice_identifier', 'invoice_date'])
+            ->tap(fn ($query) => $this->amountSummaryService->applyComputedTotalAmount($query))
+            ->get()
+            ->map(fn ($invoice) => [
+                'id' => $invoice->id,
+                'invoice_identifier' => (string) $invoice->invoice_identifier,
+                'invoice_date' => optional($invoice->invoice_date)?->format('Y-m-d'),
+                'status' => ((float) ($invoice->paid_amount ?? 0) >= (float) ($invoice->total_amount ?? 0) && (float) ($invoice->total_amount ?? 0) > 0)
+                    ? 'full'
+                    : ((float) ($invoice->paid_amount ?? 0) > 0 ? 'partial' : 'none'),
+                'url' => route('backoffice.dealer-management.dealers.invoices.edit', [
+                    'dealer' => $dealer->id,
+                    'invoice' => $invoice->id,
+                    'return_to' => $request->fullUrl(),
+                ]),
+            ])
+            ->values()
+            ->all();
+
+        $paymentStatus = collect($linkedInvoices)->contains(fn ($invoice) => $invoice['status'] === 'full')
+            ? 'full'
+            : (collect($linkedInvoices)->contains(fn ($invoice) => $invoice['status'] === 'partial') ? 'partial' : 'none');
+
         return Inertia::render('GuardBackoffice/DealerManagement/Dealers/Stock/Show', [
             'publicTitle' => 'View Stock',
             'dealer' => ['id' => $dealer->id, 'name' => $dealer->name, 'is_active' => (bool) $dealer->is_active],
@@ -204,7 +234,10 @@ class StocksController extends Controller
                 'days_since_acquired' => $daysSinceAcquired,
                 'is_active' => (bool) $stock->is_active,
                 'is_live' => (bool) $stock->isLive($stock),
+                'is_paid' => (bool) $stock->is_paid,
                 'is_sold' => (bool) $stock->is_sold,
+                'payment_status' => $paymentStatus,
+                'linked_invoices' => $linkedInvoices,
                 'typed' => $typed,
                 'feature_tags' => $stock->features->map(fn ($tag) => ['id' => $tag->id, 'name' => $tag->name])->values()->all(),
             ],

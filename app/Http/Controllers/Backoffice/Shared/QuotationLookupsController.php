@@ -47,7 +47,7 @@ class QuotationLookupsController extends Controller
 
     public function storeSystemCustomer(Request $request): JsonResponse
     {
-        Gate::authorize('create', Quotation::class);
+        Gate::authorize('create', Customer::class);
 
         $data = $request->validate([
             'type' => ['required', 'in:individual,company'],
@@ -110,7 +110,7 @@ class QuotationLookupsController extends Controller
 
     public function storeSystemInvoiceCustomer(Request $request): JsonResponse
     {
-        Gate::authorize('create', Invoice::class);
+        Gate::authorize('create', Customer::class);
 
         $data = $request->validate([
             'type' => ['required', 'in:individual,company'],
@@ -173,7 +173,7 @@ class QuotationLookupsController extends Controller
 
     public function storeDealerCustomer(Request $request, Dealer $dealer): JsonResponse
     {
-        Gate::authorize('createQuotation', $dealer);
+        Gate::authorize('createCustomer', $dealer);
 
         $data = $request->validate([
             'type' => ['required', 'in:individual,company'],
@@ -236,7 +236,7 @@ class QuotationLookupsController extends Controller
 
     public function storeDealerInvoiceCustomer(Request $request, Dealer $dealer): JsonResponse
     {
-        Gate::authorize('createInvoice', $dealer);
+        Gate::authorize('createCustomer', $dealer);
 
         $data = $request->validate([
             'type' => ['required', 'in:individual,company'],
@@ -303,7 +303,7 @@ class QuotationLookupsController extends Controller
     {
         $actor = $request->user('dealer');
         $dealer = $actor->dealer;
-        Gate::forUser($actor)->authorize('dealerConfigurationCreateQuotation', $dealer);
+        Gate::forUser($actor)->authorize('dealerConfigurationCreateCustomer', $dealer);
 
         $data = $request->validate([
             'type' => ['required', 'in:individual,company'],
@@ -370,7 +370,7 @@ class QuotationLookupsController extends Controller
     {
         $actor = $request->user('dealer');
         $dealer = $actor->dealer;
-        Gate::forUser($actor)->authorize('dealerConfigurationCreateInvoice', $dealer);
+        Gate::forUser($actor)->authorize('dealerConfigurationCreateCustomer', $dealer);
 
         $data = $request->validate([
             'type' => ['required', 'in:individual,company'],

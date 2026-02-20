@@ -5,10 +5,12 @@ namespace App\Models\Quotation;
 use App\Enums\QuotationCustomerTypeEnum;
 use App\Models\Dealer\Dealer;
 use App\Models\Invoice\Invoice;
+use App\Models\Payments\Payment;
 use App\Traits\HasUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Customer extends Model
@@ -51,5 +53,17 @@ class Customer extends Model
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class, 'customer_id');
+    }
+
+    public function payments(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Payment::class,
+            Invoice::class,
+            'customer_id',
+            'invoice_id',
+            'id',
+            'id'
+        );
     }
 }

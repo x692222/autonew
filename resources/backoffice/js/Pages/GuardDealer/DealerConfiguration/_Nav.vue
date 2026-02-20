@@ -22,8 +22,11 @@ const tabs = computed(() => {
         { name: 'leads', label: 'Leads', permission: 'manageLeads', routeName: 'backoffice.dealer-configuration.leads.index' },
         { name: 'lead-pipelines', label: 'Lead Pipelines', permission: 'indexPipelines', routeName: 'backoffice.dealer-configuration.lead-pipelines.index' },
         { name: 'lead-stages', label: 'Lead Stages', permission: 'indexPipelineStages', routeName: 'backoffice.dealer-configuration.lead-stages.index' },
+        { name: 'customers', label: 'Customers', permission: 'indexCustomers', routeName: 'backoffice.dealer-configuration.customers.index' },
         { name: 'quotations', label: 'Quotations', permission: 'indexQuotations', routeName: 'backoffice.dealer-configuration.quotations.index' },
         { name: 'invoices', label: 'Invoices', permission: 'indexInvoices', routeName: 'backoffice.dealer-configuration.invoices.index' },
+        { name: 'payments', label: 'Payments', permission: 'indexPayments', routeName: 'backoffice.dealer-configuration.payments.index' },
+        { name: 'banking-details', label: 'Banking Details', permission: 'indexBankingDetails', routeName: 'backoffice.dealer-configuration.banking-details.index' },
         { name: 'settings', label: 'Settings', permission: 'canConfigureSettings', routeName: 'backoffice.dealer-configuration.settings.index' },
     ]
 

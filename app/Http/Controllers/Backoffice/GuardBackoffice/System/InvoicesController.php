@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Backoffice\GuardBackoffice\System;
 
 use App\Actions\Backoffice\Shared\Invoices\UpsertInvoiceAction;
+use App\Enums\PaymentMethodEnum;
+use App\Models\Billing\BankingDetail;
 use App\Enums\InvoiceCustomerTypeEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\GuardBackoffice\System\Invoices\CreateSystemInvoicesRequest;
@@ -19,7 +21,7 @@ use App\Support\Invoices\InvoiceEditabilityService;
 use App\Support\Invoices\InvoiceIndexService;
 use App\Support\Invoices\InvoiceSectionOptions;
 use App\Support\Invoices\InvoiceVatSnapshotResolver;
-use App\Support\Settings\SystemSettingsResolver;
+use App\Support\Settings\DocumentSettingsPresenter;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -32,7 +34,7 @@ class InvoicesController extends Controller
         private readonly InvoiceVatSnapshotResolver $vatSnapshotResolver,
         private readonly InvoiceEditabilityService $editabilityService,
         private readonly UpsertInvoiceAction $upsertInvoiceAction,
-        private readonly SystemSettingsResolver $systemSettingsResolver
+        private readonly DocumentSettingsPresenter $documentSettings
     ) {
     }
 
@@ -40,7 +42,7 @@ class InvoicesController extends Controller
     {
         $actor = $request->user('backoffice');
         $filters = $request->validated();
-        $settings = $this->systemSettingsResolver->resolve(['system_currency']);
+        $documentSettings = $this->documentSettings->system();
         $canCreate = $actor->hasPermissionTo('createSystemInvoices', 'backoffice');
         $canEdit = $actor->hasPermissionTo('editSystemInvoices', 'backoffice');
         $canDelete = $actor->hasPermissionTo('deleteSystemInvoices', 'backoffice');
@@ -65,19 +67,22 @@ class InvoicesController extends Controller
 
         $columns = collect([
             'invoice_date',
+            'is_fully_paid',
             'invoice_identifier',
             'total_items_general_accessories',
             'payable_by',
             'customer_firstname',
             'customer_lastname',
             'total_amount',
+            'total_paid_amount',
+            'total_due',
         ])->map(fn (string $key) => [
             'name' => $key,
             'label' => Str::headline($key),
             'sortable' => true,
-            'align' => in_array($key, ['total_items_general_accessories', 'total_amount'], true) ? 'right' : 'left',
+            'align' => in_array($key, ['total_items_general_accessories', 'total_amount', 'total_paid_amount', 'total_due'], true) ? 'right' : 'left',
             'field' => $key,
-            'numeric' => in_array($key, ['total_items_general_accessories', 'total_amount'], true),
+            'numeric' => in_array($key, ['total_items_general_accessories', 'total_amount', 'total_paid_amount', 'total_due'], true),
         ])->values()->all();
 
         return Inertia::render('Shared/Invoices/Index', [
@@ -94,17 +99,15 @@ class InvoicesController extends Controller
             'deleteRouteName' => 'backoffice.system.invoices.destroy',
             'exportRouteName' => 'backoffice.system.invoices.export',
             'canCreate' => $canCreate,
-            'currencySymbol' => (string) ($settings['system_currency'] ?? 'N$'),
+            'currencySymbol' => $documentSettings['currencySymbol'],
         ]);
     }
 
     public function create(CreateSystemInvoicesRequest $request): Response
     {
         $vatSnapshot = $this->vatSnapshotResolver->forSystem();
-        $settings = $this->systemSettingsResolver->resolve([
-            'system_currency',
-            'contact_no_prefix',
-        ]);
+        $documentSettings = $this->documentSettings->system(includeContactNoPrefix: true);
+        $canCreateCustomer = $request->user('backoffice')?->hasPermissionTo('createSystemCustomers', 'backoffice') ?? false;
 
         return Inertia::render('Shared/Invoices/Form', [
             'publicTitle' => 'Invoices',
@@ -123,6 +126,7 @@ class InvoicesController extends Controller
             'canDelete' => false,
             'canExport' => false,
             'canShowNotes' => false,
+            'canCreateCustomer' => $canCreateCustomer,
             'indexRoute' => route('backoffice.system.invoices.index'),
             'storeRoute' => route('backoffice.system.invoices.store'),
             'updateRoute' => null,
@@ -132,8 +136,8 @@ class InvoicesController extends Controller
             'customerStoreRoute' => route('backoffice.system.invoices.customers.store'),
             'lineItemSuggestionRoute' => route('backoffice.system.invoices.line-item-suggestions'),
             'returnTo' => $request->input('return_to', route('backoffice.system.invoices.index')),
-            'currencySymbol' => (string) ($settings['system_currency'] ?? 'N$'),
-            'contactNoPrefix' => (string) ($settings['contact_no_prefix'] ?? ''),
+            'currencySymbol' => $documentSettings['currencySymbol'],
+            'contactNoPrefix' => $documentSettings['contactNoPrefix'],
         ]);
     }
 
@@ -156,14 +160,15 @@ class InvoicesController extends Controller
 
     public function edit(EditSystemInvoicesRequest $request, Invoice $invoice): Response|RedirectResponse
     {
-        $settings = $this->systemSettingsResolver->resolve([
-            'system_currency',
-            'contact_no_prefix',
-        ]);
+        $documentSettings = $this->documentSettings->system(includeContactNoPrefix: true);
         $allowedSections = InvoiceSectionOptions::valuesForSystem();
+        $canEditInvoice = $this->editabilityService->systemCanEdit($invoice);
+        $canRecordPayment = $this->editabilityService->canRecordPayment($invoice);
 
         $invoice->load([
             'customer',
+            'payments.bankingDetail',
+            'payments.createdBy',
             'lineItems' => fn ($query) => $query
                 ->whereIn('section', $allowedSections)
                 ->with([
@@ -176,11 +181,6 @@ class InvoicesController extends Controller
                     'stock.motorbikeItem.model',
                 ]),
         ]);
-
-        if (! $this->editabilityService->systemCanEdit($invoice)) {
-            return redirect($request->input('return_to', route('backoffice.system.invoices.index')))
-                ->with('error', 'This invoice can no longer be edited because VAT settings changed since it was created.');
-        }
 
         return Inertia::render('Shared/Invoices/Form', [
             'publicTitle' => 'Invoices',
@@ -199,10 +199,46 @@ class InvoicesController extends Controller
                 'vat_percentage' => $invoice->vat_percentage !== null ? (float) $invoice->vat_percentage : null,
                 'vat_number' => $invoice->vat_number,
             ],
-            'canEdit' => true,
+            'canEdit' => $canEditInvoice,
             'canDelete' => true,
             'canExport' => true,
             'canShowNotes' => true,
+            'canCreateCustomer' => $request->user('backoffice')?->hasPermissionTo('createSystemCustomers', 'backoffice') ?? false,
+            'payments' => $invoice->payments
+                ->sortByDesc('payment_date')
+                ->map(fn ($payment) => [
+                    'id' => $payment->id,
+                    'description' => $payment->description,
+                    'amount' => $payment->amount !== null ? (float) $payment->amount : null,
+                    'payment_date' => optional($payment->payment_date)?->format('Y-m-d'),
+                    'payment_method' => $payment->payment_method?->value ?? (string) $payment->payment_method,
+                    'banking_detail_id' => $payment->banking_detail_id,
+                    'banking_detail_label' => $payment->bankingDetail?->label,
+                    'is_approved' => (bool) $payment->is_approved,
+                    'recorded_by' => $payment->recordedByLabel(),
+                    'recorded_ip' => $payment->created_from_ip,
+                ])
+                ->values()
+                ->all(),
+            'bankingDetailOptions' => BankingDetail::query()
+                ->system()
+                ->select(['id as value', 'label'])
+                ->orderBy('label')
+                ->get()
+                ->map(fn ($row) => ['value' => $row->value, 'label' => $row->label])
+                ->values()
+                ->all(),
+            'paymentMethodOptions' => collect(PaymentMethodEnum::cases())
+                ->map(fn (PaymentMethodEnum $method) => ['value' => $method->value, 'label' => str($method->value)->replace('_', ' ')->upper()->toString()])
+                ->values()
+                ->all(),
+            'paymentRoutes' => [
+                'store' => route('backoffice.system.invoices.payments.store', $invoice),
+                'showName' => 'backoffice.system.payments.show',
+                'updateName' => 'backoffice.system.payments.update',
+                'deleteName' => 'backoffice.system.payments.destroy',
+            ],
+            'canRecordPayment' => $canRecordPayment,
             'indexRoute' => route('backoffice.system.invoices.index'),
             'storeRoute' => route('backoffice.system.invoices.store'),
             'updateRoute' => route('backoffice.system.invoices.update', $invoice),
@@ -212,15 +248,15 @@ class InvoicesController extends Controller
             'customerStoreRoute' => route('backoffice.system.invoices.customers.store'),
             'lineItemSuggestionRoute' => route('backoffice.system.invoices.line-item-suggestions'),
             'returnTo' => $request->input('return_to', route('backoffice.system.invoices.index')),
-            'currencySymbol' => (string) ($settings['system_currency'] ?? 'N$'),
-            'contactNoPrefix' => (string) ($settings['contact_no_prefix'] ?? ''),
+            'currencySymbol' => $documentSettings['currencySymbol'],
+            'contactNoPrefix' => $documentSettings['contactNoPrefix'],
         ]);
     }
 
     public function update(UpdateSystemInvoicesRequest $request, Invoice $invoice): RedirectResponse
     {
         if (! $this->editabilityService->systemCanEdit($invoice)) {
-            return back()->with('error', 'This invoice can no longer be edited because VAT settings changed since it was created.');
+            return back()->with('error', 'This invoice can no longer be edited due to current VAT/payment edit settings.');
         }
 
         $actor = $request->user('backoffice');

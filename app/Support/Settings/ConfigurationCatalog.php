@@ -69,12 +69,19 @@ class ConfigurationCatalog
                 'default' => null,
                 'description' => 'VAT registration number printed on system quotations when VAT is enabled.',
             ],
-            'banking_details' => [
-                'label' => 'Banking Details',
+            'can_edit_invoice_after_partial_payment' => [
+                'label' => 'Allow Invoice Edit After Partial Payment',
                 'category' => ConfigurationCategoryEnum::BILLING,
-                'type' => ConfigurationValueTypeEnum::TEXT,
-                'default' => null,
-                'description' => 'Banking details to be displayed on quotations and invoices.',
+                'type' => ConfigurationValueTypeEnum::BOOLEAN,
+                'default' => false,
+                'description' => 'When enabled, system invoices become read-only after partial payment has been captured.',
+            ],
+            'can_edit_invoice_after_full_payment' => [
+                'label' => 'Allow Invoice Edit After Full Payment',
+                'category' => ConfigurationCategoryEnum::BILLING,
+                'type' => ConfigurationValueTypeEnum::BOOLEAN,
+                'default' => false,
+                'description' => 'When enabled, fully paid system invoices become read-only.',
             ],
         ];
     }
@@ -223,7 +230,7 @@ class ConfigurationCatalog
                 'category' => ConfigurationCategoryEnum::BILLING,
                 'type' => ConfigurationValueTypeEnum::BOOLEAN,
                 'default' => false,
-                'description' => 'When enabled, invoices remain editable after partial payments have been captured.',
+                'description' => 'When enabled, dealer invoices become read-only after partial payment has been captured.',
                 'backoffice_only' => false,
             ],
             'can_edit_invoice_after_full_payment' => [
@@ -231,15 +238,7 @@ class ConfigurationCatalog
                 'category' => ConfigurationCategoryEnum::BILLING,
                 'type' => ConfigurationValueTypeEnum::BOOLEAN,
                 'default' => false,
-                'description' => 'When enabled, fully paid invoices can still be edited (use with caution for accounting integrity).',
-                'backoffice_only' => false,
-            ],
-            'banking_details' => [
-                'label' => 'Banking Details',
-                'category' => ConfigurationCategoryEnum::BILLING,
-                'type' => ConfigurationValueTypeEnum::TEXT,
-                'default' => null,
-                'description' => 'Banking details to be displayed on quotations and invoices.',
+                'description' => 'When enabled, fully paid dealer invoices become read-only.',
                 'backoffice_only' => false,
             ],
             'max_concurrent_published_stock_items' => [
@@ -381,11 +380,6 @@ class ConfigurationCatalog
 
             if ($key === 'contact_no_prefix') {
                 $rules["settings.{$key}"] = ['nullable', 'string', 'max:7', 'regex:/^\\+[0-9]+$/'];
-                continue;
-            }
-
-            if ($key === 'banking_details') {
-                $rules["settings.{$key}"] = ['nullable', 'string', 'max:200'];
                 continue;
             }
 

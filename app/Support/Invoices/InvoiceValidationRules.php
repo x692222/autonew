@@ -19,7 +19,7 @@ class InvoiceValidationRules
             'payable_by_to' => ['nullable', 'date_format:Y-m-d'],
             'page' => ['nullable', 'integer', 'min:1'],
             'rowsPerPage' => ['nullable', 'integer', 'min:1', 'max:200'],
-            'sortBy' => ['nullable', 'in:invoice_date,invoice_identifier,total_items_general_accessories,payable_by,customer_firstname,customer_lastname,total_amount,created_at'],
+            'sortBy' => ['nullable', 'in:invoice_date,is_fully_paid,invoice_identifier,total_items_general_accessories,payable_by,customer_firstname,customer_lastname,total_amount,total_paid_amount,total_due,created_at'],
             'descending' => ['nullable'],
         ];
     }
@@ -73,9 +73,9 @@ class InvoiceValidationRules
             'line_items.*.stock_id' => ['nullable', 'uuid', Rule::exists('stock', 'id')],
             'line_items.*.sku' => ['nullable', 'string', 'min:3', 'max:35', 'regex:/^\\S+$/'],
             'line_items.*.description' => ['required', 'string', 'max:255'],
-            'line_items.*.amount' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
-            'line_items.*.qty' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
-            'line_items.*.total' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'line_items.*.amount' => ['required', 'numeric', 'min:0', 'max:999999999.99'],
+            'line_items.*.qty' => ['required', 'numeric', 'min:0', 'max:999999999.99'],
+            'line_items.*.total' => ['required', 'numeric', 'min:0', 'max:999999999.99'],
             'line_items.*.is_vat_exempt' => ['nullable', 'boolean'],
             'customer' => ['nullable', 'array'],
             'customer.type' => ['nullable', Rule::in(InvoiceCustomerTypeEnum::values())],

@@ -70,6 +70,7 @@ class Stock extends Model implements HasMedia
         'branch_id',
         'is_active',
         'is_sold',
+        'is_paid',
         'published_at',
         'date_acquired',
         'internal_reference',
@@ -86,6 +87,7 @@ class Stock extends Model implements HasMedia
             'is_active' => 'boolean',
             'is_new'    => 'boolean',
             'is_sold'   => 'boolean',
+            'is_paid'   => 'boolean',
             'date_acquired' => 'date',
             'published_at' => 'datetime',
         ];

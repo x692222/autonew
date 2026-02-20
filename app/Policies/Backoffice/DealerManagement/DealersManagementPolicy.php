@@ -10,6 +10,7 @@ use App\Models\Leads\Lead;
 use App\Models\Leads\LeadPipeline;
 use App\Models\Leads\LeadStage;
 use App\Models\Invoice\Invoice;
+use App\Models\Quotation\Customer;
 use App\Models\Quotation\Quotation;
 use App\Models\Stock\Stock;
 use App\Models\System\User;
@@ -199,6 +200,78 @@ class DealersManagementPolicy
             : Response::deny('You do not have permission to view dealer invoices.');
     }
 
+    public function showCustomers(User $user, Dealer $dealer): Response
+    {
+        return $user->hasPermissionTo('indexDealershipCustomers', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to view dealer customers.');
+    }
+
+    public function viewCustomer(User $user, Dealer $dealer, Customer $customer): Response
+    {
+        if ((string) $customer->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This customer does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('editDealershipCustomers', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to view dealer customers.');
+    }
+
+    public function createCustomer(User $user, Dealer $dealer): Response
+    {
+        return $user->hasPermissionTo('createDealershipCustomers', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to create dealer customers.');
+    }
+
+    public function editCustomer(User $user, Dealer $dealer, Customer $customer): Response
+    {
+        if ((string) $customer->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This customer does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('editDealershipCustomers', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to edit dealer customers.');
+    }
+
+    public function deleteCustomer(User $user, Dealer $dealer, Customer $customer): Response
+    {
+        if ((string) $customer->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This customer does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('deleteDealershipCustomers', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to delete dealer customers.');
+    }
+
+    public function showPayments(User $user, Dealer $dealer): Response
+    {
+        return $user->hasPermissionTo('indexDealershipPayments', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to view dealer payments.');
+    }
+
+    public function viewPayment(User $user, Dealer $dealer, \App\Models\Payments\Payment $payment): Response
+    {
+        if ((string) $payment->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This payment does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('viewDealershipPayments', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to view dealer payments.');
+    }
+
+    public function showBankingDetails(User $user, Dealer $dealer): Response
+    {
+        return $user->hasPermissionTo('indexDealershipBankingDetails', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to view dealer banking details.');
+    }
+
     public function createInvoice(User $user, Dealer $dealer): Response
     {
         return $user->hasPermissionTo('createDealershipInvoices', 'backoffice')
@@ -215,6 +288,68 @@ class DealersManagementPolicy
         return $user->hasPermissionTo('editDealershipInvoices', 'backoffice')
             ? Response::allow()
             : Response::deny('You do not have permission to edit dealer invoices.');
+    }
+
+    public function createPayment(User $user, Dealer $dealer, Invoice $invoice): Response
+    {
+        if ((string) $invoice->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This invoice does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('createDealershipPayments', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to create dealer payments.');
+    }
+
+    public function editPayment(User $user, Dealer $dealer, \App\Models\Payments\Payment $payment): Response
+    {
+        if ((string) $payment->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This payment does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('editDealershipPayments', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to edit dealer payments.');
+    }
+
+    public function deletePayment(User $user, Dealer $dealer, \App\Models\Payments\Payment $payment): Response
+    {
+        if ((string) $payment->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This payment does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('deleteDealershipPayments', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to delete dealer payments.');
+    }
+
+    public function createBankingDetail(User $user, Dealer $dealer): Response
+    {
+        return $user->hasPermissionTo('createDealershipBankingDetails', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to create dealer banking details.');
+    }
+
+    public function editBankingDetail(User $user, Dealer $dealer, \App\Models\Billing\BankingDetail $bankingDetail): Response
+    {
+        if ((string) $bankingDetail->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This banking detail does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('editDealershipBankingDetails', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to edit dealer banking details.');
+    }
+
+    public function deleteBankingDetail(User $user, Dealer $dealer, \App\Models\Billing\BankingDetail $bankingDetail): Response
+    {
+        if ((string) $bankingDetail->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This banking detail does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('deleteDealershipBankingDetails', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to delete dealer banking details.');
     }
 
     public function deleteInvoice(User $user, Dealer $dealer, Invoice $invoice): Response

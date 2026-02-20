@@ -21,7 +21,7 @@ use App\Support\Quotations\QuotationEditabilityService;
 use App\Support\Quotations\QuotationIndexService;
 use App\Support\Quotations\QuotationSectionOptions;
 use App\Support\Quotations\QuotationVatSnapshotResolver;
-use App\Support\Settings\DealerSettingsResolver;
+use App\Support\Settings\DocumentSettingsPresenter;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,7 +35,7 @@ class QuotationsController extends Controller
         private readonly QuotationEditabilityService $editabilityService,
         private readonly UpsertQuotationAction $upsertQuotationAction,
         private readonly UpsertInvoiceAction $upsertInvoiceAction,
-        private readonly DealerSettingsResolver $dealerSettingsResolver
+        private readonly DocumentSettingsPresenter $documentSettings
     ) {
     }
 
@@ -44,7 +44,7 @@ class QuotationsController extends Controller
         $actor = $request->user('dealer');
         $filters = $request->validated();
         $dealer = $actor->dealer;
-        $settings = $this->dealerSettingsResolver->resolve($dealer->id, ['dealer_currency']);
+        $documentSettings = $this->documentSettings->dealer($dealer->id);
         $canCreate = $actor->hasPermissionTo('createDealershipQuotations', 'dealer');
         $canEdit = $actor->hasPermissionTo('editDealershipQuotations', 'dealer');
         $canDelete = $actor->hasPermissionTo('deleteDealershipQuotations', 'dealer');
@@ -103,7 +103,7 @@ class QuotationsController extends Controller
             'deleteRouteName' => 'backoffice.dealer-configuration.quotations.destroy',
             'exportRouteName' => 'backoffice.dealer-configuration.quotations.export',
             'canCreate' => $canCreate,
-            'currencySymbol' => (string) ($settings['dealer_currency'] ?? 'N$'),
+            'currencySymbol' => $documentSettings['currencySymbol'],
         ]);
     }
 
@@ -111,10 +111,8 @@ class QuotationsController extends Controller
     {
         $dealer = $request->user('dealer')->dealer;
         $vatSnapshot = $this->vatSnapshotResolver->forDealer($dealer);
-        $settings = $this->dealerSettingsResolver->resolve($dealer->id, [
-            'dealer_currency',
-            'contact_no_prefix',
-        ]);
+        $documentSettings = $this->documentSettings->dealer($dealer->id, includeContactNoPrefix: true);
+        $canCreateCustomer = $request->user('dealer')?->hasPermissionTo('createCustomers', 'dealer') ?? false;
 
         return Inertia::render('Shared/Quotations/Form', [
             'publicTitle' => 'Configuration',
@@ -137,6 +135,7 @@ class QuotationsController extends Controller
             'canDelete' => false,
             'canExport' => false,
             'canShowNotes' => false,
+            'canCreateCustomer' => $canCreateCustomer,
             'indexRoute' => route('backoffice.dealer-configuration.quotations.index'),
             'storeRoute' => route('backoffice.dealer-configuration.quotations.store'),
             'updateRoute' => null,
@@ -146,8 +145,8 @@ class QuotationsController extends Controller
             'customerStoreRoute' => route('backoffice.dealer-configuration.quotations.customers.store'),
             'lineItemSuggestionRoute' => route('backoffice.dealer-configuration.quotations.line-item-suggestions'),
             'returnTo' => $request->input('return_to', route('backoffice.dealer-configuration.quotations.index')),
-            'currencySymbol' => (string) ($settings['dealer_currency'] ?? 'N$'),
-            'contactNoPrefix' => (string) ($settings['contact_no_prefix'] ?? ''),
+            'currencySymbol' => $documentSettings['currencySymbol'],
+            'contactNoPrefix' => $documentSettings['contactNoPrefix'],
         ]);
     }
 
@@ -173,10 +172,7 @@ class QuotationsController extends Controller
     {
         $actor = $request->user('dealer');
         $dealer = $actor->dealer;
-        $settings = $this->dealerSettingsResolver->resolve($dealer->id, [
-            'dealer_currency',
-            'contact_no_prefix',
-        ]);
+        $documentSettings = $this->documentSettings->dealer($dealer->id, includeContactNoPrefix: true);
         $quotation->load([
             'customer',
             'invoices',
@@ -219,6 +215,7 @@ class QuotationsController extends Controller
             'canDelete' => true,
             'canExport' => true,
             'canShowNotes' => true,
+            'canCreateCustomer' => $request->user('dealer')?->hasPermissionTo('createCustomers', 'dealer') ?? false,
             'canConvertToInvoice' => $request->user('dealer')?->hasPermissionTo('createDealershipInvoices', 'dealer') ?? false,
             'convertToInvoiceRoute' => route('backoffice.dealer-configuration.quotations.convert-to-invoice', $quotation),
             'linkedInvoices' => $quotation->invoices
@@ -240,8 +237,8 @@ class QuotationsController extends Controller
             'customerStoreRoute' => route('backoffice.dealer-configuration.quotations.customers.store'),
             'lineItemSuggestionRoute' => route('backoffice.dealer-configuration.quotations.line-item-suggestions'),
             'returnTo' => $request->input('return_to', route('backoffice.dealer-configuration.quotations.index')),
-            'currencySymbol' => (string) ($settings['dealer_currency'] ?? 'N$'),
-            'contactNoPrefix' => (string) ($settings['contact_no_prefix'] ?? ''),
+            'currencySymbol' => $documentSettings['currencySymbol'],
+            'contactNoPrefix' => $documentSettings['contactNoPrefix'],
         ]);
     }
 

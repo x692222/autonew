@@ -21,7 +21,7 @@ use App\Support\Quotations\QuotationEditabilityService;
 use App\Support\Quotations\QuotationIndexService;
 use App\Support\Quotations\QuotationSectionOptions;
 use App\Support\Quotations\QuotationVatSnapshotResolver;
-use App\Support\Settings\SystemSettingsResolver;
+use App\Support\Settings\DocumentSettingsPresenter;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,7 +35,7 @@ class QuotationsController extends Controller
         private readonly QuotationEditabilityService $editabilityService,
         private readonly UpsertQuotationAction $upsertQuotationAction,
         private readonly UpsertInvoiceAction $upsertInvoiceAction,
-        private readonly SystemSettingsResolver $systemSettingsResolver
+        private readonly DocumentSettingsPresenter $documentSettings
     ) {
     }
 
@@ -43,7 +43,7 @@ class QuotationsController extends Controller
     {
         $actor = $request->user('backoffice');
         $filters = $request->validated();
-        $settings = $this->systemSettingsResolver->resolve(['system_currency']);
+        $documentSettings = $this->documentSettings->system();
         $canCreate = $actor->hasPermissionTo('createSystemQuotations', 'backoffice');
         $canEdit = $actor->hasPermissionTo('editSystemQuotations', 'backoffice');
         $canDelete = $actor->hasPermissionTo('deleteSystemQuotations', 'backoffice');
@@ -97,17 +97,15 @@ class QuotationsController extends Controller
             'deleteRouteName' => 'backoffice.system.quotations.destroy',
             'exportRouteName' => 'backoffice.system.quotations.export',
             'canCreate' => $canCreate,
-            'currencySymbol' => (string) ($settings['system_currency'] ?? 'N$'),
+            'currencySymbol' => $documentSettings['currencySymbol'],
         ]);
     }
 
     public function create(CreateSystemQuotationsRequest $request): Response
     {
         $vatSnapshot = $this->vatSnapshotResolver->forSystem();
-        $settings = $this->systemSettingsResolver->resolve([
-            'system_currency',
-            'contact_no_prefix',
-        ]);
+        $documentSettings = $this->documentSettings->system(includeContactNoPrefix: true);
+        $canCreateCustomer = $request->user('backoffice')?->hasPermissionTo('createSystemCustomers', 'backoffice') ?? false;
 
         return Inertia::render('Shared/Quotations/Form', [
             'publicTitle' => 'Quotations',
@@ -126,6 +124,7 @@ class QuotationsController extends Controller
             'canDelete' => false,
             'canExport' => false,
             'canShowNotes' => false,
+            'canCreateCustomer' => $canCreateCustomer,
             'indexRoute' => route('backoffice.system.quotations.index'),
             'storeRoute' => route('backoffice.system.quotations.store'),
             'updateRoute' => null,
@@ -135,8 +134,8 @@ class QuotationsController extends Controller
             'customerStoreRoute' => route('backoffice.system.quotations.customers.store'),
             'lineItemSuggestionRoute' => route('backoffice.system.quotations.line-item-suggestions'),
             'returnTo' => $request->input('return_to', route('backoffice.system.quotations.index')),
-            'currencySymbol' => (string) ($settings['system_currency'] ?? 'N$'),
-            'contactNoPrefix' => (string) ($settings['contact_no_prefix'] ?? ''),
+            'currencySymbol' => $documentSettings['currencySymbol'],
+            'contactNoPrefix' => $documentSettings['contactNoPrefix'],
         ]);
     }
 
@@ -159,10 +158,7 @@ class QuotationsController extends Controller
 
     public function edit(EditSystemQuotationsRequest $request, Quotation $quotation): Response|RedirectResponse
     {
-        $settings = $this->systemSettingsResolver->resolve([
-            'system_currency',
-            'contact_no_prefix',
-        ]);
+        $documentSettings = $this->documentSettings->system(includeContactNoPrefix: true);
         $allowedSections = QuotationSectionOptions::valuesForSystem();
 
         $quotation->load([
@@ -207,6 +203,7 @@ class QuotationsController extends Controller
             'canDelete' => true,
             'canExport' => true,
             'canShowNotes' => true,
+            'canCreateCustomer' => $request->user('backoffice')?->hasPermissionTo('createSystemCustomers', 'backoffice') ?? false,
             'canConvertToInvoice' => $request->user('backoffice')?->hasPermissionTo('createSystemInvoices', 'backoffice') ?? false,
             'convertToInvoiceRoute' => route('backoffice.system.quotations.convert-to-invoice', $quotation),
             'linkedInvoices' => $quotation->invoices
@@ -228,8 +225,8 @@ class QuotationsController extends Controller
             'customerStoreRoute' => route('backoffice.system.quotations.customers.store'),
             'lineItemSuggestionRoute' => route('backoffice.system.quotations.line-item-suggestions'),
             'returnTo' => $request->input('return_to', route('backoffice.system.quotations.index')),
-            'currencySymbol' => (string) ($settings['system_currency'] ?? 'N$'),
-            'contactNoPrefix' => (string) ($settings['contact_no_prefix'] ?? ''),
+            'currencySymbol' => $documentSettings['currencySymbol'],
+            'contactNoPrefix' => $documentSettings['contactNoPrefix'],
         ]);
     }
 

@@ -293,6 +293,23 @@ const confirmExport = (row) => {
         <template #cell-total_amount="{ row }">
             <span>{{ row.total_amount === null || row.total_amount === undefined ? '-' : `${currencySymbol}${formatCurrency(row.total_amount, 2)}` }}</span>
         </template>
+
+        <template #cell-total_paid_amount="{ row }">
+            <span>{{ row.total_paid_amount === null || row.total_paid_amount === undefined ? '-' : `${currencySymbol}${formatCurrency(row.total_paid_amount, 2)}` }}</span>
+        </template>
+
+        <template #cell-total_due="{ row }">
+            <span
+                :class="{ 'text-negative': Number(row.total_due || 0) > 0 }"
+            >
+                {{ row.total_due === null || row.total_due === undefined ? '-' : `${currencySymbol}${formatCurrency(row.total_due, 2)}` }}
+            </span>
+        </template>
+
+        <template #cell-is_fully_paid="{ row }">
+            <q-icon v-if="row.is_fully_paid" name="check_circle" color="positive" size="20px" />
+            <span v-else>-</span>
+        </template>
     </PaginatedTable>
 
     <NotesHost

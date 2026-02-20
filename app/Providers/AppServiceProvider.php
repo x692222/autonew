@@ -17,6 +17,9 @@ use App\Models\Leads\Lead;
 use App\Models\Leads\LeadPipeline;
 use App\Models\Leads\LeadStage;
 use App\Models\Invoice\Invoice;
+use App\Models\Billing\BankingDetail;
+use App\Models\Payments\Payment;
+use App\Models\Quotation\Customer;
 use App\Models\Quotation\Quotation;
 use App\Models\Stock\Stock;
 use App\Policies\Backoffice\Auth\ImpersonationsPolicy;
@@ -24,6 +27,9 @@ use App\Policies\Backoffice\DealerManagement\DealersManagementPolicy;
 use App\Policies\Backoffice\System\LocationsManagementPolicy;
 use App\Policies\Backoffice\System\SystemConfigurationsPolicy;
 use App\Policies\Backoffice\System\SystemInvoicesPolicy;
+use App\Policies\Backoffice\System\SystemPaymentsPolicy;
+use App\Policies\Backoffice\System\SystemBankingDetailsPolicy;
+use App\Policies\Backoffice\System\SystemCustomersPolicy;
 use App\Policies\Backoffice\System\SystemQuotationsPolicy;
 use App\Policies\Backoffice\System\UsersManagementPolicy;
 use App\Observers\SystemRequestObserver;
@@ -57,6 +63,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(SystemConfiguration::class, SystemConfigurationsPolicy::class);
         Gate::policy(Quotation::class, SystemQuotationsPolicy::class);
         Gate::policy(Invoice::class, SystemInvoicesPolicy::class);
+        Gate::policy(Payment::class, SystemPaymentsPolicy::class);
+        Gate::policy(BankingDetail::class, SystemBankingDetailsPolicy::class);
+        Gate::policy(Customer::class, SystemCustomersPolicy::class);
 
         Gate::define('dealerConfigurationEditDealership', function ($actor, Dealer $dealer): Response {
             if (! $actor instanceof DealerUser) {
@@ -655,6 +664,202 @@ class AppServiceProvider extends ServiceProvider
             return $actor->hasPermissionTo('deleteDealershipInvoices', 'dealer')
                 ? Response::allow()
                 : Response::deny('You do not have permission to delete invoices.');
+        });
+
+        Gate::define('dealerConfigurationIndexCustomers', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('indexCustomers', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to view customers.');
+        });
+
+        Gate::define('dealerConfigurationCreateCustomer', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('createCustomers', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to create customers.');
+        });
+
+        Gate::define('dealerConfigurationViewCustomer', function ($actor, Customer $customer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $customer->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('editCustomers', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to view customers.');
+        });
+
+        Gate::define('dealerConfigurationEditCustomer', function ($actor, Customer $customer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $customer->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('editCustomers', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to edit customers.');
+        });
+
+        Gate::define('dealerConfigurationDeleteCustomer', function ($actor, Customer $customer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $customer->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('deleteCustomers', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to delete customers.');
+        });
+
+        Gate::define('dealerConfigurationIndexPayments', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('indexPayments', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to view payments.');
+        });
+
+        Gate::define('dealerConfigurationCreatePayment', function ($actor, Invoice $invoice): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $invoice->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('createDealershipPayments', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to create payments.');
+        });
+
+        Gate::define('dealerConfigurationEditPayment', function ($actor, Payment $payment): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $payment->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('editDealershipPayments', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to edit payments.');
+        });
+
+        Gate::define('dealerConfigurationDeletePayment', function ($actor, Payment $payment): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $payment->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('deleteDealershipPayments', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to delete payments.');
+        });
+
+        Gate::define('dealerConfigurationViewPayment', function ($actor, Payment $payment): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $payment->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('viewPayments', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to view payments.');
+        });
+
+        Gate::define('dealerConfigurationIndexBankingDetails', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('indexBankingDetails', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to view banking details.');
+        });
+
+        Gate::define('dealerConfigurationCreateBankingDetail', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('createDealershipBankingDetails', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to create banking details.');
+        });
+
+        Gate::define('dealerConfigurationEditBankingDetail', function ($actor, BankingDetail $bankingDetail): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $bankingDetail->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('editDealershipBankingDetails', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to edit banking details.');
+        });
+
+        Gate::define('dealerConfigurationDeleteBankingDetail', function ($actor, BankingDetail $bankingDetail): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $bankingDetail->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('deleteDealershipBankingDetails', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to delete banking details.');
         });
     }
 }

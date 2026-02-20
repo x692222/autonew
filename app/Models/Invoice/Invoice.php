@@ -3,6 +3,7 @@
 namespace App\Models\Invoice;
 
 use App\Models\Dealer\Dealer;
+use App\Models\Payments\Payment;
 use App\Models\Quotation\Customer;
 use App\Models\Quotation\Quotation;
 use App\Traits\HasNotes;
@@ -33,12 +34,12 @@ class Invoice extends Model
         'purchase_order_number',
         'payment_method',
         'payment_terms',
+        'is_fully_paid',
         'vat_enabled',
         'vat_percentage',
         'vat_number',
         'subtotal_before_vat',
         'vat_amount',
-        'total_amount',
         'created_by_type',
         'created_by_id',
         'updated_by_type',
@@ -55,7 +56,7 @@ class Invoice extends Model
             'vat_percentage' => 'decimal:2',
             'subtotal_before_vat' => 'decimal:2',
             'vat_amount' => 'decimal:2',
-            'total_amount' => 'decimal:2',
+            'is_fully_paid' => 'boolean',
         ];
     }
 
@@ -87,6 +88,11 @@ class Invoice extends Model
     public function lineItems(): HasMany
     {
         return $this->hasMany(InvoiceLineItem::class, 'invoice_id');
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'invoice_id');
     }
 
     public function createdBy(): MorphTo

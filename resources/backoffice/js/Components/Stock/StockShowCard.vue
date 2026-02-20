@@ -44,6 +44,7 @@ const baseRows = computed(() => ([
     { key: 'server_now', label: 'Server Time', value: page.props.server_now || '—', isBoolean: false },
     { key: 'is_live', label: 'Is Live', value: !!props.stock?.is_live, isBoolean: true },
     { key: 'is_active', label: 'Is Active', value: !!props.stock?.is_active, isBoolean: true },
+    { key: 'is_paid', label: 'Is Paid', value: !!props.stock?.is_paid, isBoolean: true },
     { key: 'is_sold', label: 'Is Sold', value: !!props.stock?.is_sold, isBoolean: true },
 ]))
 
@@ -58,6 +59,14 @@ const formatTypedValue = (key, value) => {
 
     return value
 }
+
+const paymentStatusLabel = computed(() => {
+    if (props.stock?.payment_status === 'full') return 'FULL PAYMENT'
+    if (props.stock?.payment_status === 'partial') return 'PARTIAL PAYMENT'
+    return 'NO PAYMENT'
+})
+
+const paymentStatusPositive = computed(() => props.stock?.payment_status === 'full' || props.stock?.payment_status === 'partial')
 </script>
 
 <template>
@@ -126,6 +135,51 @@ const formatTypedValue = (key, value) => {
                 :images-required="minimumImagesRequiredForLive"
                 class="q-mb-md"
             />
+
+            <q-card flat bordered class="q-mb-md">
+                <q-card-section>
+                    <div class="text-h6 q-pb-sm">Invoice & Payment Status</div>
+                    <q-list bordered separator>
+                        <q-item>
+                            <q-item-section>
+                                <q-item-label caption>Current Status</q-item-label>
+                                <q-item-label>
+                                    <q-icon :name="paymentStatusPositive ? 'check_circle' : 'cancel'" :color="paymentStatusPositive ? 'positive' : 'negative'" size="18px" />
+                                    <span class="q-ml-sm">{{ paymentStatusLabel }}</span>
+                                </q-item-label>
+                            </q-item-section>
+                        </q-item>
+                    </q-list>
+                </q-card-section>
+                <q-separator />
+                <q-card-section>
+                    <div class="text-subtitle2 q-mb-sm">Linked Invoices</div>
+                    <div v-if="!(stock?.linked_invoices || []).length" class="text-grey-7">No linked invoices.</div>
+                    <q-list v-else dense>
+                        <q-item
+                            v-for="invoice in stock.linked_invoices"
+                            :key="invoice.id"
+                            clickable
+                            @click="router.visit(invoice.url)"
+                        >
+                            <q-item-section>
+                                <q-item-label>{{ invoice.invoice_identifier || '-' }}</q-item-label>
+                                <q-item-label caption>{{ invoice.invoice_date || '-' }}</q-item-label>
+                            </q-item-section>
+                            <q-item-section side>
+                                <q-icon
+                                    v-if="invoice.status === 'full'"
+                                    name="check_circle"
+                                    color="positive"
+                                    size="18px"
+                                />
+                                <span v-else-if="invoice.status === 'partial'" class="text-caption text-weight-medium">partial</span>
+                                <span v-else class="text-caption text-grey-7">not paid</span>
+                            </q-item-section>
+                        </q-item>
+                    </q-list>
+                </q-card-section>
+            </q-card>
 
             <q-card flat bordered>
                 <q-card-section>

@@ -13,6 +13,9 @@ use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\Not
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\OverviewsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\QuotationsController as DealerManagementQuotationsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\InvoicesController as DealerManagementInvoicesController;
+use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\PaymentsController as DealerManagementPaymentsController;
+use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\CustomersController as DealerManagementCustomersController;
+use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\BankingDetailsController as DealerManagementBankingDetailsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\LeadsController as DealerManagementLeadsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\LeadPipelinesController as DealerManagementLeadPipelinesController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\LeadStagesController as DealerManagementLeadStagesController;
@@ -35,6 +38,9 @@ use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\StockImagesC
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\StocksController as DealerConfigurationStocksController;
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\QuotationsController as DealerConfigurationQuotationsController;
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\InvoicesController as DealerConfigurationInvoicesController;
+use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\PaymentsController as DealerConfigurationPaymentsController;
+use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\CustomersController as DealerConfigurationCustomersController;
+use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\BankingDetailsController as DealerConfigurationBankingDetailsController;
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\UsersController as DealerConfigurationUsersController;
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\UserPermissionsController as DealerConfigurationUserPermissionsController;
 use App\Http\Controllers\Backoffice\Shared\NotesController as BackofficeNotesController;
@@ -44,6 +50,9 @@ use App\Http\Controllers\Backoffice\GuardBackoffice\System\PendingFeatureTagsCon
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\SystemConfigurationsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\QuotationsController as SystemQuotationsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\InvoicesController as SystemInvoicesController;
+use App\Http\Controllers\Backoffice\GuardBackoffice\System\PaymentsController as SystemPaymentsController;
+use App\Http\Controllers\Backoffice\GuardBackoffice\System\CustomersController as SystemCustomersController;
+use App\Http\Controllers\Backoffice\GuardBackoffice\System\BankingDetailsController as SystemBankingDetailsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\SystemRequestsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\UsersManagementController;
 use App\Http\Middleware\BackofficeRedirectIfAuthenticated;
@@ -141,6 +150,8 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                 Route::resource('system-requests', SystemRequestsController::class)
                     ->parameters(['system-requests' => 'systemRequest'])
                     ->only(['index', 'update', 'destroy']);
+                Route::resource('customers', SystemCustomersController::class)
+                    ->parameters(['customers' => 'customer']);
                 Route::resource('quotations', SystemQuotationsController::class)
                     ->parameters(['quotations' => 'quotation'])
                     ->except(['show']);
@@ -153,6 +164,14 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                     ->except(['show']);
                 Route::get('invoices/{invoice}/export', [SystemInvoicesController::class, 'export'])
                     ->name('invoices.export');
+                Route::post('invoices/{invoice}/payments', [SystemPaymentsController::class, 'storeForInvoice'])
+                    ->name('invoices.payments.store');
+                Route::resource('payments', SystemPaymentsController::class)
+                    ->parameters(['payments' => 'payment'])
+                    ->only(['index', 'show', 'update', 'destroy']);
+                Route::resource('banking-details', SystemBankingDetailsController::class)
+                    ->parameters(['banking-details' => 'bankingDetail'])
+                    ->only(['index', 'store', 'update', 'destroy']);
                 Route::get('settings', [SystemConfigurationsController::class, 'index'])
                     ->name('settings.index');
                 Route::patch('settings', [SystemConfigurationsController::class, 'update'])
@@ -281,6 +300,9 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                     ->parameters(['quotations' => 'quotation'])
                     ->names('dealers.quotations')
                     ->except(['show']);
+                Route::resource('dealers/{dealer}/customers', DealerManagementCustomersController::class)
+                    ->parameters(['customers' => 'customer'])
+                    ->names('dealers.customers');
                 Route::get('dealers/{dealer}/quotations/{quotation}/export', [DealerManagementQuotationsController::class, 'export'])
                     ->name('dealers.quotations.export');
                 Route::post('dealers/{dealer}/quotations/{quotation}/convert-to-invoice', [DealerManagementQuotationsController::class, 'convertToInvoice'])
@@ -291,6 +313,16 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                     ->except(['show']);
                 Route::get('dealers/{dealer}/invoices/{invoice}/export', [DealerManagementInvoicesController::class, 'export'])
                     ->name('dealers.invoices.export');
+                Route::post('dealers/{dealer}/invoices/{invoice}/payments', [DealerManagementPaymentsController::class, 'storeForInvoice'])
+                    ->name('dealers.invoices.payments.store');
+                Route::resource('dealers/{dealer}/payments', DealerManagementPaymentsController::class)
+                    ->parameters(['payments' => 'payment'])
+                    ->names('dealers.payments')
+                    ->only(['index', 'show', 'update', 'destroy']);
+                Route::resource('dealers/{dealer}/banking-details', DealerManagementBankingDetailsController::class)
+                    ->parameters(['banking-details' => 'bankingDetail'])
+                    ->names('dealers.banking-details')
+                    ->only(['index', 'store', 'update', 'destroy']);
                 Route::get('dealers/{dealer}/notification-history', [NotificationHistoriesController::class, 'show'])
                     ->name('dealers.notification-history');
                 Route::get('dealers/{dealer}/settings', [SettingsController::class, 'show'])
@@ -468,6 +500,8 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                 Route::resource('quotations', DealerConfigurationQuotationsController::class)
                     ->parameters(['quotations' => 'quotation'])
                     ->except(['show']);
+                Route::resource('customers', DealerConfigurationCustomersController::class)
+                    ->parameters(['customers' => 'customer']);
                 Route::get('quotations/{quotation}/export', [DealerConfigurationQuotationsController::class, 'export'])
                     ->name('quotations.export');
                 Route::post('quotations/{quotation}/convert-to-invoice', [DealerConfigurationQuotationsController::class, 'convertToInvoice'])
@@ -477,6 +511,14 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                     ->except(['show']);
                 Route::get('invoices/{invoice}/export', [DealerConfigurationInvoicesController::class, 'export'])
                     ->name('invoices.export');
+                Route::post('invoices/{invoice}/payments', [DealerConfigurationPaymentsController::class, 'storeForInvoice'])
+                    ->name('invoices.payments.store');
+                Route::resource('payments', DealerConfigurationPaymentsController::class)
+                    ->parameters(['payments' => 'payment'])
+                    ->only(['index', 'show', 'update', 'destroy']);
+                Route::resource('banking-details', DealerConfigurationBankingDetailsController::class)
+                    ->parameters(['banking-details' => 'bankingDetail'])
+                    ->only(['index', 'store', 'update', 'destroy']);
             });
 
         Route::prefix('configuration')

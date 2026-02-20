@@ -103,7 +103,6 @@ class UpsertInvoiceAction
                 'vat_number' => $vatSnapshot['vat_number'],
                 'subtotal_before_vat' => $totals['subtotal_before_vat'],
                 'vat_amount' => $totals['vat_amount'],
-                'total_amount' => $totals['total_amount'],
                 'updated_by_type' => get_class($actor),
                 'updated_by_id' => $actor->getKey(),
             ];

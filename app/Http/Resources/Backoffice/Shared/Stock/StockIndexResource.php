@@ -32,6 +32,13 @@ class StockIndexResource extends JsonResource
             default => null,
         };
 
+        $paymentStatus = '';
+        if ((bool) ($this->has_full_payment ?? false)) {
+            $paymentStatus = 'full';
+        } elseif ((bool) ($this->has_partial_payment ?? false)) {
+            $paymentStatus = 'partial';
+        }
+
         $makeName = '-';
         $modelName = '-';
         $condition = '-';
@@ -90,6 +97,7 @@ class StockIndexResource extends JsonResource
             'type_title' => Str::headline((string) $this->type),
             'internal_reference' => $this->internal_reference,
             'is_live' => (bool) $this->isLive($this->resource),
+            'payment_status' => $paymentStatus,
             'price' => $this->price,
             'discounted_price' => $this->discounted_price,
             'condition' => $condition,
@@ -98,6 +106,7 @@ class StockIndexResource extends JsonResource
             'name' => $this->name,
             'is_active' => (bool) $this->is_active,
             'active_label' => $this->is_active ? 'Yes' : '-',
+            'is_paid' => (bool) $this->is_paid,
             'is_sold' => (bool) $this->is_sold,
             'sold_label' => $this->is_sold ? 'Yes' : '-',
             'make_name' => $makeName,

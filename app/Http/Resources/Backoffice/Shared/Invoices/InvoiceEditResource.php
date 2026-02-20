@@ -2,9 +2,8 @@
 
 namespace App\Http\Resources\Backoffice\Shared\Invoices;
 
-use App\Models\Stock\Stock;
 use App\Models\Invoice\Invoice;
-use App\Support\StockHelper;
+use App\Support\Stock\AssociatedStockPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -39,12 +38,18 @@ class InvoiceEditResource extends JsonResource
             'purchase_order_number' => $this->purchase_order_number,
             'payment_method' => $this->payment_method,
             'payment_terms' => $this->payment_terms,
+            'total_paid_amount' => (float) (
+                $this->relationLoaded('payments')
+                    ? $this->payments->sum('amount')
+                    : ($this->payments()->sum('amount') ?? 0)
+            ),
+            'is_fully_paid' => (bool) $this->is_fully_paid,
             'vat_enabled' => (bool) $this->vat_enabled,
             'vat_percentage' => $this->vat_percentage !== null ? (float) $this->vat_percentage : null,
             'vat_number' => $this->vat_number,
             'subtotal_before_vat' => (float) $this->subtotal_before_vat,
             'vat_amount' => (float) $this->vat_amount,
-            'total_amount' => (float) $this->total_amount,
+            'total_amount' => app(\App\Support\Invoices\InvoiceAmountSummaryService::class)->totalForInvoice($this->resource),
             'line_items' => $this->lineItems
                 ->map(fn ($lineItem) => [
                     'id' => $lineItem->id,
@@ -61,55 +66,9 @@ class InvoiceEditResource extends JsonResource
                 ->all(),
             'associated_stock' => $this->lineItems
                 ->filter(fn ($lineItem) => $lineItem->stock)
-                ->map(fn ($lineItem) => $this->mapAssociatedStock($lineItem->stock))
+                ->map(fn ($lineItem) => app(AssociatedStockPresenter::class)->present($lineItem->stock))
                 ->values()
                 ->all(),
-        ];
-    }
-
-    private function mapAssociatedStock(?Stock $stock): array
-    {
-        $meta = StockHelper::stockRelationMeta()[$stock?->type] ?? null;
-        $relation = $meta['relation'] ?? null;
-        $typed = $relation ? $stock?->{$relation} : null;
-        $cap = $meta['properties'] ?? [];
-        $typedAttributes = $typed?->getAttributes() ?? [];
-
-        $hasTypedAttribute = static fn (string $attribute) => array_key_exists($attribute, $typedAttributes);
-
-        $fields = [
-            'make' => (bool) ($cap['make'] ?? false),
-            'model' => (bool) ($cap['model'] ?? false),
-            'millage' => (bool) ($cap['millage'] ?? false),
-            'is_police_clearance_ready' => (bool) ($cap['police_clearance'] ?? false),
-            'condition' => $hasTypedAttribute('condition'),
-            'is_import' => (bool) ($cap['import'] ?? false),
-            'gearbox_type' => (bool) ($cap['gearbox'] ?? false),
-            'drive_type' => (bool) ($cap['drive'] ?? false),
-            'fuel_type' => (bool) ($cap['fuel'] ?? false),
-            'color' => (bool) ($cap['color'] ?? false),
-        ];
-
-        return [
-            'stock_id' => $stock?->id,
-            'internal_reference' => $stock?->internal_reference,
-            'name' => $stock?->name,
-            'is_active' => (bool) ($stock?->is_active ?? false),
-            'is_sold' => (bool) ($stock?->is_sold ?? false),
-            'type' => (string) ($stock?->type ?? '-'),
-            'fields' => $fields,
-            'make' => $fields['make'] ? $typed?->make?->name : null,
-            'model' => $fields['model'] ? $typed?->model?->name : null,
-            'millage' => $fields['millage'] ? $typed?->millage : null,
-            'is_police_clearance_ready' => $fields['is_police_clearance_ready']
-                ? ($typed?->is_police_clearance_ready?->value ?? $typed?->is_police_clearance_ready)
-                : null,
-            'condition' => $fields['condition'] ? $typed?->condition : null,
-            'is_import' => $fields['is_import'] ? $typed?->is_import : null,
-            'gearbox_type' => $fields['gearbox_type'] ? $typed?->gearbox_type : null,
-            'drive_type' => $fields['drive_type'] ? $typed?->drive_type : null,
-            'fuel_type' => $fields['fuel_type'] ? $typed?->fuel_type : null,
-            'color' => $fields['color'] ? $typed?->color : null,
         ];
     }
 }

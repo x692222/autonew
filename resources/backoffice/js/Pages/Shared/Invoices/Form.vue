@@ -5,6 +5,8 @@ import axios from 'axios'
 import { useQuasar } from 'quasar'
 import Layout from 'bo@/Layouts/Layout.vue'
 import NotesHost from 'bo@/Components/Notes/NotesHost.vue'
+import AssociatedStockList from 'bo@/Components/Stock/AssociatedStockList.vue'
+import SimpleTable from 'bo@/Components/Shared/SimpleTable.vue'
 import DealerTabs from 'bo@/Pages/GuardBackoffice/DealerManagement/Dealers/_Tabs.vue'
 import DealerConfigurationNav from 'bo@/Pages/GuardDealer/DealerConfiguration/_Nav.vue'
 import { useConfirmAction } from 'bo@/Composables/useConfirmAction'
@@ -24,6 +26,7 @@ const props = defineProps({
     canDelete: { type: Boolean, default: false },
     canExport: { type: Boolean, default: false },
     canShowNotes: { type: Boolean, default: false },
+    canCreateCustomer: { type: Boolean, default: false },
     indexRoute: { type: String, required: true },
     storeRoute: { type: String, required: true },
     updateRoute: { type: String, default: null },
@@ -35,6 +38,11 @@ const props = defineProps({
     returnTo: { type: String, required: true },
     currencySymbol: { type: String, default: 'N$' },
     contactNoPrefix: { type: String, default: '' },
+    payments: { type: Array, default: () => [] },
+    paymentMethodOptions: { type: Array, default: () => [] },
+    bankingDetailOptions: { type: Array, default: () => [] },
+    paymentRoutes: { type: Object, default: () => ({ store: null, showName: null, updateName: null, deleteName: null }) },
+    canRecordPayment: { type: Boolean, default: false },
 })
 
 const notesRef = ref(null)
@@ -44,6 +52,8 @@ const customerSearchLoading = ref(false)
 const customerOptions = ref([])
 const customerSearchHint = ref('Type at least 3 characters to search customer.')
 const addCustomerDialog = ref(false)
+const paymentDialog = ref(false)
+const editingPaymentId = ref(null)
 
 const lineItemTimeouts = new Map()
 const lineItemSuggestions = ref({})
@@ -123,6 +133,14 @@ const form = useForm({
     payment_terms: props.data?.payment_terms || '',
     line_items: initialLineItems,
     return_to: props.returnTo,
+})
+
+const paymentForm = useForm({
+    description: '',
+    amount: null,
+    payment_date: new Date().toISOString().slice(0, 10),
+    payment_method: 'cash',
+    banking_detail_id: null,
 })
 
 const customerForm = useForm({
@@ -225,6 +243,27 @@ const totals = computed(() => {
 
     return { subtotalBeforeVat, vatAmount, totalAmount }
 })
+
+const paymentsTotal = computed(() => {
+    return (props.payments || []).reduce((acc, payment) => acc + Number(payment?.amount || 0), 0)
+})
+
+const balanceTotal = computed(() => {
+    const due = Number(totals.value.totalAmount || 0)
+    const paid = Number(paymentsTotal.value || 0)
+    return Math.max(0, due - paid)
+})
+
+const paymentTableColumns = [
+    { name: 'payment_date', label: 'Payment Date', field: 'payment_date', align: 'left' },
+    { name: 'payment_method', label: 'Method', field: 'payment_method', align: 'left' },
+    { name: 'description', label: 'Description', field: 'description', align: 'left' },
+    { name: 'amount', label: 'Amount', field: 'amount', align: 'right' },
+    { name: 'recorded_by', label: 'Recorded By', field: 'recorded_by', align: 'left' },
+    { name: 'recorded_ip', label: 'IP Address', field: 'recorded_ip', align: 'left' },
+    { name: 'approval', label: 'Approval', field: 'approval', align: 'center' },
+    { name: 'actions', label: '', field: 'actions', align: 'right' },
+]
 
 const dateRules = [
     (value) => !!value || 'Invoice date is required',
@@ -401,6 +440,7 @@ const selectedCustomer = computed(() => {
 })
 
 const openAddCustomer = () => {
+    if (!props.canCreateCustomer) return
     customerForm.reset()
     customerForm.contact_number = defaultContactNoPrefix
     customerForm.clearErrors()
@@ -455,6 +495,10 @@ const submitAddCustomer = async () => {
 }
 
 const submit = () => {
+    if (isInvoiceReadOnly.value) {
+        return
+    }
+
     form.line_items.forEach((lineItem) => recalculateLineItem(lineItem))
 
     const basePayload = {
@@ -500,41 +544,8 @@ const submit = () => {
 const hasFormErrors = computed(() => Object.keys(form.errors || {}).length > 0)
 const showUnsavedChanges = computed(() => !!props.data?.id && form.isDirty)
 const isEditing = computed(() => !!props.data?.id)
+const isInvoiceReadOnly = computed(() => !!props.data?.id && !props.canEdit)
 const lineItemError = (index, field) => form.errors?.[`line_items.${index}.${field}`] || null
-const uppercaseOrDash = (value) => {
-    const normalized = String(value ?? '').trim()
-    if (!normalized) return '-'
-    if (normalized.toLowerCase() === 'undefined') return '-'
-    return normalized.toUpperCase()
-}
-
-const canShowAssociatedField = (stock, field) => {
-    if (Object.prototype.hasOwnProperty.call(stock?.fields || {}, field)) {
-        return !!stock.fields[field]
-    }
-
-    return stock?.[field] !== null && stock?.[field] !== undefined && String(stock[field]).trim() !== ''
-}
-
-const associatedStockSummary = (stock) => {
-    const parts = [
-        `${stock?.name || '-'} | Type: ${uppercaseOrDash(stock?.type)} | Active: ${stock?.is_active ? 'Yes' : 'No'} | Sold: ${stock?.is_sold ? 'Yes' : 'No'}`,
-    ]
-
-    if (canShowAssociatedField(stock, 'make')) parts.push(`Make: ${stock?.make || '-'}`)
-    if (canShowAssociatedField(stock, 'model')) parts.push(`Model: ${stock?.model || '-'}`)
-    if (canShowAssociatedField(stock, 'millage')) parts.push(`Millage: ${stock?.millage ?? '-'}`)
-    if (canShowAssociatedField(stock, 'is_police_clearance_ready')) parts.push(`Police Clearance: ${uppercaseOrDash(stock?.is_police_clearance_ready)}`)
-    if (canShowAssociatedField(stock, 'condition')) parts.push(`Condition: ${uppercaseOrDash(stock?.condition)}`)
-    if (canShowAssociatedField(stock, 'is_import')) parts.push(`Import: ${stock?.is_import === true ? 'Yes' : (stock?.is_import === false ? 'No' : '-')}`)
-    if (canShowAssociatedField(stock, 'gearbox_type')) parts.push(`Gearbox: ${uppercaseOrDash(stock?.gearbox_type)}`)
-    if (canShowAssociatedField(stock, 'drive_type')) parts.push(`Drive: ${uppercaseOrDash(stock?.drive_type)}`)
-    if (canShowAssociatedField(stock, 'fuel_type')) parts.push(`Fuel: ${uppercaseOrDash(stock?.fuel_type)}`)
-    if (canShowAssociatedField(stock, 'color')) parts.push(`Color: ${uppercaseOrDash(stock?.color)}`)
-
-    return parts.join(' | ')
-}
-
 const openNotes = () => {
     if (!props.data?.id) return
     notesRef.value?.open({ id: props.data.id, invoice_identifier: props.data.invoice_identifier })
@@ -569,6 +580,105 @@ const confirmExport = () => {
         inertia: { preserveState: true },
     })
 }
+
+const resetPaymentFormForCreate = () => {
+    paymentForm.description = ''
+    paymentForm.amount = null
+    paymentForm.payment_date = new Date().toISOString().slice(0, 10)
+    paymentForm.payment_method = 'cash'
+    paymentForm.banking_detail_id = null
+    paymentForm.clearErrors()
+}
+
+const openCreatePayment = () => {
+    editingPaymentId.value = null
+    resetPaymentFormForCreate()
+    paymentDialog.value = true
+}
+
+const openEditPayment = (payment) => {
+    editingPaymentId.value = payment.id
+    paymentForm.description = payment.description || ''
+    paymentForm.amount = Number(payment.amount || 0)
+    paymentForm.payment_date = payment.payment_date || new Date().toISOString().slice(0, 10)
+    paymentForm.payment_method = payment.payment_method || 'cash'
+    paymentForm.banking_detail_id = payment.banking_detail_id || null
+    paymentForm.clearErrors()
+    paymentDialog.value = true
+}
+
+const paymentUpdateUrl = (paymentId) => {
+    if (props.context?.mode === 'dealer-backoffice' && props.dealer?.id) {
+        return route(props.paymentRoutes.updateName, { dealer: props.dealer.id, payment: paymentId })
+    }
+
+    return route(props.paymentRoutes.updateName, { payment: paymentId })
+}
+
+const paymentDeleteUrl = (paymentId) => {
+    if (props.context?.mode === 'dealer-backoffice' && props.dealer?.id) {
+        return route(props.paymentRoutes.deleteName, { dealer: props.dealer.id, payment: paymentId })
+    }
+
+    return route(props.paymentRoutes.deleteName, { payment: paymentId })
+}
+
+const paymentShowUrl = (paymentId) => {
+    if (!props.paymentRoutes?.showName) return null
+
+    if (props.context?.mode === 'dealer-backoffice' && props.dealer?.id) {
+        return route(props.paymentRoutes.showName, {
+            dealer: props.dealer.id,
+            payment: paymentId,
+            return_to: props.returnTo,
+        })
+    }
+
+    return route(props.paymentRoutes.showName, {
+        payment: paymentId,
+        return_to: props.returnTo,
+    })
+}
+
+const submitPayment = () => {
+    paymentForm.clearErrors()
+    if (Number(paymentForm.amount || 0) > Number(totals.value.totalAmount || 0)) {
+        $q.dialog({
+            title: 'Payment exceeds invoice total',
+            message: 'The payment amount exceeds the total invoice amount.',
+            ok: { label: 'OK', color: 'primary', unelevated: true },
+        })
+        return
+    }
+
+    const options = {
+        preserveScroll: true,
+        onSuccess: () => {
+            paymentDialog.value = false
+            editingPaymentId.value = null
+            resetPaymentFormForCreate()
+        },
+    }
+
+    if (editingPaymentId.value) {
+        paymentForm.patch(paymentUpdateUrl(editingPaymentId.value), options)
+        return
+    }
+
+    paymentForm.post(props.paymentRoutes.store, options)
+}
+
+const confirmDeletePayment = (payment) => {
+    $q.dialog({
+        title: 'Delete Payment',
+        message: 'Are you sure you want to delete this payment?',
+        ok: { label: 'Delete', color: 'negative', unelevated: true },
+        cancel: { label: 'Cancel', flat: true },
+        persistent: true,
+    }).onOk(() => {
+        router.delete(paymentDeleteUrl(payment.id), { preserveScroll: true })
+    })
+}
 </script>
 
 <template>
@@ -592,6 +702,7 @@ const confirmExport = () => {
         tab="invoices"
     />
 
+    <div :class="{ 'bo-readonly-block': isInvoiceReadOnly }">
     <q-card flat bordered class="q-mb-md">
         <q-card-section class="row items-center justify-between">
             <div class="text-h6">{{ data?.id ? 'Edit Invoice' : 'Create Invoice' }}</div>
@@ -639,6 +750,12 @@ const confirmExport = () => {
             <q-banner v-if="form.errors.line_items" dense rounded class="bg-red-1 text-negative q-mb-md">
                 {{ form.errors.line_items }}
             </q-banner>
+            <q-banner v-if="data?.is_fully_paid" dense rounded class="bg-positive text-white q-mb-md">
+                Invoice is fully paid.
+            </q-banner>
+            <q-banner v-else-if="Number(data?.total_paid_amount || 0) > 0" dense rounded class="bg-blue-1 text-blue-10 q-mb-md">
+                Invoice has partial payment.
+            </q-banner>
 
             <div class="row q-col-gutter-md">
                 <div class="col-12 col-md-8">
@@ -667,6 +784,7 @@ const confirmExport = () => {
                             />
                             <div class="text-caption text-grey-6 q-pt-xs">{{ customerSearchHint }}</div>
                             <q-btn
+                                v-if="canCreateCustomer"
                                 class="q-mt-sm"
                                 flat
                                 dense
@@ -892,6 +1010,7 @@ const confirmExport = () => {
                             hide-bottom-space
                             type="number"
                             min="0"
+                            max="999999999.99"
                             step="0.01"
                             :prefix="currencySymbol"
                             label="Amount"
@@ -908,6 +1027,7 @@ const confirmExport = () => {
                             hide-bottom-space
                             type="number"
                             min="0"
+                            max="999999999.99"
                             step="0.01"
                             label="Qty"
                             :error="!!lineItemError(lineItemRow.index, 'qty')"
@@ -923,6 +1043,7 @@ const confirmExport = () => {
                             hide-bottom-space
                             type="number"
                             min="0"
+                            max="999999999.99"
                             step="0.01"
                             readonly
                             :prefix="currencySymbol"
@@ -993,27 +1114,7 @@ const confirmExport = () => {
         </q-card-section>
     </q-card>
 
-    <q-card v-if="data?.associated_stock?.length" flat bordered class="q-mb-md">
-        <q-card-section>
-            <div class="text-h6">Associated Stock</div>
-        </q-card-section>
-        <q-separator />
-        <q-card-section>
-            <q-list dense>
-                <template v-for="(stock, index) in data.associated_stock" :key="stock.stock_id">
-                <q-item>
-                    <q-item-section>
-                        <q-item-label>{{ stock.internal_reference || stock.name }}</q-item-label>
-                        <q-item-label caption>
-                            {{ associatedStockSummary(stock) }}
-                        </q-item-label>
-                    </q-item-section>
-                </q-item>
-                <q-separator v-if="index < data.associated_stock.length - 1" class="q-my-sm" />
-                </template>
-            </q-list>
-        </q-card-section>
-    </q-card>
+    <AssociatedStockList :items="data?.associated_stock || []" title="Associated Stock" />
 
     <q-card flat bordered class="q-mb-md">
         <q-card-section>
@@ -1039,8 +1140,90 @@ const confirmExport = () => {
             </div>
         </q-card-section>
     </q-card>
+    </div>
 
-    <div class="row justify-end q-gutter-sm">
+    <q-card v-if="data?.id" flat bordered class="q-mb-md">
+        <q-card-section class="row items-center justify-between">
+            <div class="text-h6">Payments</div>
+            <q-btn
+                v-if="canRecordPayment && !showUnsavedChanges"
+                color="primary"
+                icon="add_card"
+                label="Record Payment"
+                no-wrap
+                unelevated
+                @click="openCreatePayment"
+            />
+        </q-card-section>
+        <q-separator />
+        <q-card-section>
+            <div v-if="!payments?.length" class="text-caption text-grey-7">No payments recorded yet.</div>
+            <SimpleTable
+                v-else
+                :rows="payments"
+                :columns="paymentTableColumns"
+                row-key="id"
+                :bordered="false"
+            >
+                <template #cell-payment_method="{ row }">
+                    {{ String(row.payment_method || '-').toUpperCase() }}
+                </template>
+                <template #cell-amount="{ row }">
+                    <div class="text-right">{{ currencySymbol }} {{ formatAmount(row.amount) }}</div>
+                </template>
+                <template #cell-approval="{ row }">
+                    <div class="text-center">
+                        <q-chip
+                            square
+                            dense
+                            size="sm"
+                            :color="row?.is_approved ? 'positive' : 'negative'"
+                            text-color="white"
+                            class="text-caption"
+                        >
+                            {{ row?.is_approved ? 'APPROVED' : 'NOT APPROVED' }}
+                        </q-chip>
+                    </div>
+                </template>
+                <template #cell-actions="{ row }">
+                    <div class="text-right">
+                        <q-btn
+                            v-if="paymentRoutes?.showName"
+                            round
+                            dense
+                            flat
+                            icon="visibility"
+                            @click="router.visit(paymentShowUrl(row.id))"
+                        />
+                        <q-btn v-if="canRecordPayment" round dense flat icon="edit" @click="openEditPayment(row)" />
+                        <q-btn v-if="canRecordPayment" round dense flat icon="delete" color="negative" @click="confirmDeletePayment(row)" />
+                    </div>
+                </template>
+            </SimpleTable>
+        </q-card-section>
+    </q-card>
+
+    <q-card flat bordered class="q-mb-md">
+        <q-card-section>
+            <div class="text-h6">Balance Summary</div>
+        </q-card-section>
+        <q-separator />
+        <q-card-section>
+            <div class="row q-col-gutter-md">
+                <div class="col-12 col-md-4">
+                    <q-input :model-value="formatAmount(totals.totalAmount)" dense outlined readonly :prefix="currencySymbol" label="Total Amount Due" />
+                </div>
+                <div class="col-12 col-md-4">
+                    <q-input :model-value="formatAmount(paymentsTotal)" dense outlined readonly :prefix="currencySymbol" label="Less Payments" />
+                </div>
+                <div class="col-12 col-md-4">
+                    <q-input :model-value="formatAmount(balanceTotal)" dense outlined readonly :prefix="currencySymbol" label="Total Balance" />
+                </div>
+            </div>
+        </q-card-section>
+    </q-card>
+
+    <div v-if="!isInvoiceReadOnly" class="row justify-end q-gutter-sm">
         <q-btn
             color="primary"
             label="Save Invoice"
@@ -1180,4 +1363,97 @@ const confirmExport = () => {
         noteable-type="invoice"
         title-key="invoice_identifier"
     />
+
+    <q-dialog v-model="paymentDialog" persistent>
+        <q-card style="min-width: 560px; max-width: 90vw;">
+            <q-card-section>
+                <div class="text-h6">{{ editingPaymentId ? 'Edit Payment' : 'Record Payment' }}</div>
+            </q-card-section>
+            <q-separator />
+            <q-card-section>
+                <div class="row q-col-gutter-md">
+                    <div class="col-12 col-md-6">
+                        <q-input
+                            v-model="paymentForm.payment_date"
+                            dense
+                            outlined
+                            label="Payment Date"
+                            mask="####-##-##"
+                            fill-mask
+                            :error="!!paymentForm.errors.payment_date"
+                            :error-message="paymentForm.errors.payment_date"
+                        />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <q-select
+                            v-model="paymentForm.payment_method"
+                            dense
+                            outlined
+                            emit-value
+                            map-options
+                            :options="paymentMethodOptions"
+                            option-label="label"
+                            option-value="value"
+                            label="Payment Method"
+                            :error="!!paymentForm.errors.payment_method"
+                            :error-message="paymentForm.errors.payment_method"
+                        />
+                    </div>
+                    <div class="col-12">
+                        <q-input
+                            v-model.number="paymentForm.amount"
+                            dense
+                            outlined
+                            type="number"
+                            min="0"
+                            max="999999999.99"
+                            step="0.01"
+                            :prefix="currencySymbol"
+                            label="Amount"
+                            :error="!!paymentForm.errors.amount"
+                            :error-message="paymentForm.errors.amount"
+                        />
+                    </div>
+                    <div class="col-12" v-if="paymentForm.payment_method === 'eft'">
+                        <q-select
+                            v-model="paymentForm.banking_detail_id"
+                            dense
+                            outlined
+                            emit-value
+                            map-options
+                            :options="bankingDetailOptions"
+                            option-label="label"
+                            option-value="value"
+                            label="Bank Account"
+                            :error="!!paymentForm.errors.banking_detail_id"
+                            :error-message="paymentForm.errors.banking_detail_id"
+                        />
+                    </div>
+                    <div class="col-12">
+                        <q-input
+                            v-model="paymentForm.description"
+                            dense
+                            outlined
+                            label="Description"
+                            maxlength="255"
+                            :error="!!paymentForm.errors.description"
+                            :error-message="paymentForm.errors.description"
+                        />
+                    </div>
+                </div>
+            </q-card-section>
+            <q-separator />
+            <q-card-actions align="right">
+                <q-btn flat label="Cancel" @click="paymentDialog = false" />
+                <q-btn color="primary" unelevated :loading="paymentForm.processing" label="Save" @click="submitPayment" />
+            </q-card-actions>
+        </q-card>
+    </q-dialog>
 </template>
+
+<style scoped>
+.bo-readonly-block {
+    pointer-events: none;
+    opacity: 0.85;
+}
+</style>

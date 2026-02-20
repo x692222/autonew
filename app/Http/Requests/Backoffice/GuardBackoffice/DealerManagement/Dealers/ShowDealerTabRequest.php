@@ -21,6 +21,8 @@ class ShowDealerTabRequest extends FormRequest
             'backoffice.dealer-management.dealers.leads' => 'showLeads',
             'backoffice.dealer-management.dealers.lead-pipelines.index' => 'showLeadPipelines',
             'backoffice.dealer-management.dealers.lead-stages.index' => 'showLeadStages',
+            'backoffice.dealer-management.dealers.payments.index' => 'showPayments',
+            'backoffice.dealer-management.dealers.banking-details.index' => 'showBankingDetails',
             'backoffice.dealer-management.dealers.notification-history' => 'showNotificationHistory',
             'backoffice.dealer-management.dealers.settings' => 'showSettings',
             'backoffice.dealer-management.dealers.billings' => 'showBillings',
