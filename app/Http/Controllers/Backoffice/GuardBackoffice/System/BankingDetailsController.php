@@ -54,6 +54,7 @@ class BankingDetailsController extends Controller
         BankingDetail::query()->create([
             'dealer_id' => null,
             'label' => $data['label'],
+            'institution' => $data['institution'],
             'details' => $data['details'],
         ]);
 

@@ -16,7 +16,7 @@ class PaymentVerification extends Model
     protected $fillable = [
         'payment_id',
         'amount_verified',
-        'verified_at',
+        'date_verified',
         'verified_by_type',
         'verified_by_id',
     ];
@@ -25,7 +25,7 @@ class PaymentVerification extends Model
     {
         return [
             'amount_verified' => 'decimal:2',
-            'verified_at' => 'datetime',
+            'date_verified' => 'datetime',
         ];
     }
 
@@ -44,7 +44,7 @@ class PaymentVerification extends Model
         $user = $this->verifiedBy;
 
         if (! $user) {
-            return null;
+            return $this->verified_by_id ? ('User #'.$this->verified_by_id) : null;
         }
 
         $firstname = trim((string) ($user->firstname ?? ''));
@@ -57,5 +57,13 @@ class PaymentVerification extends Model
 
         return $user->email ?? null;
     }
-}
 
+    public function verifiedByGuardLabel(): string
+    {
+        return match ($this->verified_by_type) {
+            \App\Models\System\User::class => 'BACKOFFICE',
+            \App\Models\Dealer\DealerUser::class => 'DEALER',
+            default => 'UNKNOWN',
+        };
+    }
+}

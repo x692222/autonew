@@ -806,6 +806,34 @@ class AppServiceProvider extends ServiceProvider
                 : Response::deny('You do not have permission to view payments.');
         });
 
+        Gate::define('dealerConfigurationIndexPaymentVerifications', function ($actor, Dealer $dealer): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $dealer->id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('verifyPayments', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to view payment verifications.');
+        });
+
+        Gate::define('dealerConfigurationVerifyPayment', function ($actor, Payment $payment): Response {
+            if (! $actor instanceof DealerUser) {
+                return Response::deny('Invalid actor.');
+            }
+
+            if ((string) $actor->dealer_id !== (string) $payment->dealer_id) {
+                return Response::deny('Dealer mismatch.');
+            }
+
+            return $actor->hasPermissionTo('verifyPayments', 'dealer')
+                ? Response::allow()
+                : Response::deny('You do not have permission to verify payments.');
+        });
+
         Gate::define('dealerConfigurationIndexBankingDetails', function ($actor, Dealer $dealer): Response {
             if (! $actor instanceof DealerUser) {
                 return Response::deny('Invalid actor.');

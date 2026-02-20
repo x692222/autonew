@@ -32,11 +32,13 @@ const editingId = ref(null)
 
 const form = useForm({
     label: '',
+    institution: '',
     details: '',
 })
 
 const columns = [
     { name: 'label', label: 'Label', sortable: true, align: 'left', field: 'label' },
+    { name: 'institution', label: 'Institution', sortable: true, align: 'left', field: 'institution' },
     { name: 'details', label: 'Details', sortable: false, align: 'left', field: 'details' },
     { name: 'created_at', label: 'Created', sortable: true, align: 'left', field: 'created_at' },
     { name: 'actions', label: '', sortable: false, align: 'right', field: 'actions' },
@@ -94,6 +96,7 @@ const openCreate = () => {
 const openEdit = (row) => {
     editingId.value = row.id
     form.label = row.label || ''
+    form.institution = row.institution || ''
     form.details = row.details || ''
     form.clearErrors()
     dialog.value = true
@@ -181,6 +184,16 @@ const confirmDelete = (row) => {
                     </div>
                     <div class="col-12">
                         <q-input
+                            v-model="form.institution"
+                            dense
+                            outlined
+                            label="Institution"
+                            :error="!!form.errors.institution"
+                            :error-message="form.errors.institution"
+                        />
+                    </div>
+                    <div class="col-12">
+                        <q-input
                             v-model="form.details"
                             dense
                             outlined
@@ -203,4 +216,3 @@ const confirmDelete = (row) => {
         </q-card>
     </q-dialog>
 </template>
-

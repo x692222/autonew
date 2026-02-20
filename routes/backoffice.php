@@ -14,6 +14,7 @@ use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\Ove
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\QuotationsController as DealerManagementQuotationsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\InvoicesController as DealerManagementInvoicesController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\PaymentsController as DealerManagementPaymentsController;
+use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\PaymentVerificationsController as DealerManagementPaymentVerificationsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\CustomersController as DealerManagementCustomersController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\BankingDetailsController as DealerManagementBankingDetailsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers\LeadsController as DealerManagementLeadsController;
@@ -39,6 +40,7 @@ use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\StocksContro
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\QuotationsController as DealerConfigurationQuotationsController;
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\InvoicesController as DealerConfigurationInvoicesController;
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\PaymentsController as DealerConfigurationPaymentsController;
+use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\PaymentVerificationsController as DealerConfigurationPaymentVerificationsController;
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\CustomersController as DealerConfigurationCustomersController;
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\BankingDetailsController as DealerConfigurationBankingDetailsController;
 use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\UsersController as DealerConfigurationUsersController;
@@ -51,6 +53,7 @@ use App\Http\Controllers\Backoffice\GuardBackoffice\System\SystemConfigurationsC
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\QuotationsController as SystemQuotationsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\InvoicesController as SystemInvoicesController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\PaymentsController as SystemPaymentsController;
+use App\Http\Controllers\Backoffice\GuardBackoffice\System\PaymentVerificationsController as SystemPaymentVerificationsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\CustomersController as SystemCustomersController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\BankingDetailsController as SystemBankingDetailsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\SystemRequestsController;
@@ -169,6 +172,10 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                 Route::resource('payments', SystemPaymentsController::class)
                     ->parameters(['payments' => 'payment'])
                     ->only(['index', 'show', 'update', 'destroy']);
+                Route::get('verify-payments', [SystemPaymentVerificationsController::class, 'index'])
+                    ->name('verify-payments.index');
+                Route::post('verify-payments/{payment}/verify', [SystemPaymentVerificationsController::class, 'verify'])
+                    ->name('verify-payments.verify');
                 Route::resource('banking-details', SystemBankingDetailsController::class)
                     ->parameters(['banking-details' => 'bankingDetail'])
                     ->only(['index', 'store', 'update', 'destroy']);
@@ -319,6 +326,10 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                     ->parameters(['payments' => 'payment'])
                     ->names('dealers.payments')
                     ->only(['index', 'show', 'update', 'destroy']);
+                Route::get('dealers/{dealer}/verify-payments', [DealerManagementPaymentVerificationsController::class, 'index'])
+                    ->name('dealers.verify-payments.index');
+                Route::post('dealers/{dealer}/verify-payments/{payment}/verify', [DealerManagementPaymentVerificationsController::class, 'verify'])
+                    ->name('dealers.verify-payments.verify');
                 Route::resource('dealers/{dealer}/banking-details', DealerManagementBankingDetailsController::class)
                     ->parameters(['banking-details' => 'bankingDetail'])
                     ->names('dealers.banking-details')
@@ -516,6 +527,10 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                 Route::resource('payments', DealerConfigurationPaymentsController::class)
                     ->parameters(['payments' => 'payment'])
                     ->only(['index', 'show', 'update', 'destroy']);
+                Route::get('verify-payments', [DealerConfigurationPaymentVerificationsController::class, 'index'])
+                    ->name('verify-payments.index');
+                Route::post('verify-payments/{payment}/verify', [DealerConfigurationPaymentVerificationsController::class, 'verify'])
+                    ->name('verify-payments.verify');
                 Route::resource('banking-details', DealerConfigurationBankingDetailsController::class)
                     ->parameters(['banking-details' => 'bankingDetail'])
                     ->only(['index', 'store', 'update', 'destroy']);

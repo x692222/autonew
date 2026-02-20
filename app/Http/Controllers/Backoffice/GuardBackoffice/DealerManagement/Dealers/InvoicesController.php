@@ -232,10 +232,10 @@ class InvoicesController extends Controller
                 ->all(),
             'bankingDetailOptions' => BankingDetail::query()
                 ->forDealer($dealer->id)
-                ->select(['id as value', 'label'])
+                ->select(['id as value', 'label', 'institution'])
                 ->orderBy('label')
                 ->get()
-                ->map(fn ($row) => ['value' => $row->value, 'label' => $row->label])
+                ->map(fn ($row) => ['value' => $row->value, 'label' => trim((string) $row->label . (filled($row->institution) ? ' (' . $row->institution . ')' : ''))])
                 ->values()
                 ->all(),
             'paymentMethodOptions' => collect(PaymentMethodEnum::cases())

@@ -28,6 +28,7 @@ const canViewSystemCustomers = computed(() => isBackofficeGuard.value && !!abili
 const canViewSystemQuotations = computed(() => isBackofficeGuard.value && !!abilities.value.indexSystemQuotations)
 const canViewSystemInvoices = computed(() => isBackofficeGuard.value && !!abilities.value.indexSystemInvoices)
 const canViewSystemPayments = computed(() => isBackofficeGuard.value && !!abilities.value.indexSystemPayments)
+const canViewSystemVerifyPayments = computed(() => isBackofficeGuard.value && !!abilities.value.verifySystemPayments)
 const canImpersonateUser = computed(() => !!abilities.value.impersonateDealershipUser)
 const canViewDealerConfiguration = computed(() => authGuard.value === 'dealer' && (
     !!abilities.value.editDealership ||
@@ -42,6 +43,7 @@ const canViewDealerConfiguration = computed(() => authGuard.value === 'dealer' &
     !!abilities.value.indexQuotations ||
     !!abilities.value.indexInvoices ||
     !!abilities.value.indexPayments ||
+    !!abilities.value.verifyPayments ||
     !!abilities.value.indexBankingDetails ||
     !!abilities.value.canConfigureSettings
 ))
@@ -50,6 +52,7 @@ const canViewDealerLeads = computed(() => authGuard.value === 'dealer' && !!abil
 const canViewDealerQuotations = computed(() => authGuard.value === 'dealer' && !!abilities.value.indexQuotations)
 const canViewDealerInvoices = computed(() => authGuard.value === 'dealer' && !!abilities.value.indexInvoices)
 const canViewDealerPayments = computed(() => authGuard.value === 'dealer' && !!abilities.value.indexPayments)
+const canViewDealerVerifyPayments = computed(() => authGuard.value === 'dealer' && !!abilities.value.verifyPayments)
 const canViewDealerCustomers = computed(() => authGuard.value === 'dealer' && !!abilities.value.indexCustomers)
 const canProcessSystemRequests = computed(() => isBackofficeGuard.value && !!abilities.value.processSystemRequests)
 const canConfigureSystemSettings = computed(() => isBackofficeGuard.value && !!abilities.value.canConfigureSystemSettings)
@@ -272,6 +275,11 @@ watch(
                     label="Payments"
                     @click="router.visit(route('backoffice.system.payments.index'))"
                 />
+                <q-route-tab
+                    v-if="canViewSystemVerifyPayments"
+                    label="Verify Payments"
+                    @click="router.visit(route('backoffice.system.verify-payments.index'))"
+                />
                 <q-route-tab v-if="canViewDealerConfiguration" label="Configuration">
                     <q-menu>
                         <q-list dense style="min-width: 220px">
@@ -311,6 +319,9 @@ watch(
                             <q-item v-if="abilities.indexPayments" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.payments.index'))">
                                 <q-item-section>Payments</q-item-section>
                             </q-item>
+                            <q-item v-if="abilities.verifyPayments" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.verify-payments.index'))">
+                                <q-item-section>Verify Payments</q-item-section>
+                            </q-item>
                             <q-item v-if="abilities.indexBankingDetails" clickable v-close-popup @click="router.visit(route('backoffice.dealer-configuration.banking-details.index'))">
                                 <q-item-section>Banking Details</q-item-section>
                             </q-item>
@@ -349,6 +360,11 @@ watch(
                     v-if="canViewDealerPayments"
                     label="Payments"
                     @click="router.visit(route('backoffice.dealer-configuration.payments.index'))"
+                />
+                <q-route-tab
+                    v-if="canViewDealerVerifyPayments"
+                    label="Verify Payments"
+                    @click="router.visit(route('backoffice.dealer-configuration.verify-payments.index'))"
                 />
                 <q-route-tab label="Analytics">
                     <q-menu>

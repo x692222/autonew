@@ -17,8 +17,8 @@ class BankingDetailValidationRules
     {
         return [
             'label' => ['required', 'string', 'max:100'],
+            'institution' => ['required', 'string', 'max:100'],
             'details' => ['required', 'string', 'max:200'],
         ];
     }
 }
-

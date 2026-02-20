@@ -17,6 +17,7 @@ class BankingDetailsIndexService
             ->when($filters['search'] ?? null, fn ($query, $search) => $query
                 ->where(fn ($nested) => $nested
                     ->where('label', 'like', "%{$search}%")
+                    ->orWhere('institution', 'like', "%{$search}%")
                     ->orWhere('details', 'like', "%{$search}%")))
             ->latest()
             ->paginate((int) ($filters['rowsPerPage'] ?? 10))
@@ -32,10 +33,10 @@ class BankingDetailsIndexService
         return [
             'id' => $row->id,
             'label' => $row->label,
+            'institution' => $row->institution,
             'details' => $row->details,
             'created_at' => optional($row->created_at)?->format('Y-m-d H:i:s'),
             'can' => $abilityResolver($row),
         ];
     }
 }
-

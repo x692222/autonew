@@ -13,6 +13,7 @@ class PaymentValidationRules
             'search' => ['nullable', 'string', 'max:100'],
             'invoice_identifier' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', Rule::in(PaymentMethodEnum::values())],
+            'verification_status' => ['nullable', Rule::in(['all', 'pending', 'verified'])],
             'payment_date_from' => ['nullable', 'date_format:Y-m-d'],
             'payment_date_to' => ['nullable', 'date_format:Y-m-d'],
             'page' => ['nullable', 'integer', 'min:1'],

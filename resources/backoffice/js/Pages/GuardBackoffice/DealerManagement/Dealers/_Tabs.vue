@@ -25,6 +25,7 @@ const tabs = computed(() => {
         { name: 'quotations', label: 'Quotations', permission: 'indexDealershipQuotations', routeName: 'backoffice.dealer-management.dealers.quotations.index' },
         { name: 'invoices', label: 'Invoices', permission: 'indexDealershipInvoices', routeName: 'backoffice.dealer-management.dealers.invoices.index' },
         { name: 'payments', label: 'Payments', permission: 'indexDealershipPayments', routeName: 'backoffice.dealer-management.dealers.payments.index' },
+        { name: 'verify-payments', label: 'Verify Payments', permission: 'verifyDealerPayments', routeName: 'backoffice.dealer-management.dealers.verify-payments.index' },
         { name: 'banking-details', label: 'Banking Details', permission: 'indexDealershipBankingDetails', routeName: 'backoffice.dealer-management.dealers.banking-details.index' },
         { name: 'notification-history', label: 'Notification History', permission: 'showDealershipNotificationHistory', routeName: 'backoffice.dealer-management.dealers.notification-history' },
         { name: 'settings', label: 'Settings', permission: 'canConfigureDealershipSettings', routeName: 'backoffice.dealer-management.dealers.settings' },

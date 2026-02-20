@@ -63,8 +63,9 @@ class PaymentsController extends Controller
 
         $payment->load([
             'invoice:id,invoice_identifier,invoice_date,is_fully_paid',
-            'bankingDetail:id,label',
+            'bankingDetail:id,label,institution',
             'createdBy',
+            'verifications.verifiedBy',
             'invoice.lineItems.stock',
             'invoice.lineItems.stock.vehicleItem.make',
             'invoice.lineItems.stock.vehicleItem.model',
@@ -111,13 +112,26 @@ class PaymentsController extends Controller
                 'payment_date' => optional($payment->payment_date)?->format('Y-m-d'),
                 'payment_method' => $payment->payment_method?->value ?? (string) $payment->payment_method,
                 'banking_detail_label' => $payment->bankingDetail?->label,
+                'banking_detail_institution' => $payment->bankingDetail?->institution,
                 'recorded_by' => $payment->recordedByLabel(),
                 'recorded_ip' => $payment->created_from_ip,
+                'is_approved' => (bool) $payment->is_approved,
             ],
+            'verifications' => $payment->verifications
+                ->sortByDesc('date_verified')
+                ->map(fn ($verification) => [
+                    'id' => $verification->id,
+                    'verified_at' => optional($verification->date_verified)?->format('Y-m-d H:i:s'),
+                    'verified_by' => $verification->verifiedByLabel(),
+                    'verified_by_guard' => $verification->verifiedByGuardLabel(),
+                    'amount_verified' => $verification->amount_verified !== null ? (float) $verification->amount_verified : null,
+                ])->values()->all(),
             'associatedStock' => $associatedStock,
             'associatedInvoices' => $associatedInvoices,
             'canViewAssociatedInvoices' => $canViewAssociatedInvoices,
             'currencySymbol' => $settings['currencySymbol'],
+            'canVerify' => Gate::inspect('verify', $payment)->allowed() && ! (bool) $payment->is_approved,
+            'verifyUrl' => route('backoffice.system.verify-payments.verify', ['payment' => $payment->id]),
             'returnTo' => $request->input('return_to', route('backoffice.system.payments.index')),
         ]);
     }

@@ -12,7 +12,7 @@ class VerifyPaymentAction
 {
     public function execute(Payment $payment, Model $actor): PaymentVerification
     {
-        if ((bool) $payment->is_approved) {
+        if ((bool) $payment->is_approved || $payment->verifications()->exists()) {
             throw ValidationException::withMessages([
                 'payment' => ['This payment has already been verified.'],
             ]);
@@ -22,7 +22,7 @@ class VerifyPaymentAction
             $verification = PaymentVerification::query()->create([
                 'payment_id' => $payment->id,
                 'amount_verified' => (float) ($payment->amount ?? 0),
-                'verified_at' => now(),
+                'date_verified' => now(),
                 'verified_by_type' => get_class($actor),
                 'verified_by_id' => (string) $actor->getKey(),
             ]);
@@ -33,4 +33,3 @@ class VerifyPaymentAction
         });
     }
 }
-

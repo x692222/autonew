@@ -8,6 +8,13 @@ use Illuminate\Auth\Access\Response;
 
 class SystemPaymentsPolicy
 {
+    public function indexVerifications(User $user): Response
+    {
+        return $user->hasPermissionTo('verifySystemPayments', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to view system payment verifications.');
+    }
+
     public function viewAny(User $user): Response
     {
         return $user->hasPermissionTo('indexSystemPayments', 'backoffice')
@@ -53,5 +60,16 @@ class SystemPaymentsPolicy
         return $user->hasPermissionTo('deleteSystemPayments', 'backoffice')
             ? Response::allow()
             : Response::deny('You do not have permission to delete system payments.');
+    }
+
+    public function verify(User $user, Payment $payment): Response
+    {
+        if ($payment->dealer_id !== null) {
+            return Response::deny('This is not a system payment.');
+        }
+
+        return $user->hasPermissionTo('verifySystemPayments', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to verify system payments.');
     }
 }

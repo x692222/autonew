@@ -254,6 +254,13 @@ class DealersManagementPolicy
             : Response::deny('You do not have permission to view dealer payments.');
     }
 
+    public function showPaymentVerifications(User $user, Dealer $dealer): Response
+    {
+        return $user->hasPermissionTo('verifyDealerPayments', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to view dealer payment verifications.');
+    }
+
     public function viewPayment(User $user, Dealer $dealer, \App\Models\Payments\Payment $payment): Response
     {
         if ((string) $payment->dealer_id !== (string) $dealer->id) {
@@ -321,6 +328,17 @@ class DealersManagementPolicy
         return $user->hasPermissionTo('deleteDealershipPayments', 'backoffice')
             ? Response::allow()
             : Response::deny('You do not have permission to delete dealer payments.');
+    }
+
+    public function verifyPayment(User $user, Dealer $dealer, \App\Models\Payments\Payment $payment): Response
+    {
+        if ((string) $payment->dealer_id !== (string) $dealer->id) {
+            return Response::deny('This payment does not belong to the selected dealer.');
+        }
+
+        return $user->hasPermissionTo('verifyDealerPayments', 'backoffice')
+            ? Response::allow()
+            : Response::deny('You do not have permission to verify dealer payments.');
     }
 
     public function createBankingDetail(User $user, Dealer $dealer): Response

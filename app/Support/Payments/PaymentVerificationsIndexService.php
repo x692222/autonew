@@ -26,7 +26,10 @@ class PaymentVerificationsIndexService
             ->selectRaw("(SELECT ROUND(COALESCE(SUM({$signedPayable}), 0), 2) FROM invoice_line_items ili INNER JOIN invoices i ON i.id = ili.invoice_id WHERE ili.invoice_id = payments.invoice_id) as invoice_total_amount")
             ->when($dealerId, fn ($query) => $query->forDealer($dealerId), fn ($query) => $query->system())
             ->with([
-                'invoice:id,invoice_identifier,invoice_date',
+                'invoice:id,invoice_identifier,invoice_date,customer_id',
+                'invoice.customer:id,firstname,lastname',
+                'invoice.lineItems:id,invoice_id,stock_id',
+                'invoice.lineItems.stock:id,internal_reference',
                 'latestVerification.verifiedBy',
             ])
             ->withCount('verifications')
@@ -37,6 +40,10 @@ class PaymentVerificationsIndexService
             ->when($filters['invoice_identifier'] ?? null, fn ($query, $identifier) => $query
                 ->whereHas('invoice', fn ($invoiceQ) => $invoiceQ->where('invoice_identifier', 'like', "%{$identifier}%")))
             ->when($filters['payment_method'] ?? null, fn ($query, $method) => $query->where('payment_method', $method))
+            ->when(($filters['verification_status'] ?? 'pending') !== 'all', function ($query) use ($filters) {
+                $isApproved = ($filters['verification_status'] ?? 'pending') === 'verified';
+                $query->where('is_approved', $isApproved);
+            })
             ->when($filters['payment_date_from'] ?? null, fn ($query, $from) => $query->whereDate('payment_date', '>=', $from))
             ->when($filters['payment_date_to'] ?? null, fn ($query, $to) => $query->whereDate('payment_date', '<=', $to))
             ->orderByDesc('payment_date')
@@ -50,11 +57,21 @@ class PaymentVerificationsIndexService
      */
     public function toArray(Payment $payment, callable $abilityResolver): array
     {
+        $customerName = trim((string) (($payment->invoice?->customer?->firstname ?? '') . ' ' . ($payment->invoice?->customer?->lastname ?? '')));
+        $stockNumbers = $payment->invoice?->lineItems
+            ?->pluck('stock.internal_reference')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all() ?? [];
+
         return [
             'id' => $payment->id,
             'invoice_id' => $payment->invoice_id,
             'invoice_identifier' => (string) ($payment->invoice?->invoice_identifier ?? '-'),
             'invoice_date' => optional($payment->invoice?->invoice_date)?->format('Y-m-d'),
+            'customer_name' => $customerName !== '' ? $customerName : '-',
+            'stock_numbers' => $stockNumbers,
             'invoice_items_count' => (int) ($payment->invoice_items_count ?? 0),
             'invoice_total_amount' => $payment->invoice_total_amount !== null ? (float) $payment->invoice_total_amount : null,
             'payment_method' => Str::of($payment->payment_method?->value ?? (string) $payment->payment_method)
@@ -65,7 +82,7 @@ class PaymentVerificationsIndexService
             'payment_date' => optional($payment->payment_date)?->format('Y-m-d'),
             'is_approved' => (bool) $payment->is_approved,
             'verifications_count' => (int) ($payment->verifications_count ?? 0),
-            'last_verified_at' => optional($payment->latestVerification?->verified_at)?->format('Y-m-d H:i:s'),
+            'last_verified_at' => optional($payment->latestVerification?->date_verified)?->format('Y-m-d H:i:s'),
             'last_verified_by' => $payment->latestVerification?->verifiedByLabel(),
             'can' => $abilityResolver($payment),
         ];

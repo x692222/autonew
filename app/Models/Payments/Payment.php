@@ -82,7 +82,7 @@ class Payment extends Model
 
     public function latestVerification(): HasOne
     {
-        return $this->hasOne(PaymentVerification::class, 'payment_id')->latestOfMany('verified_at');
+        return $this->hasOne(PaymentVerification::class, 'payment_id')->latestOfMany('date_verified');
     }
 
     public function createdBy(): MorphTo
