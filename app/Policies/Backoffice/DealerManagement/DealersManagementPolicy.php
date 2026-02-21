@@ -351,7 +351,7 @@ class DealersManagementPolicy
     public function editBankingDetail(User $user, Dealer $dealer, \App\Models\Billing\BankingDetail $bankingDetail): Response
     {
         if ((string) $bankingDetail->dealer_id !== (string) $dealer->id) {
-            return Response::deny('This banking detail does not belong to the selected dealer.');
+            return Response::deny('This banking details record does not belong to the selected dealer.');
         }
 
         return $user->hasPermissionTo('editDealershipBankingDetails', 'backoffice')
@@ -362,7 +362,11 @@ class DealersManagementPolicy
     public function deleteBankingDetail(User $user, Dealer $dealer, \App\Models\Billing\BankingDetail $bankingDetail): Response
     {
         if ((string) $bankingDetail->dealer_id !== (string) $dealer->id) {
-            return Response::deny('This banking detail does not belong to the selected dealer.');
+            return Response::deny('This banking details record does not belong to the selected dealer.');
+        }
+
+        if ($bankingDetail->payments()->exists()) {
+            return Response::deny('These banking details are linked to payments and cannot be deleted.');
         }
 
         return $user->hasPermissionTo('deleteDealershipBankingDetails', 'backoffice')

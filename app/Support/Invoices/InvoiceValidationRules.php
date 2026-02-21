@@ -19,7 +19,7 @@ class InvoiceValidationRules
             'payable_by_to' => ['nullable', 'date_format:Y-m-d'],
             'page' => ['nullable', 'integer', 'min:1'],
             'rowsPerPage' => ['nullable', 'integer', 'min:1', 'max:200'],
-            'sortBy' => ['nullable', 'in:invoice_date,is_fully_paid,invoice_identifier,total_items_general_accessories,payable_by,customer_firstname,customer_lastname,total_amount,total_paid_amount,total_due,created_at'],
+            'sortBy' => ['nullable', 'in:invoice_date,is_fully_paid,is_fully_verified,invoice_identifier,payable_by,customer_firstname,customer_lastname,total_amount,total_paid_amount,total_due,created_at'],
             'descending' => ['nullable'],
         ];
     }

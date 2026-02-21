@@ -16,9 +16,13 @@ class BankingDetailValidationRules
     public function upsert(): array
     {
         return [
-            'label' => ['required', 'string', 'max:100'],
-            'institution' => ['required', 'string', 'max:100'],
-            'details' => ['required', 'string', 'max:200'],
+            'bank' => ['required', 'string', 'max:50'],
+            'account_holder' => ['required', 'string', 'max:75'],
+            'account_number' => ['required', 'string', 'max:25'],
+            'branch_name' => ['nullable', 'string', 'max:50'],
+            'branch_code' => ['nullable', 'string', 'max:50'],
+            'swift_code' => ['nullable', 'string', 'max:20'],
+            'other_details' => ['nullable', 'string', 'max:200'],
         ];
     }
 }

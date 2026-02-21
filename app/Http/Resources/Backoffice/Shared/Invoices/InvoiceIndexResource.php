@@ -15,6 +15,9 @@ class InvoiceIndexResource extends JsonResource
         $totalAmount = (float) ($this->total_amount ?? 0);
         $totalPaidAmount = (float) ($this->paid_amount ?? 0);
         $totalDue = max(0, round($totalAmount - $totalPaidAmount, 2));
+        $totalPayments = (int) ($this->total_payments_count ?? 0);
+        $verifiedPayments = (int) ($this->verified_payments_count ?? 0);
+        $isFullyVerified = $totalPayments > 0 && $totalPayments === $verifiedPayments;
 
         return [
             'id' => $this->id,
@@ -23,6 +26,7 @@ class InvoiceIndexResource extends JsonResource
             'invoice_identifier' => (string) $this->invoice_identifier,
             'invoice_date' => optional($this->invoice_date)?->format('Y-m-d'),
             'is_fully_paid' => (bool) $this->is_fully_paid,
+            'is_fully_verified' => $isFullyVerified,
             'payable_by' => optional($this->payable_by)?->format('Y-m-d'),
             'customer_firstname' => $this->customer?->firstname ?? '-',
             'customer_lastname' => $this->customer?->lastname ?? '-',
@@ -30,7 +34,6 @@ class InvoiceIndexResource extends JsonResource
             'total_amount' => $totalAmount,
             'total_paid_amount' => $totalPaidAmount,
             'total_due' => $totalDue,
-            'total_items_general_accessories' => (int) ($this->total_items_general_accessories ?? 0),
             'notes_count' => (int) ($this->notes_count ?? 0),
             'can' => [
                 'edit' => (bool) ($context['can_edit'] ?? false),

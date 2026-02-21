@@ -53,9 +53,13 @@ class BankingDetailsController extends Controller
 
         BankingDetail::query()->create([
             'dealer_id' => null,
-            'label' => $data['label'],
-            'institution' => $data['institution'],
-            'details' => $data['details'],
+            'bank' => $data['bank'],
+            'account_holder' => $data['account_holder'],
+            'account_number' => $data['account_number'],
+            'branch_name' => $data['branch_name'] ?? null,
+            'branch_code' => $data['branch_code'] ?? null,
+            'swift_code' => $data['swift_code'] ?? null,
+            'other_details' => $data['other_details'],
         ]);
 
         return back()->with('success', 'Banking detail created.');
@@ -77,7 +81,7 @@ class BankingDetailsController extends Controller
         Gate::authorize('delete', $bankingDetail);
 
         if ($bankingDetail->payments()->exists()) {
-            return back()->with('error', 'This banking detail is linked to payments and cannot be deleted.');
+            return back()->with('error', 'These banking details are linked to payments and cannot be deleted.');
         }
 
         $bankingDetail->delete();

@@ -25,7 +25,7 @@ class SystemBankingDetailsPolicy
     public function update(User $user, BankingDetail $bankingDetail): Response
     {
         if ($bankingDetail->dealer_id !== null) {
-            return Response::deny('This is not a system banking detail.');
+            return Response::deny('This is not a system banking details record.');
         }
 
         return $user->hasPermissionTo('editSystemBankingDetails', 'backoffice')
@@ -36,7 +36,11 @@ class SystemBankingDetailsPolicy
     public function delete(User $user, BankingDetail $bankingDetail): Response
     {
         if ($bankingDetail->dealer_id !== null) {
-            return Response::deny('This is not a system banking detail.');
+            return Response::deny('This is not a system banking details record.');
+        }
+
+        if ($bankingDetail->payments()->exists()) {
+            return Response::deny('These banking details are linked to payments and cannot be deleted.');
         }
 
         return $user->hasPermissionTo('deleteSystemBankingDetails', 'backoffice')
@@ -44,4 +48,3 @@ class SystemBankingDetailsPolicy
             : Response::deny('You do not have permission to delete system banking details.');
     }
 }
-

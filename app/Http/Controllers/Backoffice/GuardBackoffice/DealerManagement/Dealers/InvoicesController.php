@@ -70,8 +70,8 @@ class InvoicesController extends Controller
         $columns = collect([
             'invoice_date',
             'is_fully_paid',
+            'is_fully_verified',
             'invoice_identifier',
-            'total_items_general_accessories',
             'payable_by',
             'customer_firstname',
             'customer_lastname',
@@ -82,9 +82,9 @@ class InvoicesController extends Controller
             'name' => $key,
             'label' => Str::headline($key),
             'sortable' => true,
-            'align' => in_array($key, ['total_items_general_accessories', 'total_amount', 'total_paid_amount', 'total_due'], true) ? 'right' : 'left',
+            'align' => in_array($key, ['total_amount', 'total_paid_amount', 'total_due'], true) ? 'right' : 'left',
             'field' => $key,
-            'numeric' => in_array($key, ['total_items_general_accessories', 'total_amount', 'total_paid_amount', 'total_due'], true),
+            'numeric' => in_array($key, ['total_amount', 'total_paid_amount', 'total_due'], true),
         ])->values()->all();
 
         return Inertia::render('Shared/Invoices/Index', [
@@ -223,7 +223,7 @@ class InvoicesController extends Controller
                     'payment_date' => optional($payment->payment_date)?->format('Y-m-d'),
                     'payment_method' => $payment->payment_method?->value ?? (string) $payment->payment_method,
                     'banking_detail_id' => $payment->banking_detail_id,
-                    'banking_detail_label' => $payment->bankingDetail?->label,
+                    'banking_detail_bank_account' => trim((string) (($payment->bankingDetail?->bank ?? '') . ' ' . ($payment->bankingDetail?->account_number ?? ''))),
                     'is_approved' => (bool) $payment->is_approved,
                     'recorded_by' => $payment->recordedByLabel(),
                     'recorded_ip' => $payment->created_from_ip,
@@ -232,10 +232,13 @@ class InvoicesController extends Controller
                 ->all(),
             'bankingDetailOptions' => BankingDetail::query()
                 ->forDealer($dealer->id)
-                ->select(['id as value', 'label', 'institution'])
-                ->orderBy('label')
+                ->select(['id as value', 'bank', 'account_number'])
+                ->orderBy('bank')
                 ->get()
-                ->map(fn ($row) => ['value' => $row->value, 'label' => trim((string) $row->label . (filled($row->institution) ? ' (' . $row->institution . ')' : ''))])
+                ->map(fn ($row) => [
+                    'value' => $row->value,
+                    'label' => trim((string) ($row->bank ?? '')) . ' (' . trim((string) ($row->account_number ?? '')) . ')',
+                ])
                 ->values()
                 ->all(),
             'paymentMethodOptions' => collect(PaymentMethodEnum::cases())

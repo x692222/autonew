@@ -104,10 +104,10 @@ const verificationColumns = [
                     <q-input dense outlined readonly label="Amount" :model-value="payment.amount === null || payment.amount === undefined ? '-' : `${currencySymbol}${formatCurrency(payment.amount, 2)}`" />
                 </div>
                 <div class="col-12 col-md-6">
-                    <q-input dense outlined readonly label="Banking Detail" :model-value="payment.banking_detail_label || '-'" />
+                    <q-input dense outlined readonly label="Banking Details" :model-value="payment.banking_detail_bank_account || '-'" />
                 </div>
                 <div class="col-12 col-md-6">
-                    <q-input dense outlined readonly label="Institution" :model-value="String(payment.payment_method || '').toLowerCase() === 'eft' ? (payment.banking_detail_institution || '-') : '-'" />
+                    <q-input dense outlined readonly label="Bank and Account Number" :model-value="String(payment.payment_method || '').toLowerCase() === 'eft' ? (payment.banking_detail_bank_account || '-') : '-'" />
                 </div>
                 <div class="col-12 col-md-6">
                     <q-input dense outlined readonly label="Recorded By" :model-value="payment.recorded_by || '-'" />

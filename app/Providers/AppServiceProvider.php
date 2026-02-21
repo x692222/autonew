@@ -885,6 +885,10 @@ class AppServiceProvider extends ServiceProvider
                 return Response::deny('Dealer mismatch.');
             }
 
+            if ($bankingDetail->payments()->exists()) {
+                return Response::deny('These banking details are linked to payments and cannot be deleted.');
+            }
+
             return $actor->hasPermissionTo('deleteDealershipBankingDetails', 'dealer')
                 ? Response::allow()
                 : Response::deny('You do not have permission to delete banking details.');

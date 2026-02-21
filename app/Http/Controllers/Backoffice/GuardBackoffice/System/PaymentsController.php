@@ -63,7 +63,7 @@ class PaymentsController extends Controller
 
         $payment->load([
             'invoice:id,invoice_identifier,invoice_date,is_fully_paid',
-            'bankingDetail:id,label,institution',
+            'bankingDetail:id,bank,account_number',
             'createdBy',
             'verifications.verifiedBy',
             'invoice.lineItems.stock',
@@ -111,8 +111,7 @@ class PaymentsController extends Controller
                 'amount' => $payment->amount !== null ? (float) $payment->amount : null,
                 'payment_date' => optional($payment->payment_date)?->format('Y-m-d'),
                 'payment_method' => $payment->payment_method?->value ?? (string) $payment->payment_method,
-                'banking_detail_label' => $payment->bankingDetail?->label,
-                'banking_detail_institution' => $payment->bankingDetail?->institution,
+                'banking_detail_bank_account' => trim((string) (($payment->bankingDetail?->bank ?? '') . ' ' . ($payment->bankingDetail?->account_number ?? ''))),
                 'recorded_by' => $payment->recordedByLabel(),
                 'recorded_ip' => $payment->created_from_ip,
                 'is_approved' => (bool) $payment->is_approved,

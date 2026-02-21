@@ -31,15 +31,22 @@ const dialog = ref(false)
 const editingId = ref(null)
 
 const form = useForm({
-    label: '',
-    institution: '',
-    details: '',
+    bank: '',
+    account_holder: '',
+    account_number: '',
+    branch_name: '',
+    branch_code: '',
+    swift_code: '',
+    other_details: '',
 })
 
 const columns = [
-    { name: 'label', label: 'Label', sortable: true, align: 'left', field: 'label' },
-    { name: 'institution', label: 'Institution', sortable: true, align: 'left', field: 'institution' },
-    { name: 'details', label: 'Details', sortable: false, align: 'left', field: 'details' },
+    { name: 'bank', label: 'Bank', sortable: true, align: 'left', field: 'bank' },
+    { name: 'account_holder', label: 'Account Holder', sortable: true, align: 'left', field: 'account_holder' },
+    { name: 'account_number', label: 'Account Number', sortable: true, align: 'left', field: 'account_number' },
+    { name: 'branch_name', label: 'Branch Name', sortable: true, align: 'left', field: 'branch_name' },
+    { name: 'branch_code', label: 'Branch Code', sortable: true, align: 'left', field: 'branch_code' },
+    { name: 'swift_code', label: 'Swift Code', sortable: true, align: 'left', field: 'swift_code' },
     { name: 'created_at', label: 'Created', sortable: true, align: 'left', field: 'created_at' },
     { name: 'actions', label: '', sortable: false, align: 'right', field: 'actions' },
 ]
@@ -86,18 +93,33 @@ const deleteUrl = (id) => {
     return route(props.deleteRouteName, { bankingDetail: id })
 }
 
+const resetFormState = () => {
+    form.bank = ''
+    form.account_holder = ''
+    form.account_number = ''
+    form.branch_name = ''
+    form.branch_code = ''
+    form.swift_code = ''
+    form.other_details = ''
+    form.clearErrors()
+}
+
 const openCreate = () => {
     editingId.value = null
     form.reset()
-    form.clearErrors()
+    resetFormState()
     dialog.value = true
 }
 
 const openEdit = (row) => {
     editingId.value = row.id
-    form.label = row.label || ''
-    form.institution = row.institution || ''
-    form.details = row.details || ''
+    form.bank = row.bank || ''
+    form.account_holder = row.account_holder || ''
+    form.account_number = row.account_number || ''
+    form.branch_name = row.branch_name || ''
+    form.branch_code = row.branch_code || ''
+    form.swift_code = row.swift_code || ''
+    form.other_details = row.other_details || ''
     form.clearErrors()
     dialog.value = true
 }
@@ -105,7 +127,12 @@ const openEdit = (row) => {
 const submit = () => {
     const options = {
         preserveScroll: true,
-        onSuccess: () => { dialog.value = false },
+        onSuccess: () => {
+            dialog.value = false
+            editingId.value = null
+            form.reset()
+            resetFormState()
+        },
     }
 
     if (editingId.value) {
@@ -116,10 +143,17 @@ const submit = () => {
     form.post(props.createRoute, options)
 }
 
+const closeDialog = () => {
+    dialog.value = false
+    editingId.value = null
+    form.reset()
+    resetFormState()
+}
+
 const confirmDelete = (row) => {
     confirmAction({
-        title: 'Delete Banking Detail',
-        message: `Delete banking detail "${row.label}"?`,
+        title: 'Delete Banking Details',
+        message: `Delete banking details "${row.bank} (${row.account_number})"?`,
         okLabel: 'Delete',
         okColor: 'negative',
         cancelLabel: 'Cancel',
@@ -138,7 +172,7 @@ const confirmDelete = (row) => {
             <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
             <div v-if="dealer?.name" class="text-caption text-grey-7">{{ dealer.name }}</div>
         </div>
-        <q-btn v-if="canCreate" color="primary" label="Create Banking Detail" no-wrap unelevated @click="openCreate" />
+        <q-btn v-if="canCreate" color="primary" label="Create Banking Details" no-wrap unelevated @click="openCreate" />
     </div>
 
     <DealerTabs v-if="context?.mode === 'dealer-backoffice' && dealer?.id" :page-tab="pageTab" :dealer-id="dealer.id" />
@@ -168,49 +202,95 @@ const confirmDelete = (row) => {
 
     <q-dialog v-model="dialog" persistent>
         <q-card style="min-width: 620px; max-width: 90vw;">
-            <q-card-section><div class="text-h6">{{ editingId ? 'Edit' : 'Create' }} Banking Detail</div></q-card-section>
+            <q-card-section><div class="text-h6">{{ editingId ? 'Edit Banking Details Record' : 'Create Banking Details Record' }}</div></q-card-section>
             <q-separator />
             <q-card-section>
                 <div class="row q-col-gutter-md">
                     <div class="col-12">
                         <q-input
-                            v-model="form.label"
+                            v-model="form.bank"
                             dense
                             outlined
-                            label="Label"
-                            :error="!!form.errors.label"
-                            :error-message="form.errors.label"
+                            maxlength="50"
+                            label="Bank"
+                            :error="!!form.errors.bank"
+                            :error-message="form.errors.bank"
+                        />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <q-input
+                            v-model="form.account_holder"
+                            dense
+                            outlined
+                            maxlength="75"
+                            label="Account Holder"
+                            :error="!!form.errors.account_holder"
+                            :error-message="form.errors.account_holder"
+                        />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <q-input
+                            v-model="form.account_number"
+                            dense
+                            outlined
+                            maxlength="25"
+                            label="Account Number"
+                            :error="!!form.errors.account_number"
+                            :error-message="form.errors.account_number"
+                        />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <q-input
+                            v-model="form.branch_name"
+                            dense
+                            outlined
+                            maxlength="50"
+                            label="Branch Name"
+                            :error="!!form.errors.branch_name"
+                            :error-message="form.errors.branch_name"
+                        />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <q-input
+                            v-model="form.branch_code"
+                            dense
+                            outlined
+                            maxlength="50"
+                            label="Branch Code"
+                            :error="!!form.errors.branch_code"
+                            :error-message="form.errors.branch_code"
                         />
                     </div>
                     <div class="col-12">
                         <q-input
-                            v-model="form.institution"
+                            v-model="form.swift_code"
                             dense
                             outlined
-                            label="Institution"
-                            :error="!!form.errors.institution"
-                            :error-message="form.errors.institution"
+                            maxlength="20"
+                            label="Swift Code"
+                            :error="!!form.errors.swift_code"
+                            :error-message="form.errors.swift_code"
                         />
                     </div>
                     <div class="col-12">
                         <q-input
-                            v-model="form.details"
+                            v-model="form.other_details"
                             dense
                             outlined
                             type="textarea"
                             rows="5"
                             maxlength="200"
                             counter
-                            label="Banking Details"
-                            :error="!!form.errors.details"
-                            :error-message="form.errors.details"
+                            label="Other Details"
+                            :error="!!form.errors.other_details"
+                            :error-message="form.errors.other_details"
                         />
                     </div>
                 </div>
             </q-card-section>
             <q-separator />
             <q-card-actions align="right">
-                <q-btn flat label="Cancel" @click="dialog = false" />
+                <q-btn flat label="Cancel" @click="closeDialog" />
                 <q-btn color="primary" unelevated :loading="form.processing" label="Save" @click="submit" />
             </q-card-actions>
         </q-card>

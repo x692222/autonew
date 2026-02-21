@@ -310,6 +310,10 @@ const confirmExport = (row) => {
             <q-icon v-if="row.is_fully_paid" name="check_circle" color="positive" size="20px" />
             <span v-else>-</span>
         </template>
+        <template #cell-is_fully_verified="{ row }">
+            <q-icon v-if="row.is_fully_verified" name="check_circle" color="positive" size="20px" />
+            <span v-else></span>
+        </template>
     </PaginatedTable>
 
     <NotesHost

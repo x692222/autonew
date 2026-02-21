@@ -82,6 +82,17 @@ class UpsertInvoiceAction
                 ]);
             }
 
+            if ($invoice) {
+                $incomingCustomerId = $data['customer_id'] ?: null;
+                $currentCustomerId = $invoice->customer_id ?: null;
+
+                if ($invoice->payments()->exists() && (string) $incomingCustomerId !== (string) $currentCustomerId) {
+                    throw ValidationException::withMessages([
+                        'customer_id' => ['Customer cannot be changed after payments have been recorded.'],
+                    ]);
+                }
+            }
+
             $invoiceDate = Carbon::parse((string) $data['invoice_date'])->startOfDay();
             $payableBy = !empty($data['payable_by'])
                 ? Carbon::parse((string) $data['payable_by'])->startOfDay()->toDateString()

@@ -248,6 +248,10 @@ const paymentsTotal = computed(() => {
     return (props.payments || []).reduce((acc, payment) => acc + Number(payment?.amount || 0), 0)
 })
 
+const hasPayments = computed(() => Array.isArray(props.payments) && props.payments.length > 0)
+const canChangeCustomer = computed(() => !isEditing.value || !hasPayments.value)
+const allPaymentsVerified = computed(() => hasPayments.value && props.payments.every((payment) => !!payment?.is_approved))
+
 const balanceTotal = computed(() => {
     const due = Number(totals.value.totalAmount || 0)
     const paid = Number(paymentsTotal.value || 0)
@@ -756,6 +760,12 @@ const confirmDeletePayment = (payment) => {
             <q-banner v-else-if="Number(data?.total_paid_amount || 0) > 0" dense rounded class="bg-blue-1 text-blue-10 q-mb-md">
                 Invoice has partial payment.
             </q-banner>
+            <q-banner v-if="hasPayments && allPaymentsVerified" dense rounded class="bg-positive text-white q-mb-md">
+                All payments are verified.
+            </q-banner>
+            <q-banner v-else-if="hasPayments && !allPaymentsVerified" dense rounded class="bg-red-1 text-negative q-mb-md">
+                There are outstanding payments to be verified.
+            </q-banner>
 
             <div class="row q-col-gutter-md">
                 <div class="col-12 col-md-8">
@@ -778,13 +788,17 @@ const confirmDeletePayment = (payment) => {
                                 option-value="value"
                                 label="Customer"
                                 hint="Search by name, email, or contact number"
+                                :disable="!canChangeCustomer"
                                 :error="!!form.errors.customer_id"
                                 :error-message="form.errors.customer_id"
                                 @filter="filterCustomers"
                             />
+                            <div v-if="!canChangeCustomer" class="text-caption text-warning q-pt-xs">
+                                Customer cannot be changed after at least one payment is recorded.
+                            </div>
                             <div class="text-caption text-grey-6 q-pt-xs">{{ customerSearchHint }}</div>
                             <q-btn
-                                v-if="canCreateCustomer"
+                                v-if="canCreateCustomer && canChangeCustomer"
                                 class="q-mt-sm"
                                 flat
                                 dense
@@ -1435,7 +1449,7 @@ const confirmDeletePayment = (payment) => {
                             dense
                             outlined
                             label="Description"
-                            maxlength="255"
+                            maxlength="100"
                             :error="!!paymentForm.errors.description"
                             :error-message="paymentForm.errors.description"
                         />

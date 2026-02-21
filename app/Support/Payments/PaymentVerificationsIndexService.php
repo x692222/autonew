@@ -30,6 +30,7 @@ class PaymentVerificationsIndexService
                 'invoice.customer:id,firstname,lastname',
                 'invoice.lineItems:id,invoice_id,stock_id',
                 'invoice.lineItems.stock:id,internal_reference',
+                'bankingDetail:id,bank,account_number',
                 'latestVerification.verifiedBy',
             ])
             ->withCount('verifications')
@@ -65,6 +66,15 @@ class PaymentVerificationsIndexService
             ->values()
             ->all() ?? [];
 
+        $paymentMethod = Str::of($payment->payment_method?->value ?? (string) $payment->payment_method)
+            ->replace('_', ' ')
+            ->upper()
+            ->toString();
+        $eftBankAccount = trim((string) (($payment->bankingDetail?->bank ?? '') . ' ' . ($payment->bankingDetail?->account_number ?? '')));
+        $paymentMethodDisplay = str($paymentMethod)->upper()->toString() === 'EFT' && $eftBankAccount !== ''
+            ? sprintf('%s (%s)', $paymentMethod, $eftBankAccount)
+            : $paymentMethod;
+
         return [
             'id' => $payment->id,
             'invoice_id' => $payment->invoice_id,
@@ -74,10 +84,7 @@ class PaymentVerificationsIndexService
             'stock_numbers' => $stockNumbers,
             'invoice_items_count' => (int) ($payment->invoice_items_count ?? 0),
             'invoice_total_amount' => $payment->invoice_total_amount !== null ? (float) $payment->invoice_total_amount : null,
-            'payment_method' => Str::of($payment->payment_method?->value ?? (string) $payment->payment_method)
-                ->replace('_', ' ')
-                ->upper()
-                ->toString(),
+            'payment_method' => $paymentMethodDisplay,
             'payment_amount' => $payment->amount !== null ? (float) $payment->amount : null,
             'payment_date' => optional($payment->payment_date)?->format('Y-m-d'),
             'is_approved' => (bool) $payment->is_approved,

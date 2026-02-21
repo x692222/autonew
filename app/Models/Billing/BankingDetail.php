@@ -20,9 +20,13 @@ class BankingDetail extends Model
 
     protected $fillable = [
         'dealer_id',
-        'label',
-        'institution',
-        'details',
+        'bank',
+        'account_holder',
+        'account_number',
+        'branch_name',
+        'branch_code',
+        'swift_code',
+        'other_details',
     ];
 
     public function scopeSystem(Builder $query): Builder

@@ -2,7 +2,6 @@
 
 namespace App\Support\Invoices;
 
-use App\Enums\InvoiceLineItemSectionEnum;
 use App\Models\Invoice\Invoice;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -29,12 +28,8 @@ class InvoiceIndexService
             ->with(['customer:id,firstname,lastname', 'dealer:id,name'])
             ->withCount(['notes'])
             ->withCount([
-                'lineItems as total_items_general_accessories' => function (Builder $lineItems): void {
-                    $lineItems->whereIn('section', [
-                        InvoiceLineItemSectionEnum::GENERAL->value,
-                        InvoiceLineItemSectionEnum::ACCESSORIES->value,
-                    ]);
-                },
+                'payments as total_payments_count',
+                'payments as verified_payments_count' => fn (Builder $payments) => $payments->where('is_approved', true),
             ])
             ->when($search !== '', function (Builder $builder) use ($search): void {
                 $builder->where(function (Builder $nested) use ($search): void {
@@ -66,7 +61,6 @@ class InvoiceIndexService
 
         match ($sortBy) {
             'invoice_identifier' => $query->orderBy('invoice_identifier', $direction),
-            'total_items_general_accessories' => $query->orderBy('total_items_general_accessories', $direction),
             'payable_by' => $query->orderBy('payable_by', $direction),
             'customer_firstname' => $query->join('customers as customer_sort', 'customer_sort.id', '=', 'invoices.customer_id')->orderBy('customer_sort.firstname', $direction),
             'customer_lastname' => $query->join('customers as customer_sort_last', 'customer_sort_last.id', '=', 'invoices.customer_id')->orderBy('customer_sort_last.lastname', $direction),
@@ -74,6 +68,7 @@ class InvoiceIndexService
             'total_paid_amount' => $query->orderBy('paid_amount', $direction),
             'total_due' => $query->orderByRaw("(COALESCE(total_amount, 0) - COALESCE(paid_amount, 0)) {$direction}"),
             'is_fully_paid' => $query->orderBy('is_fully_paid', $direction),
+            'is_fully_verified' => $query->orderByRaw('(CASE WHEN total_payments_count > 0 AND total_payments_count = verified_payments_count THEN 1 ELSE 0 END) '.$direction),
             'created_at' => $query->orderBy('created_at', $direction),
             default => $query->orderBy('invoice_date', $direction),
         };

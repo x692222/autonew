@@ -40,8 +40,8 @@ class InvoiceEditabilityService
         return $this->isPaymentStateEditable(
             totalPaid: $this->paymentSummaryService->totalPaid($invoice),
             totalAmount: $this->amountSummaryService->totalForInvoice($invoice),
-            blockAfterPartialPayment: (bool) ($settings['can_edit_invoice_after_partial_payment'] ?? false),
-            blockAfterFullPayment: (bool) ($settings['can_edit_invoice_after_full_payment'] ?? false),
+            allowAfterPartialPayment: (bool) ($settings['can_edit_invoice_after_partial_payment'] ?? false),
+            allowAfterFullPayment: (bool) ($settings['can_edit_invoice_after_full_payment'] ?? false),
         );
     }
 
@@ -65,8 +65,8 @@ class InvoiceEditabilityService
         return $this->isPaymentStateEditable(
             totalPaid: $this->paymentSummaryService->totalPaid($invoice),
             totalAmount: $this->amountSummaryService->totalForInvoice($invoice),
-            blockAfterPartialPayment: (bool) ($settings['can_edit_invoice_after_partial_payment'] ?? false),
-            blockAfterFullPayment: (bool) ($settings['can_edit_invoice_after_full_payment'] ?? false),
+            allowAfterPartialPayment: (bool) ($settings['can_edit_invoice_after_partial_payment'] ?? false),
+            allowAfterFullPayment: (bool) ($settings['can_edit_invoice_after_full_payment'] ?? false),
         );
     }
 
@@ -78,8 +78,8 @@ class InvoiceEditabilityService
     private function isPaymentStateEditable(
         float $totalPaid,
         float $totalAmount,
-        bool $blockAfterPartialPayment,
-        bool $blockAfterFullPayment
+        bool $allowAfterPartialPayment,
+        bool $allowAfterFullPayment
     ): bool {
         if ($totalPaid <= 0) {
             return true;
@@ -88,9 +88,9 @@ class InvoiceEditabilityService
         $isFullyPaid = $totalAmount > 0 && $totalPaid >= $totalAmount;
 
         if ($isFullyPaid) {
-            return ! $blockAfterFullPayment;
+            return $allowAfterFullPayment;
         }
 
-        return ! $blockAfterPartialPayment;
+        return $allowAfterPartialPayment;
     }
 }

@@ -26,7 +26,7 @@ class PaymentValidationRules
     public function upsert(?string $dealerId = null): array
     {
         return [
-            'description' => ['nullable', 'string', 'max:255'],
+            'description' => ['required', 'string', 'max:100'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:999999999.99'],
             'payment_date' => ['required', 'date_format:Y-m-d'],
             'payment_method' => ['required', Rule::in(PaymentMethodEnum::values())],
