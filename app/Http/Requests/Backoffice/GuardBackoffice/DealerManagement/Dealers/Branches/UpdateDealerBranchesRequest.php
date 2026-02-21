@@ -3,10 +3,9 @@
 namespace App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Branches;
 use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerBranch;
-use App\Models\Location\LocationSuburb;
+use App\Support\Validation\Dealers\DealerBranchValidationRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 
 class UpdateDealerBranchesRequest extends FormRequest
 {
@@ -22,14 +21,15 @@ class UpdateDealerBranchesRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        return array_merge([
             'return_to' => ['nullable', 'string'],
-            'name' => ['required', 'string', 'max:255'],
-            'suburb_id' => ['required', 'string', Rule::exists(LocationSuburb::class, 'id')],
-            'contact_numbers' => ['nullable', 'string', 'max:255'],
-            'display_address' => ['nullable', 'string', 'max:500'],
-            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
-            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
-        ];
+        ], app(DealerBranchValidationRules::class)->single(requireContactNumbers: false));
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'contact_numbers' => app(DealerBranchValidationRules::class)->normalizeContactNumbers($this->input('contact_numbers')),
+        ]);
     }
 }

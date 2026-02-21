@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\Stock;
 use App\Models\Stock\Stock;
-use App\Support\Stock\StockValidationRules;
+use App\Support\Validation\Stock\StockValidationRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;

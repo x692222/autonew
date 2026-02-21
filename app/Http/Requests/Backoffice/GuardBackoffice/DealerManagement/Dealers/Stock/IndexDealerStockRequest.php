@@ -59,9 +59,12 @@ class IndexDealerStockRequest extends FormRequest
 
     public function rules(): array
     {
+        /** @var Dealer $dealer */
+        $dealer = $this->route('dealer');
+
         return [
             'search' => ['nullable', 'string', 'max:255'],
-            'branch_id' => ['nullable', 'string', Rule::exists(DealerBranch::class, 'id')],
+            'branch_id' => ['nullable', 'string', Rule::exists(DealerBranch::class, 'id')->where('dealer_id', (string) $dealer->id)],
             'active_status' => ['nullable', Rule::in(['active', 'inactive'])],
             'sold_status' => ['nullable', Rule::in(['sold', 'unsold'])],
             'police_clearance_ready' => ['nullable', Rule::in(PoliceClearanceStatusEnum::values())],

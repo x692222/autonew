@@ -27,7 +27,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PermissionsSeeder::class,
             AssignAdminAllPermissionsSeeder::class,
-            AssignDealerUserAllPermissionsSeeder::class,
+            AssignDealerUserAllPermissionsSeeder::class, // uithaal in prod
 
             // DummyCustomerSeeder::class,
 //            LocationDatasetSeeder::class,
@@ -37,7 +37,7 @@ class DatabaseSeeder extends Seeder
             // LeadDemoSeeder::class,
 //            WhatsappNumberSeeder::class,
 //            WhatsappTemplatesSeeder::class,
-            SettingsConfigurationsSeeder::class,
+            SettingsConfigurationsSeeder::class, // uithaal vir prod
         ]);
 
     }

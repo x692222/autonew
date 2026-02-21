@@ -3,19 +3,22 @@
 namespace App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration;
 
 use App\Actions\Backoffice\Shared\Customers\UpsertCustomerAction;
-use App\Enums\QuotationCustomerTypeEnum;
+use App\Actions\Backoffice\Shared\Customers\DeleteCustomerAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Backoffice\Shared\Customers\IndexCustomersRequest;
+use App\Http\Requests\Backoffice\Shared\Customers\UpsertCustomerRequest;
 use App\Http\Resources\Backoffice\Shared\Customers\CustomerIndexResource;
 use App\Models\Payments\Payment;
 use App\Models\Quotation\Customer;
 use App\Support\Customers\CustomersIndexService;
-use App\Support\Customers\CustomerValidationRules;
+use App\Support\Customers\CustomerDateFormatter;
 use App\Support\Invoices\InvoiceAmountSummaryService;
+use App\Support\Options\GeneralOptions;
 use App\Support\Settings\DocumentSettingsPresenter;
+use App\Support\Tables\DataTableColumnBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
-use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -23,21 +26,21 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 class CustomersController extends Controller
 {
     public function __construct(
-        private readonly CustomerValidationRules $validationRules,
         private readonly CustomersIndexService $indexService,
         private readonly UpsertCustomerAction $upsertCustomerAction,
         private readonly InvoiceAmountSummaryService $amountSummaryService,
         private readonly DocumentSettingsPresenter $documentSettings,
+        private readonly CustomerDateFormatter $dateFormatter,
     ) {
     }
 
-    public function index(Request $request): Response
+    public function index(IndexCustomersRequest $request): Response
     {
         $actor = $request->user('dealer');
         $dealer = $actor->dealer;
         Gate::forUser($actor)->authorize('dealerConfigurationIndexCustomers', $dealer);
 
-        $filters = $request->validate($this->validationRules->index());
+        $filters = $request->validated();
         $records = $this->indexService->paginate($filters, $dealer->id);
 
         $request->attributes->set('customer_context', [
@@ -52,24 +55,21 @@ class CustomersController extends Controller
             )
         );
 
-        $columns = collect([
-            'type',
-            'firstname',
-            'lastname',
-            'email',
-            'contact_number',
-            'quotations_count',
-            'invoices_count',
-            'payments_count',
-            'created_at',
-        ])->map(fn (string $key) => [
-            'name' => $key,
-            'label' => Str::headline($key),
-            'sortable' => true,
-            'align' => in_array($key, ['quotations_count', 'invoices_count', 'payments_count'], true) ? 'right' : 'left',
-            'field' => $key,
-            'numeric' => in_array($key, ['quotations_count', 'invoices_count', 'payments_count'], true),
-        ])->values()->all();
+        $columns = DataTableColumnBuilder::make(
+            keys: [
+                'type',
+                'firstname',
+                'lastname',
+                'email',
+                'contact_number',
+                'quotations_count',
+                'invoices_count',
+                'payments_count',
+                'created_at',
+            ],
+            allSortable: true,
+            numericKeys: ['quotations_count', 'invoices_count', 'payments_count']
+        );
 
         return Inertia::render('Shared/Customers/Index', [
             'publicTitle' => 'Configuration',
@@ -98,10 +98,7 @@ class CustomersController extends Controller
             'dealer' => ['id' => $dealer->id, 'name' => $dealer->name],
             'context' => ['mode' => 'dealer'],
             'data' => null,
-            'customerTypeOptions' => collect(QuotationCustomerTypeEnum::cases())
-                ->map(fn (QuotationCustomerTypeEnum $enumCase) => ['label' => Str::headline($enumCase->value), 'value' => $enumCase->value])
-                ->values()
-                ->all(),
+            'customerTypeOptions' => GeneralOptions::quotationCustomerTypes()->resolve(),
             'indexRoute' => route('backoffice.dealer-configuration.customers.index'),
             'storeRoute' => route('backoffice.dealer-configuration.customers.store'),
             'updateRoute' => null,
@@ -114,7 +111,7 @@ class CustomersController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(UpsertCustomerRequest $request): RedirectResponse
     {
         $actor = $request->user('dealer');
         $dealer = $actor->dealer;
@@ -122,7 +119,7 @@ class CustomersController extends Controller
 
         $customer = $this->upsertCustomerAction->execute(
             customer: null,
-            data: $request->validate($this->validationRules->upsert()),
+            data: $request->validated(),
             dealer: $dealer
         );
 
@@ -195,9 +192,9 @@ class CustomersController extends Controller
                 'total_quote_value' => $quoteTotal,
                 'total_invoice_value' => $invoiceTotal,
                 'total_outstanding' => $outstanding,
-                'last_quotation_date' => $this->formatDate($customer->quotations()->max('quotation_date')),
-                'last_invoice_date' => $this->formatDate($customer->invoices()->max('invoice_date')),
-                'last_payment_date' => $this->formatDate(
+                'last_quotation_date' => $this->dateFormatter->format($customer->quotations()->max('quotation_date')),
+                'last_invoice_date' => $this->dateFormatter->format($customer->invoices()->max('invoice_date')),
+                'last_payment_date' => $this->dateFormatter->format(
                     Payment::query()
                         ->whereHas('invoice', fn ($query) => $query->where('customer_id', $customer->id))
                         ->max('payment_date')
@@ -235,10 +232,7 @@ class CustomersController extends Controller
                 'address' => $customer->address,
                 'vat_number' => $customer->vat_number,
             ],
-            'customerTypeOptions' => collect(QuotationCustomerTypeEnum::cases())
-                ->map(fn (QuotationCustomerTypeEnum $enumCase) => ['label' => Str::headline($enumCase->value), 'value' => $enumCase->value])
-                ->values()
-                ->all(),
+            'customerTypeOptions' => GeneralOptions::quotationCustomerTypes()->resolve(),
             'indexRoute' => route('backoffice.dealer-configuration.customers.index'),
             'storeRoute' => route('backoffice.dealer-configuration.customers.store'),
             'updateRoute' => route('backoffice.dealer-configuration.customers.update', $customer),
@@ -251,7 +245,7 @@ class CustomersController extends Controller
         ]);
     }
 
-    public function update(Request $request, Customer $customer): RedirectResponse
+    public function update(UpsertCustomerRequest $request, Customer $customer): RedirectResponse
     {
         $actor = $request->user('dealer');
         $dealer = $actor->dealer;
@@ -259,29 +253,21 @@ class CustomersController extends Controller
 
         $this->upsertCustomerAction->execute(
             customer: $customer,
-            data: $request->validate($this->validationRules->upsert()),
+            data: $request->validated(),
             dealer: $dealer
         );
 
         return back()->with('success', 'Customer updated.');
     }
 
-    public function destroy(Request $request, Customer $customer): RedirectResponse
+    public function destroy(Request $request, Customer $customer, DeleteCustomerAction $action): RedirectResponse
     {
         $actor = $request->user('dealer');
+        $dealer = $actor->dealer;
         Gate::forUser($actor)->authorize('dealerConfigurationDeleteCustomer', $customer);
-        $customer->delete();
+        $action->execute($customer, $dealer);
 
         return redirect($request->input('return_to', route('backoffice.dealer-configuration.customers.index')))
             ->with('success', 'Customer deleted.');
-    }
-
-    private function formatDate(mixed $value): ?string
-    {
-        if (! $value) {
-            return null;
-        }
-
-        return Carbon::parse((string) $value)->format('Y-m-d');
     }
 }

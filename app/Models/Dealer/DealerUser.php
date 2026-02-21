@@ -6,7 +6,6 @@ use App\Traits\HasUuidPrimaryKey;
 
 use App\Models\Leads\Lead;
 use App\Models\Quotation\Quotation;
-use App\Models\Order;
 use App\ModelScopes\FilterSearchScope;
 use App\Notifications\Auth\DealerResetPasswordNotification;
 use App\Traits\HasActivityTrait;

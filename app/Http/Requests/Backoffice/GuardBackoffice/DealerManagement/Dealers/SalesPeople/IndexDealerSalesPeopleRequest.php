@@ -19,8 +19,11 @@ class IndexDealerSalesPeopleRequest extends FormRequest
 
     public function rules(): array
     {
+        /** @var Dealer $dealer */
+        $dealer = $this->route('dealer');
+
         return [
-            'branch_id' => ['nullable', 'string', Rule::exists(DealerBranch::class, 'id')],
+            'branch_id' => ['nullable', 'string', Rule::exists(DealerBranch::class, 'id')->where('dealer_id', (string) $dealer->id)],
             'page' => ['nullable', 'integer', 'min:1'],
             'rowsPerPage' => ['nullable', 'integer', 'min:1', 'max:200'],
             'sortBy' => ['nullable', 'string', 'max:50'],

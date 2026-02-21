@@ -101,4 +101,30 @@ class ConfigurationManager
                 ]);
         }
     }
+
+    public function dealerDefaultRows(bool $includeBackofficeOnly = true): array
+    {
+        return collect($this->catalog->dealerDefinitions())
+            ->filter(fn (array $definition) => $includeBackofficeOnly || ($definition['backoffice_only'] ?? false) === false)
+            ->map(function (array $definition, string $key) {
+                $normalized = $this->catalog->normalizeValue($definition['type'], $definition['default'] ?? null);
+
+                return [
+                    'id' => null,
+                    'key' => $key,
+                    'label' => (string) $definition['label'],
+                    'category' => $definition['category']->value,
+                    'type' => $definition['type']->value,
+                    'description' => $definition['description'] ?? null,
+                    'value' => $this->catalog->castValue($definition['type'], $normalized),
+                    'backoffice_only' => (bool) ($definition['backoffice_only'] ?? false),
+                ];
+            })
+            ->sortBy([
+                ['category', 'asc'],
+                ['label', 'asc'],
+            ])
+            ->values()
+            ->all();
+    }
 }

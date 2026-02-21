@@ -10,6 +10,7 @@ use App\Models\Dealer\DealerBranch;
 use App\Models\Dealer\DealerUser;
 use App\Models\Leads\LeadPipeline;
 use App\Models\Leads\LeadStage;
+use App\Models\WhatsappNumber;
 
 final class DealerOptions extends AbstractOptions
 {
@@ -57,6 +58,30 @@ final class DealerOptions extends AbstractOptions
         }
 
         return new DealerIdCollection($options);
+    }
+
+    public static function branchesSimpleList(?string $dealerId, bool $withAll = false): GeneralCollection
+    {
+        $items = DealerBranch::query()
+            ->when($dealerId, function($q) use ($dealerId) {
+                $q->where('dealer_id', $dealerId);
+            })
+            ->select(['id as value', 'name as label'])
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($m) => [
+                'label' => $m->label,
+                'value' => $m->value,
+            ])
+            ->all();
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
     }
 
     public static function usersList(?string $dealerId, bool $withAll = false): DealerIdCollection
@@ -140,6 +165,30 @@ final class DealerOptions extends AbstractOptions
         }
 
         return new DealerPipelineIdCollection($options);
+    }
+
+    public static function availableWhatsappNumbers(bool $withAll = false): GeneralCollection
+    {
+        $items = WhatsappNumber::query()
+            ->select(['id as value', 'msisdn as label'])
+            ->where('type', WhatsappNumber::TYPE_DEALER)
+            ->whereNull('dealer_id')
+            ->whereNull('deleted_at')
+            ->orderBy('msisdn')
+            ->get()
+            ->map(fn ($m) => [
+                'label' => $m->label,
+                'value' => $m->value,
+            ])
+            ->all();
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
     }
 
 }

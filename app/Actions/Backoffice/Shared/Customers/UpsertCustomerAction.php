@@ -4,14 +4,27 @@ namespace App\Actions\Backoffice\Shared\Customers;
 
 use App\Models\Dealer\Dealer;
 use App\Models\Quotation\Customer;
+use App\Support\Security\TenantScopeEnforcer;
 
 class UpsertCustomerAction
 {
+    public function __construct(private readonly TenantScopeEnforcer $tenantScopeEnforcer)
+    {
+    }
+
     /**
      * @param  array<string, mixed>  $data
      */
     public function execute(?Customer $customer, array $data, ?Dealer $dealer = null): Customer
     {
+        if ($customer) {
+            $this->tenantScopeEnforcer->assertSameDealerScope(
+                actualDealerId: $customer->dealer_id,
+                expectedDealerId: $dealer?->id,
+                field: 'customer_id'
+            );
+        }
+
         $payload = [
             'type' => $data['type'],
             'title' => $data['title'] ?? null,

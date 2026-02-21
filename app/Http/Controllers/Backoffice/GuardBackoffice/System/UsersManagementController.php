@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Backoffice\GuardBackoffice\System;
 use App\Actions\Backoffice\GuardBackoffice\System\Users\CreateUserAction;
 use App\Actions\Backoffice\GuardBackoffice\System\Users\SetUserActiveStatusAction;
 use App\Actions\Backoffice\GuardBackoffice\System\Users\UpdateUserAction;
+use App\Actions\Backoffice\Shared\Users\DeleteBackofficeUserAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\GuardBackoffice\System\UsersManagement\CreateUsersManagementRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\System\UsersManagement\DestroyUsersManagementRequest;
@@ -16,6 +17,7 @@ use App\Http\Requests\Backoffice\GuardBackoffice\System\UsersManagement\UpdateUs
 use App\Http\Resources\Backoffice\GuardBackoffice\System\UsersManagement\UserManagementIndexResource;
 use App\Models\System\Role;
 use App\Models\System\User;
+use App\Support\Tables\DataTableColumnBuilder;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -62,17 +64,10 @@ class UsersManagementController extends Controller
             )
         );
 
-        $columns = collect(['name', 'email', 'status', 'roles'])
-            ->map(fn (string $key) => [
-                'name' => $key,
-                'label' => Str::headline($key),
-                'sortable' => in_array($key, ['name', 'email', 'status'], true),
-                'align' => 'left',
-                'field' => $key,
-                'numeric' => false,
-            ])
-            ->values()
-            ->all();
+        $columns = DataTableColumnBuilder::make(
+            keys: ['name', 'email', 'status', 'roles'],
+            sortableKeys: ['name', 'email', 'status']
+        );
 
         return Inertia::render('GuardBackoffice/System/UserManagement/Index', [
             'publicTitle' => $this->publicTitle,
@@ -139,10 +134,10 @@ class UsersManagementController extends Controller
             ->with('success', 'User updated.');
     }
 
-    public function destroy(DestroyUsersManagementRequest $request, User $user): RedirectResponse
+    public function destroy(DestroyUsersManagementRequest $request, User $user, DeleteBackofficeUserAction $action): RedirectResponse
     {
         // @todo Revisit destroy behavior and potential soft-delete restoration UX.
-        $user->delete();
+        $action->execute($user);
 
         return redirect()
             ->route('backoffice.system.user-management.users.index', $request->query())

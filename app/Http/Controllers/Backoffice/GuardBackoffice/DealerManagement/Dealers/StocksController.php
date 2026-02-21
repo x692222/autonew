@@ -1,6 +1,14 @@
 <?php
 
 namespace App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers;
+
+use App\Actions\Backoffice\Shared\Stocks\CreateStockAction;
+use App\Actions\Backoffice\Shared\Stocks\DeleteStockAction;
+use App\Actions\Backoffice\Shared\Stocks\MarkStockSoldAction;
+use App\Actions\Backoffice\Shared\Stocks\MarkStockUnsoldAction;
+use App\Actions\Backoffice\Shared\Stocks\SetStockActiveStatusAction;
+use App\Actions\Backoffice\Shared\Stocks\UpdateStockAction;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Stock\ActivateDealerStockRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Stock\CreateDealerStockRequest;
@@ -17,11 +25,10 @@ use App\Http\Resources\Backoffice\Shared\Stock\StockIndexResource;
 use App\Models\Dealer\Dealer;
 use App\Models\Stock\Stock;
 use App\Support\Lookups\StockLookup;
-use App\Support\Settings\DealerSettingsResolver;
+use App\Support\Resolvers\Settings\DealerSettingsResolver;
 use App\Support\Invoices\InvoiceAmountSummaryService;
 use App\Support\Stock\StockFormOptionsService;
 use App\Support\Stock\StockIndexService;
-use App\Support\Stock\StockWriteService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -33,7 +40,6 @@ class StocksController extends Controller
     public function __construct(
         private readonly StockIndexService $stockIndexService,
         private readonly StockFormOptionsService $stockFormOptionsService,
-        private readonly StockWriteService $stockWriteService,
         private readonly DealerSettingsResolver $dealerSettingsResolver,
         private readonly InvoiceAmountSummaryService $amountSummaryService,
     ) {
@@ -125,9 +131,9 @@ class StocksController extends Controller
         ]);
     }
 
-    public function store(StoreDealerStockRequest $request, Dealer $dealer): RedirectResponse
+    public function store(StoreDealerStockRequest $request, Dealer $dealer, CreateStockAction $createStockAction): RedirectResponse
     {
-        $stock = $this->stockWriteService->create($dealer, $request->validated(), (string) $request->user('backoffice')->id, 'backoffice');
+        $stock = $createStockAction->execute($dealer, $request->validated(), (string) $request->user('backoffice')->id, 'backoffice');
 
         return redirect()->route('backoffice.dealer-management.dealers.stock.edit', [
             'dealer' => $dealer->id,
@@ -312,44 +318,74 @@ class StocksController extends Controller
         ]);
     }
 
-    public function update(UpdateDealerStockRequest $request, Dealer $dealer, Stock $stock): RedirectResponse
+    public function update(
+        UpdateDealerStockRequest $request,
+        Dealer $dealer,
+        Stock $stock,
+        UpdateStockAction $updateStockAction
+    ): RedirectResponse
     {
-        $this->stockWriteService->update($dealer, $stock, $request->validated(), (string) $request->user('backoffice')->id, 'backoffice');
+        $updateStockAction->execute($dealer, $stock, $request->validated(), (string) $request->user('backoffice')->id, 'backoffice');
 
         return back()->with('success', 'Stock updated successfully.');
     }
 
-    public function destroy(DestroyDealerStockRequest $request, Dealer $dealer, Stock $stock): RedirectResponse
+    public function destroy(
+        DestroyDealerStockRequest $request,
+        Dealer $dealer,
+        Stock $stock,
+        DeleteStockAction $deleteStockAction
+    ): RedirectResponse
     {
         // @todo Revisit destroy behavior and ensure dependent entities are handled per business rules.
-        $stock->delete();
+        $deleteStockAction->execute($stock, $dealer);
 
         return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.stock', $dealer->id)))
             ->with('success', 'Stock deleted.');
     }
 
-    public function markSold(MarkSoldDealerStockRequest $request, Dealer $dealer, Stock $stock): RedirectResponse
+    public function markSold(
+        MarkSoldDealerStockRequest $request,
+        Dealer $dealer,
+        Stock $stock,
+        MarkStockSoldAction $markStockSoldAction
+    ): RedirectResponse
     {
-        $this->stockWriteService->markSold($stock);
+        $markStockSoldAction->execute($stock, $dealer);
         return back()->with('success', 'Stock item marked as SOLD');
     }
 
-    public function markUnsold(MarkUnsoldDealerStockRequest $request, Dealer $dealer, Stock $stock): RedirectResponse
+    public function markUnsold(
+        MarkUnsoldDealerStockRequest $request,
+        Dealer $dealer,
+        Stock $stock,
+        MarkStockUnsoldAction $markStockUnsoldAction
+    ): RedirectResponse
     {
-        $this->stockWriteService->markUnsold($stock);
+        $markStockUnsoldAction->execute($stock, $dealer);
         return back()->with('success', 'Stock item marked as FOR SALE');
     }
 
-    public function activate(ActivateDealerStockRequest $request, Dealer $dealer, Stock $stock): RedirectResponse
+    public function activate(
+        ActivateDealerStockRequest $request,
+        Dealer $dealer,
+        Stock $stock,
+        SetStockActiveStatusAction $setStockActiveStatusAction
+    ): RedirectResponse
     {
-        $stock->update(['is_active' => true]);
+        $setStockActiveStatusAction->execute($stock, $dealer, true);
 
         return back()->with('success', 'Stock activated.');
     }
 
-    public function deactivate(DeactivateDealerStockRequest $request, Dealer $dealer, Stock $stock): RedirectResponse
+    public function deactivate(
+        DeactivateDealerStockRequest $request,
+        Dealer $dealer,
+        Stock $stock,
+        SetStockActiveStatusAction $setStockActiveStatusAction
+    ): RedirectResponse
     {
-        $stock->update(['is_active' => false]);
+        $setStockActiveStatusAction->execute($stock, $dealer, false);
 
         return back()->with('success', 'Stock deactivated.');
     }

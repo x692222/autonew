@@ -3,7 +3,7 @@
 namespace Database\Seeders\Development;
 
 use App\Models\Dealer\DealerUser;
-use App\Models\System\Permission;
+use App\Actions\Backoffice\Shared\DealerUsers\AssignAllDealerPermissionsAction;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -24,18 +24,12 @@ class AssignDealerUserAllPermissionsSeeder extends Seeder
             return;
         }
 
-        $permissions = Permission::query()
-            ->where('guard_name', 'dealer')
-            ->get();
-
         // Idempotent: re-running replaces direct permissions with the full dealer set.
-        $user->syncPermissions($permissions);
-
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        $count = app(AssignAllDealerPermissionsAction::class)->execute($user);
 
         $this->command?->info(sprintf(
             'Synced %d dealer permissions for %s.',
-            $permissions->count(),
+            $count,
             $user->email
         ));
     }

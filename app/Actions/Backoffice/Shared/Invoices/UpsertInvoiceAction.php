@@ -7,6 +7,7 @@ use App\Models\Invoice\Invoice;
 use App\Models\Quotation\Quotation;
 use App\Support\Invoices\InvoiceIdentifierGenerator;
 use App\Support\Invoices\InvoiceTotalsCalculator;
+use App\Support\Security\TenantScopeEnforcer;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,8 @@ class UpsertInvoiceAction
 {
     public function __construct(
         private readonly InvoiceIdentifierGenerator $identifierGenerator,
-        private readonly InvoiceTotalsCalculator $totalsCalculator
+        private readonly InvoiceTotalsCalculator $totalsCalculator,
+        private readonly TenantScopeEnforcer $tenantScopeEnforcer,
     ) {
     }
 
@@ -29,6 +31,19 @@ class UpsertInvoiceAction
         ?Quotation $quotation = null
     ): Invoice {
         return DB::transaction(function () use ($invoice, $data, $actor, $dealer, $vatSnapshot, $quotation): Invoice {
+            if ($invoice) {
+                $this->tenantScopeEnforcer->assertInvoiceInScope(invoice: $invoice, dealer: $dealer);
+            }
+
+            if ($quotation) {
+                $this->tenantScopeEnforcer->assertQuotationInScope(quotation: $quotation, dealer: $dealer);
+            }
+
+            $this->tenantScopeEnforcer->assertCustomerInScope(
+                customerId: $data['customer_id'] ?? null,
+                dealer: $dealer
+            );
+
             $lineItems = collect((array) ($data['line_items'] ?? []))
                 ->map(function (array $lineItem): array {
                     $amount = round((float) ($lineItem['amount'] ?? 0), 2);
@@ -48,6 +63,11 @@ class UpsertInvoiceAction
                 })
                 ->values()
                 ->all();
+
+            $this->tenantScopeEnforcer->assertStockIdsInScope(
+                stockIds: collect($lineItems)->pluck('stock_id')->all(),
+                dealer: $dealer
+            );
 
             $totals = $this->totalsCalculator->calculate(
                 lineItems: $lineItems,

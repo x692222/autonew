@@ -1,0 +1,18 @@
+<?php
+
+namespace App\Actions\Backoffice\Shared\Stocks;
+
+use App\Models\Dealer\Dealer;
+use App\Models\Stock\Stock;
+use App\Support\Security\TenantScopeEnforcer;
+
+class MarkStockSoldAction
+{
+    public function __construct(private readonly TenantScopeEnforcer $tenantScopeEnforcer) {}
+
+    public function execute(Stock $stock, Dealer $dealer): void
+    {
+        $this->tenantScopeEnforcer->assertStockInDealerScope($stock, $dealer);
+        $stock->update(['is_sold' => true]);
+    }
+}

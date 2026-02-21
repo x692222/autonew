@@ -4,7 +4,7 @@ namespace App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\
 
 use App\Models\Dealer\Dealer;
 use App\Models\Quotation\Quotation;
-use App\Support\Quotations\QuotationValidationRules;
+use App\Support\Validation\Quotations\QuotationValidationRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 

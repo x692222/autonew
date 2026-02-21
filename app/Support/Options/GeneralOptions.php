@@ -2,7 +2,15 @@
 
 namespace App\Support\Options;
 
+use App\Enums\ConfigurationCategoryEnum;
+use App\Enums\InvoiceCustomerTypeEnum;
+use App\Enums\PaymentMethodEnum;
+use App\Enums\PoliceClearanceStatusEnum;
+use App\Enums\QuotationCustomerTypeEnum;
+use App\Enums\SystemRequestStatusEnum;
 use App\Http\Resources\KeyValueOptions\GeneralCollection;
+use DateTimeZone;
+use Illuminate\Support\Str;
 
 final class GeneralOptions extends AbstractOptions
 {
@@ -65,6 +73,164 @@ final class GeneralOptions extends AbstractOptions
                 ['label' => 'Yes', 'value' => 'yes'],
                 ['label' => 'No', 'value' => 'no'],
             ])->values()->all();
+        });
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
+    }
+
+    public static function quotationCustomerTypes(bool $withAll = false): GeneralCollection
+    {
+        $items = cache()->rememberForever("general:quotation_customer_types:{$withAll}:v1", function () {
+            return collect(QuotationCustomerTypeEnum::cases())
+                ->map(fn (QuotationCustomerTypeEnum $enumCase) => ['label' => Str::headline($enumCase->value), 'value' => $enumCase->value])
+                ->values()
+                ->all();
+        });
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
+    }
+
+    public static function invoiceCustomerTypes(bool $withAll = false): GeneralCollection
+    {
+        $items = cache()->rememberForever("general:invoice_customer_types:{$withAll}:v1", function () {
+            return collect(InvoiceCustomerTypeEnum::cases())
+                ->map(fn (InvoiceCustomerTypeEnum $enumCase) => ['label' => Str::headline($enumCase->value), 'value' => $enumCase->value])
+                ->values()
+                ->all();
+        });
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
+    }
+
+    public static function paymentMethods(bool $withAll = false): GeneralCollection
+    {
+        $items = cache()->rememberForever("general:payment_methods:{$withAll}:v1", function () {
+            return collect(PaymentMethodEnum::cases())
+                ->map(fn (PaymentMethodEnum $method) => [
+                    'value' => $method->value,
+                    'label' => str($method->value)->replace('_', ' ')->upper()->toString(),
+                ])
+                ->values()
+                ->all();
+        });
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
+    }
+
+    public static function pendingFeatureTagStatuses(bool $withAll = false): GeneralCollection
+    {
+        $items = cache()->rememberForever("general:pending_feature_tag_statuses:{$withAll}:v1", function () {
+            return collect([
+                ['label' => 'Pending', 'value' => 'pending'],
+                ['label' => 'Reviewed', 'value' => 'reviewed'],
+            ])->values()->all();
+        });
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
+    }
+
+    public static function systemRequestStatuses(bool $withAll = false): GeneralCollection
+    {
+        $items = cache()->rememberForever("general:system_request_statuses:{$withAll}:v1", function () {
+            return collect(SystemRequestStatusEnum::cases())
+                ->map(fn (SystemRequestStatusEnum $status) => [
+                    'label' => Str::headline(Str::lower($status->value)),
+                    'value' => $status->value,
+                ])
+                ->values()
+                ->all();
+        });
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
+    }
+
+    public static function policeClearanceStatuses(bool $withAll = false): GeneralCollection
+    {
+        $items = cache()->rememberForever("general:police_clearance_statuses:{$withAll}:v1", function () {
+            return collect(PoliceClearanceStatusEnum::cases())
+                ->map(fn (PoliceClearanceStatusEnum $item) => [
+                    'label' => ucfirst($item->value),
+                    'value' => $item->value,
+                ])
+                ->values()
+                ->all();
+        });
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
+    }
+
+    public static function timezoneOptions(bool $withAll = false): GeneralCollection
+    {
+        $items = cache()->rememberForever("general:timezone_options:{$withAll}:v1", function () {
+            return collect(DateTimeZone::listIdentifiers())
+                ->unique()
+                ->sort()
+                ->map(fn (string $timezone) => ['label' => $timezone, 'value' => $timezone])
+                ->values()
+                ->all();
+        });
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
+    }
+
+    public static function configurationCategories(bool $withAll = false): GeneralCollection
+    {
+        $items = cache()->rememberForever("general:configuration_categories:{$withAll}:v1", function () {
+            return collect(ConfigurationCategoryEnum::cases())
+                ->map(fn (ConfigurationCategoryEnum $category) => [
+                    'label' => $category->label(),
+                    'value' => $category->value,
+                ])
+                ->values()
+                ->all();
         });
 
         $options = collect($items);

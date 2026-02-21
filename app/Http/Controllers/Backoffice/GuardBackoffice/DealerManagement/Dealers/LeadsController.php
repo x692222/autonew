@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers;
 use App\Http\Controllers\Controller;
+use App\Actions\Backoffice\Shared\Leads\CreateLeadAction;
+use App\Actions\Backoffice\Shared\Leads\UpdateLeadAction;
+use App\Actions\Backoffice\Shared\Leads\DeleteLeadAction;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Leads\CreateDealerLeadsRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Leads\DestroyDealerLeadRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Leads\EditDealerLeadRequest;
@@ -16,6 +19,7 @@ use App\Models\Leads\Lead;
 use App\Models\Leads\LeadStageEvent;
 use App\Support\Options\DealerOptions;
 use App\Support\Options\LeadOptions;
+use App\Support\Tables\DataTableColumnBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -101,26 +105,23 @@ class LeadsController extends Controller
             $records->getCollection()->map(fn (Lead $lead) => (new LeadIndexResource($lead))->toArray($request))
         );
 
-        $columns = collect([
-            'branch',
-            'assigned_to',
-            'pipeline',
-            'stage',
-            'firstname',
-            'lastname',
-            'lead_status',
-            'source',
-            'notes_count',
-            'conversations_count',
-            'created_date',
-        ])->map(fn (string $key) => [
-            'name' => $key,
-            'label' => Str::headline($key),
-            'sortable' => in_array($key, ['branch', 'assigned_to', 'pipeline', 'stage', 'firstname', 'lastname', 'lead_status', 'source', 'notes_count', 'conversations_count', 'created_date'], true),
-            'align' => Str::endsWith($key, '_count') ? 'right' : 'left',
-            'field' => $key,
-            'numeric' => Str::endsWith($key, '_count'),
-        ])->values()->all();
+        $columns = DataTableColumnBuilder::make(
+            keys: [
+                'branch',
+                'assigned_to',
+                'pipeline',
+                'stage',
+                'firstname',
+                'lastname',
+                'lead_status',
+                'source',
+                'notes_count',
+                'conversations_count',
+                'created_date',
+            ],
+            sortableKeys: ['branch', 'assigned_to', 'pipeline', 'stage', 'firstname', 'lastname', 'lead_status', 'source', 'notes_count', 'conversations_count', 'created_date'],
+            numericCountSuffix: true
+        );
 
         return Inertia::render('GuardBackoffice/DealerManagement/Dealers/Tabs/Leads', [
             'publicTitle' => 'Dealer Management',
@@ -162,12 +163,12 @@ class LeadsController extends Controller
         ]);
     }
 
-    public function store(StoreDealerLeadsRequest $request, Dealer $dealer): RedirectResponse
+    public function store(StoreDealerLeadsRequest $request, Dealer $dealer, CreateLeadAction $action): RedirectResponse
     {
         $data = $request->safe()->except(['return_to']);
         $data['dealer_id'] = $dealer->id;
 
-        Lead::query()->create($data);
+        $action->execute($dealer, $data);
 
         return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.leads', $dealer->id)))
             ->with('success', 'Lead created.');
@@ -301,18 +302,18 @@ class LeadsController extends Controller
         ]);
     }
 
-    public function update(UpdateDealerLeadRequest $request, Dealer $dealer, Lead $lead): RedirectResponse
+    public function update(UpdateDealerLeadRequest $request, Dealer $dealer, Lead $lead, UpdateLeadAction $action): RedirectResponse
     {
-        $lead->update($request->safe()->except(['return_to']));
+        $action->execute($dealer, $lead, $request->safe()->except(['return_to']));
 
         return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.leads', $dealer->id)))
             ->with('success', 'Lead updated.');
     }
 
-    public function destroy(DestroyDealerLeadRequest $request, Dealer $dealer, Lead $lead): RedirectResponse
+    public function destroy(DestroyDealerLeadRequest $request, Dealer $dealer, Lead $lead, DeleteLeadAction $action): RedirectResponse
     {
         // @todo Revisit destroy behavior and ensure dependent entities are handled per business rules.
-        $lead->delete();
+        $action->execute($dealer, $lead);
 
         return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.leads', $dealer->id)))
             ->with('success', 'Lead deleted.');

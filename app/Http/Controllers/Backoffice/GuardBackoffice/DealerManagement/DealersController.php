@@ -6,6 +6,8 @@ use App\Actions\Backoffice\GuardBackoffice\DealerManagement\Dealers\CreateDealer
 use App\Actions\Backoffice\GuardBackoffice\DealerManagement\Dealers\CreateDealerBranchAction;
 use App\Actions\Backoffice\GuardBackoffice\DealerManagement\Dealers\CreateDealerSalePersonAction;
 use App\Actions\Backoffice\GuardBackoffice\DealerManagement\Dealers\CreateDealerUserAction;
+use App\Actions\Backoffice\Shared\DealerUsers\AssignAllDealerPermissionsAction;
+use App\Actions\Backoffice\Shared\BankingDetails\CreateBankingDetailAction;
 use App\Actions\Backoffice\GuardBackoffice\DealerManagement\Dealers\DeleteDealerAction;
 use App\Actions\Backoffice\GuardBackoffice\DealerManagement\Dealers\SetDealerActiveStatusAction;
 use App\Actions\Backoffice\GuardBackoffice\DealerManagement\Dealers\UpdateDealerAction;
@@ -21,18 +23,19 @@ use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Activa
 use App\Http\Resources\Backoffice\GuardBackoffice\DealerManagement\Dealers\DealerIndexResource;
 use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerBranch;
-use App\Models\Location\LocationCity;
-use App\Models\Location\LocationCountry;
-use App\Models\Location\LocationState;
-use App\Models\Location\LocationSuburb;
 use App\Models\WhatsappNumber;
 use App\Support\DeferredDatasets\DeferredDealerStockCount;
 use App\Support\DeferredDatasets\DeferredBranchesCount;
 use App\Support\DeferredDatasets\DeferredUsersCount;
+use App\Support\Options\DealerOptions;
 use App\Support\Options\GeneralOptions;
+use App\Support\Options\LocationOptions;
 use App\Support\Options\StockOptions;
 use App\Support\Services\DealerLeadDefaultsProvisioner;
+use App\Support\Settings\ConfigurationCatalog;
 use App\Support\Settings\ConfigurationManager;
+use App\Support\Resolvers\System\SafeReturnToResolver;
+use App\Support\Tables\DataTableColumnBuilder;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -44,6 +47,10 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class DealersController extends Controller
 {
+    public function __construct(private readonly SafeReturnToResolver $returnToResolver)
+    {
+    }
+
     public function index(IndexDealersManagementRequest $request): Response
     {
         $filters = $request->validated();
@@ -91,24 +98,21 @@ class DealersController extends Controller
             )
         );
 
-        $columns = collect([
-            'name',
-            'status',
-            'branches_count',
-            'users_count',
-            'active_stock_count',
-            'inactive_stock_count',
-            'total_stock_count',
-            'published_count',
-            'unpublished_count',
-        ])->map(fn (string $key) => [
-            'name' => $key,
-            'label' => Str::headline($key),
-            'sortable' => in_array($key, ['name', 'status', 'branches_count', 'users_count'], true),
-            'align' => Str::endsWith($key, '_count') ? 'right' : 'left',
-            'field' => $key,
-            'numeric' => Str::endsWith($key, '_count'),
-        ])->values()->all();
+        $columns = DataTableColumnBuilder::make(
+            keys: [
+                'name',
+                'status',
+                'branches_count',
+                'users_count',
+                'active_stock_count',
+                'inactive_stock_count',
+                'total_stock_count',
+                'published_count',
+                'unpublished_count',
+            ],
+            sortableKeys: ['name', 'status', 'branches_count', 'users_count'],
+            numericCountSuffix: true
+        );
 
         $dealerIds = $records->getCollection()->pluck('id')->values();
         $stockType = $filters['type'] ?? null;
@@ -121,26 +125,10 @@ class DealersController extends Controller
             'statusOptions' => GeneralOptions::activeOptions(withAll: true)->resolve(),
             'typeOptions' => StockOptions::types(withAll: true)->resolve(),
             'options' => [
-                'countries' => LocationCountry::query()
-                    ->select(['id as value', 'name as label'])
-                    ->orderBy('name')
-                    ->get()
-                    ->toArray(),
-                'states' => LocationState::query()
-                    ->select(['id as value', 'name as label', 'country_id'])
-                    ->orderBy('name')
-                    ->get()
-                    ->toArray(),
-                'cities' => LocationCity::query()
-                    ->select(['id as value', 'name as label', 'state_id'])
-                    ->orderBy('name')
-                    ->get()
-                    ->toArray(),
-                'suburbs' => LocationSuburb::query()
-                    ->select(['id as value', 'name as label', 'city_id'])
-                    ->orderBy('name')
-                    ->get()
-                    ->toArray(),
+                'countries' => LocationOptions::countries(null, null)->resolve(),
+                'states' => LocationOptions::states(null, null)->resolve(),
+                'cities' => LocationOptions::cities(null, null)->resolve(),
+                'suburbs' => LocationOptions::suburbs(null, null)->resolve(),
             ],
             'deferredStockCount' => DeferredDealerStockCount::resolve($dealerIds, true, $stockType),
             'deferredBranchesCount' => DeferredBranchesCount::resolve($dealerIds, true),
@@ -150,38 +138,45 @@ class DealersController extends Controller
 
     public function create(CreateDealersManagementRequest $request): Response
     {
+        $configurationManager = app(ConfigurationManager::class);
+        $catalog = app(ConfigurationCatalog::class);
+        $settings = $configurationManager->dealerDefaultRows(includeBackofficeOnly: true);
+
+        $settingsFallback = collect($catalog->dealerDefinitions())
+            ->map(function (array $definition, string $key) use ($catalog) {
+                $normalized = $catalog->normalizeValue($definition['type'], $definition['default'] ?? null);
+
+                return [
+                    'id' => null,
+                    'key' => $key,
+                    'label' => (string) $definition['label'],
+                    'category' => $definition['category']->value,
+                    'type' => $definition['type']->value,
+                    'description' => $definition['description'] ?? null,
+                    'value' => $catalog->castValue($definition['type'], $normalized),
+                    'backoffice_only' => (bool) ($definition['backoffice_only'] ?? false),
+                ];
+            })
+            ->sortBy([
+                ['category', 'asc'],
+                ['label', 'asc'],
+            ])
+            ->values()
+            ->all();
+
         return Inertia::render('GuardBackoffice/DealerManagement/Dealers/Create', [
             'publicTitle' => 'Dealer Management',
-            'returnTo' => $this->resolveReturnTo($request),
+            'returnTo' => $this->returnToResolver->resolve($request, 'backoffice.dealer-management.dealers.index'),
+            'settings' => $settings,
+            'settingsFallback' => $settingsFallback,
+            'timezoneOptions' => $catalog->timezoneOptions(),
+            'stockTypeOptions' => StockOptions::types(withAll: false)->resolve(),
             'options' => [
-                'countries' => LocationCountry::query()
-                    ->select(['id as value', 'name as label'])
-                    ->orderBy('name')
-                    ->get()
-                    ->toArray(),
-                'states' => LocationState::query()
-                    ->select(['id as value', 'name as label', 'country_id'])
-                    ->orderBy('name')
-                    ->get()
-                    ->toArray(),
-                'cities' => LocationCity::query()
-                    ->select(['id as value', 'name as label', 'state_id'])
-                    ->orderBy('name')
-                    ->get()
-                    ->toArray(),
-                'suburbs' => LocationSuburb::query()
-                    ->select(['id as value', 'name as label', 'city_id'])
-                    ->orderBy('name')
-                    ->get()
-                    ->toArray(),
-                'whatsappNumbers' => WhatsappNumber::query()
-                    ->select(['id as value', 'msisdn as label'])
-                    ->where('type', WhatsappNumber::TYPE_DEALER)
-                    ->whereNull('dealer_id')
-                    ->whereNull('deleted_at')
-                    ->orderBy('msisdn')
-                    ->get()
-                    ->toArray(),
+                'countries' => LocationOptions::countries(null, null)->resolve(),
+                'states' => LocationOptions::states(null, null)->resolve(),
+                'cities' => LocationOptions::cities(null, null)->resolve(),
+                'suburbs' => LocationOptions::suburbs(null, null)->resolve(),
+                'whatsappNumbers' => DealerOptions::availableWhatsappNumbers()->resolve(),
             ],
         ]);
     }
@@ -191,7 +186,9 @@ class DealersController extends Controller
         CreateDealerAction $createDealerAction,
         CreateDealerBranchAction $createDealerBranchAction,
         CreateDealerUserAction $createDealerUserAction,
+        AssignAllDealerPermissionsAction $assignAllDealerPermissionsAction,
         CreateDealerSalePersonAction $createDealerSalePersonAction,
+        CreateBankingDetailAction $createBankingDetailAction,
         AssignDealerWhatsappNumberAction $assignDealerWhatsappNumberAction,
         DealerLeadDefaultsProvisioner $dealerLeadDefaultsProvisioner,
         ConfigurationManager $configurationManager,
@@ -205,7 +202,9 @@ class DealersController extends Controller
             $createDealerAction,
             $createDealerBranchAction,
             $createDealerUserAction,
+            $assignAllDealerPermissionsAction,
             $createDealerSalePersonAction,
+            $createBankingDetailAction,
             $assignDealerWhatsappNumberAction,
             $dealerLeadDefaultsProvisioner,
             $configurationManager,
@@ -214,11 +213,15 @@ class DealersController extends Controller
             $dealer = $createDealerAction->execute($data);
             $dealerLeadDefaultsProvisioner->provision($dealer);
             $configurationManager->syncDealerDefaults($dealer);
+            $settings = (array) ($data['settings'] ?? []);
+
+            if (($settings['contact_no_prefix'] ?? null) === null || $settings['contact_no_prefix'] === '') {
+                $settings['contact_no_prefix'] = (string) config('dealer.default_contact_no_prefix', '+264');
+            }
+
             $configurationManager->updateDealerValues(
                 dealer: $dealer,
-                settings: [
-                    'contact_no_prefix' => (string) config('dealer.default_contact_no_prefix', '+264'),
-                ],
+                settings: $settings,
                 includeBackofficeOnly: true
             );
 
@@ -228,8 +231,11 @@ class DealersController extends Controller
                     return [(string) $branchData['client_key'] => $branch];
                 });
 
-            foreach (($data['dealer_users'] ?? []) as $dealerUserData) {
+            foreach (($data['dealer_users'] ?? []) as $index => $dealerUserData) {
                 $dealerUser = $createDealerUserAction->execute($dealer, $dealerUserData);
+                if ($index === 0) {
+                    $assignAllDealerPermissionsAction->execute($dealerUser);
+                }
                 $userEmails[] = (string) $dealerUser->email;
             }
 
@@ -241,6 +247,19 @@ class DealersController extends Controller
                 }
 
                 $createDealerSalePersonAction->execute($branch, $salesPersonData);
+            }
+
+            foreach (($data['banking_details'] ?? []) as $bankingDetailData) {
+                $createBankingDetailAction->execute([
+                    'dealer_id' => $dealer->id,
+                    'bank' => $bankingDetailData['bank'],
+                    'account_holder' => $bankingDetailData['account_holder'],
+                    'account_number' => $bankingDetailData['account_number'],
+                    'branch_name' => $bankingDetailData['branch_name'] ?? null,
+                    'branch_code' => $bankingDetailData['branch_code'] ?? null,
+                    'swift_code' => $bankingDetailData['swift_code'] ?? null,
+                    'other_details' => $bankingDetailData['other_details'] ?? null,
+                ], $dealer);
             }
 
             if (!empty($data['whatsapp_number_id'])) {
@@ -258,7 +277,7 @@ class DealersController extends Controller
             Password::broker('dealers')->sendResetLink(['email' => $email]);
         }
 
-        return redirect($this->resolveReturnTo($request))
+        return redirect($this->returnToResolver->resolve($request, 'backoffice.dealer-management.dealers.index'))
             ->with('success', 'Dealer created.');
     }
 
@@ -266,7 +285,7 @@ class DealersController extends Controller
     {
         return Inertia::render('GuardBackoffice/DealerManagement/Dealers/Edit', [
             'publicTitle' => 'Dealer Management',
-            'returnTo' => $this->resolveReturnTo($request),
+            'returnTo' => $this->returnToResolver->resolve($request, 'backoffice.dealer-management.dealers.index'),
             'data' => [
                 'id' => $dealer->id,
                 'name' => $dealer->name,
@@ -281,7 +300,7 @@ class DealersController extends Controller
     ): RedirectResponse {
         $action->execute($dealer, $request->validated());
 
-        return redirect($this->resolveReturnTo($request))
+        return redirect($this->returnToResolver->resolve($request, 'backoffice.dealer-management.dealers.index'))
             ->with('success', 'Dealer updated.');
     }
 
@@ -314,16 +333,5 @@ class DealersController extends Controller
         $action->execute($dealer);
 
         return back()->with('success', 'Dealer deleted.');
-    }
-
-    private function resolveReturnTo(Request $request): string
-    {
-        $returnTo = $request->input('return_to');
-
-        if (is_string($returnTo) && $returnTo !== '' && str_starts_with($returnTo, '/')) {
-            return $returnTo;
-        }
-
-        return route('backoffice.dealer-management.dealers.index');
     }
 }

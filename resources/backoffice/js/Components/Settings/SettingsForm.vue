@@ -1,6 +1,7 @@
 <script setup>
-import { computed } from 'vue'
 import { useForm } from '@inertiajs/vue3'
+import { computed } from 'vue'
+import SettingsFields from 'bo@/Components/Settings/SettingsFields.vue'
 
 const props = defineProps({
     settings: { type: Array, default: () => [] },
@@ -14,41 +15,27 @@ const props = defineProps({
 const initialSettings = Object.fromEntries((props.settings || []).map((row) => [row.key, row.value]))
 const form = useForm({ settings: initialSettings })
 
-const groupedSettings = computed(() => {
-    const groups = {}
-    const preferredCategoryOrder = ['general', 'billing']
+const requiredKeys = computed(() => {
+    const keys = (props.settings || []).map((row) => row.key)
+    const isDealerSettings = keys.includes('dealer_currency')
+    if (!isDealerSettings) return []
 
-    for (const setting of props.settings || []) {
-        if (!groups[setting.category]) {
-            groups[setting.category] = []
-        }
-        groups[setting.category].push(setting)
-    }
-
-    const categoryRank = (category) => {
-        const index = preferredCategoryOrder.indexOf(category)
-        return index === -1 ? preferredCategoryOrder.length : index
-    }
-
-    return Object.entries(groups)
-        .sort((a, b) => {
-            const rankDiff = categoryRank(a[0]) - categoryRank(b[0])
-            if (rankDiff !== 0) return rankDiff
-            return a[0].localeCompare(b[0])
-        })
-        .map(([category, items]) => ({ category, items }))
+    return [
+        'contact_no_prefix',
+        'dealer_currency',
+        'rate_per_ai_input_million_tokens',
+        'rate_per_ai_output_million_tokens',
+        'rate_per_standard_whatsapp_message',
+        'rate_per_template_whatsapp_message',
+        'hours_to_reassign',
+        'lead_acknowledgement_minutes',
+        'max_historical_published_stock_items',
+        'minimum_images_required_for_live',
+        'max_concurrent_published_stock_items',
+        'maximum_images',
+        'maximum_files_in_bucket',
+    ]
 })
-
-const categoryLabel = (category) => category.replace(/_/g, ' ').replace(/\b\w/g, (s) => s.toUpperCase())
-
-const fieldError = (key) => form.errors[`settings.${key}`]
-
-const sanitizeContactNoPrefix = (key, value) => {
-    if (key !== 'contact_no_prefix') return
-    form.settings[key] = String(value || '').replace(/\s+/g, '')
-}
-
-const fieldColumnClass = () => 'col-12 col-md-6'
 
 const submit = () => {
     form.patch(props.updateRoute, {
@@ -59,89 +46,19 @@ const submit = () => {
 
 <template>
     <q-form @submit.prevent="submit">
-        <div class="column q-gutter-md">
-            <q-card v-for="group in groupedSettings" :key="group.category" flat bordered>
-                <q-card-section>
-                    <div class="text-h6 q-pb-sm">{{ categoryLabel(group.category) }}</div>
+        <div>
+            <SettingsFields
+                v-model="form.settings"
+                :settings="settings"
+                :errors="form.errors"
+                :disabled="!canUpdate || form.processing"
+                :timezone-options="timezoneOptions"
+                :stock-type-options="stockTypeOptions"
+                :show-backoffice-only-badge="showBackofficeOnlyBadge"
+                :required-keys="requiredKeys"
+            />
 
-                    <div class="row q-col-gutter-md">
-                        <div v-for="setting in group.items" :key="setting.key" :class="fieldColumnClass()">
-                            <div class="text-subtitle2 text-grey-9 row items-center q-gutter-xs">
-                                <span>{{ setting.label }}</span>
-                                <q-badge
-                                    v-if="showBackofficeOnlyBadge && setting.backoffice_only"
-                                    color="orange"
-                                    text-color="black"
-                                    label="Backoffice only"
-                                />
-                            </div>
-                            <div class="text-caption text-grey-7 q-mb-sm">{{ setting.description }}</div>
-
-                            <q-select
-                                v-if="setting.key === 'default_stock_type_filter'"
-                                v-model="form.settings[setting.key]"
-                                dense
-                                outlined
-                                clearable
-                                emit-value
-                                map-options
-                                option-label="label"
-                                option-value="value"
-                                :disable="!canUpdate || form.processing"
-                                :options="stockTypeOptions"
-                                :error="!!fieldError(setting.key)"
-                                :error-message="fieldError(setting.key)"
-                            />
-
-                            <q-toggle
-                                v-else-if="setting.type === 'boolean'"
-                                v-model="form.settings[setting.key]"
-                                :disable="!canUpdate || form.processing"
-                                dense
-                                left-label
-                                checked-icon="check"
-                                unchecked-icon="close"
-                                :label="form.settings[setting.key] ? 'Enabled' : 'Disabled'"
-                            />
-
-                            <q-select
-                                v-else-if="setting.type === 'timezone'"
-                                v-model="form.settings[setting.key]"
-                                dense
-                                outlined
-                                use-input
-                                fill-input
-                                input-debounce="0"
-                                clearable
-                                emit-value
-                                map-options
-                                option-label="label"
-                                option-value="value"
-                                :disable="!canUpdate || form.processing"
-                                :options="timezoneOptions"
-                                :error="!!fieldError(setting.key)"
-                                :error-message="fieldError(setting.key)"
-                            />
-
-                            <q-input
-                                v-else
-                                v-model="form.settings[setting.key]"
-                                :type="setting.type === 'number' || setting.type === 'float' ? 'number' : 'text'"
-                                :step="setting.type === 'float' ? '0.0001' : '1'"
-                                dense
-                                outlined
-                                clearable
-                                :disable="!canUpdate || form.processing"
-                                :error="!!fieldError(setting.key)"
-                                :error-message="fieldError(setting.key)"
-                                @update:model-value="(value) => sanitizeContactNoPrefix(setting.key, value)"
-                            />
-                        </div>
-                    </div>
-                </q-card-section>
-            </q-card>
-
-            <div class="row justify-end q-gutter-sm">
+            <div class="row justify-end q-gutter-sm q-mt-md">
                 <q-btn
                     v-if="canUpdate"
                     color="primary"

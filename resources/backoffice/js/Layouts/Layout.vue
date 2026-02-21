@@ -396,9 +396,6 @@ watch(
                             >
                                 <q-item-section>User Management</q-item-section>
                             </q-item>
-                            <q-item clickable v-close-popup>
-                                <q-item-section>New</q-item-section>
-                            </q-item>
                             <q-item
                                 v-if="canProcessSystemRequests"
                                 clickable
@@ -451,10 +448,6 @@ watch(
                                     </q-list>
                                 </q-menu>
 
-                            </q-item>
-                            <q-separator />
-                            <q-item clickable v-close-popup>
-                                <q-item-section>Quit</q-item-section>
                             </q-item>
                         </q-list>
                     </q-menu>

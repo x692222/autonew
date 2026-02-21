@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\Users;
 use App\Models\Dealer\DealerUser;
+use App\Support\Validation\Dealers\DealerUserValidationRules;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdateDealerConfigurationUsersRequest extends FormRequest
 {
@@ -17,11 +17,8 @@ class UpdateDealerConfigurationUsersRequest extends FormRequest
         /** @var DealerUser $dealerUser */
         $dealerUser = $this->route('dealerUser');
 
-        return [
+        return array_merge([
             'return_to' => ['nullable', 'string'],
-            'firstname' => ['required', 'string', 'max:255'],
-            'lastname' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('dealer_users', 'email')->ignore($dealerUser->id)->whereNull('deleted_at')],
-        ];
+        ], app(DealerUserValidationRules::class)->single($dealerUser));
     }
 }

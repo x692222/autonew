@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Requests\Backoffice\GuardBackoffice\System\LocationsManagement;
-use App\Support\Locations\LocationTypeResolver;
+use App\Support\Resolvers\Locations\LocationTypeResolver;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;

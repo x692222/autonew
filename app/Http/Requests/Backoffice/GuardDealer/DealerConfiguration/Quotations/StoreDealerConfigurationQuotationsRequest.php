@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\Quotations;
 
-use App\Support\Quotations\QuotationValidationRules;
+use App\Support\Validation\Quotations\QuotationValidationRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 

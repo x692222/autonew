@@ -1,7 +1,11 @@
 <?php
 
 namespace App\Http\Controllers\Backoffice\GuardBackoffice\System;
-use App\Enums\SystemRequestStatusEnum;
+
+use App\Actions\Backoffice\Shared\SystemRequests\CreateSystemRequestAction;
+use App\Actions\Backoffice\Shared\SystemRequests\DeleteSystemRequestAction;
+use App\Actions\Backoffice\Shared\SystemRequests\UpdateSystemRequestAction;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\GuardBackoffice\System\DestroySystemRequestManagementRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\System\IndexSystemRequestManagementRequest;
@@ -9,7 +13,7 @@ use App\Http\Requests\Backoffice\GuardBackoffice\System\StoreSystemRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\System\UpdateSystemRequestManagementRequest;
 use App\Models\System\SystemRequest;
 use App\Notifications\System\SystemRequestStatusUpdatedNotification;
-use App\Support\System\SystemRequestService;
+use App\Support\Options\GeneralOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -18,16 +22,12 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class SystemRequestsController extends Controller
 {
-    public function __construct(private readonly SystemRequestService $systemRequestService)
-    {
-    }
-
-    public function store(StoreSystemRequest $request): JsonResponse
+    public function store(StoreSystemRequest $request, CreateSystemRequestAction $createSystemRequestAction): JsonResponse
     {
         $backofficeUser = $request->user('backoffice');
         $dealerUser = $request->user('dealer');
 
-        $this->systemRequestService->create(
+        $createSystemRequestAction->execute(
             type: $request->validated('type'),
             subject: $request->validated('subject'),
             message: $request->validated('message'),
@@ -111,10 +111,7 @@ class SystemRequestsController extends Controller
         return Inertia::render('GuardBackoffice/System/SystemRequests/Index', [
             'publicTitle' => 'System Requests',
             'filters' => $filters,
-            'statusOptions' => collect(SystemRequestStatusEnum::cases())->map(fn ($s) => [
-                'label' => Str::headline(Str::lower($s->value)),
-                'value' => $s->value,
-            ])->values()->all(),
+            'statusOptions' => GeneralOptions::systemRequestStatuses()->resolve(),
             'columns' => [
                 ['name' => 'subject', 'label' => 'Subject', 'sortable' => true, 'align' => 'left', 'field' => 'subject'],
                 ['name' => 'type', 'label' => 'Type', 'sortable' => false, 'align' => 'left', 'field' => 'type'],
@@ -128,11 +125,15 @@ class SystemRequestsController extends Controller
         ]);
     }
 
-    public function update(UpdateSystemRequestManagementRequest $request, SystemRequest $systemRequest): RedirectResponse
+    public function update(
+        UpdateSystemRequestManagementRequest $request,
+        SystemRequest $systemRequest,
+        UpdateSystemRequestAction $updateSystemRequestAction
+    ): RedirectResponse
     {
         $data = $request->validated();
 
-        $systemRequest->update([
+        $updateSystemRequestAction->execute($systemRequest, [
             'status' => $data['status'],
             'response' => $data['response'] ?? null,
         ]);
@@ -147,9 +148,13 @@ class SystemRequestsController extends Controller
         return back()->with('success', 'System request updated.');
     }
 
-    public function destroy(DestroySystemRequestManagementRequest $request, SystemRequest $systemRequest): RedirectResponse
+    public function destroy(
+        DestroySystemRequestManagementRequest $request,
+        SystemRequest $systemRequest,
+        DeleteSystemRequestAction $deleteSystemRequestAction
+    ): RedirectResponse
     {
-        $systemRequest->delete();
+        $deleteSystemRequestAction->execute($systemRequest);
         return back()->with('success', 'System request deleted.');
     }
 }

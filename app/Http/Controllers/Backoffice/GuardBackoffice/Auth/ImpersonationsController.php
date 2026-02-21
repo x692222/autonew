@@ -11,10 +11,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class ImpersonationsController extends Controller
 {
-    public function start(
-        StartImpersonationsRequest $request,
-        StartDealerUserImpersonationAction $action
-    ): RedirectResponse {
+    public function start(StartImpersonationsRequest $request, StartDealerUserImpersonationAction $action): RedirectResponse {
         $email = (string) $request->validated('email');
 
         $target = DealerUser::query()
@@ -37,10 +34,7 @@ class ImpersonationsController extends Controller
         return redirect()->route('backoffice.index')->with('success', 'Impersonation started.');
     }
 
-    public function stop(
-        StopImpersonationsRequest $request,
-        StopDealerUserImpersonationAction $action
-    ): RedirectResponse {
+    public function stop(StopImpersonationsRequest $request, StopDealerUserImpersonationAction $action): RedirectResponse {
         $action->execute();
 
         return redirect()->route('backoffice.index')->with('success', 'Impersonation stopped.');

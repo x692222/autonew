@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration;
 
+use App\Actions\Backoffice\Shared\BankingDetails\CreateBankingDetailAction;
+use App\Actions\Backoffice\Shared\BankingDetails\DeleteBankingDetailAction;
+use App\Actions\Backoffice\Shared\BankingDetails\UpdateBankingDetailAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Backoffice\Shared\BankingDetails\IndexBankingDetailsRequest;
+use App\Http\Requests\Backoffice\Shared\BankingDetails\UpsertBankingDetailsRequest;
 use App\Models\Billing\BankingDetail;
 use App\Support\BankingDetails\BankingDetailsIndexService;
-use App\Support\BankingDetails\BankingDetailValidationRules;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -15,18 +19,17 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 class BankingDetailsController extends Controller
 {
     public function __construct(
-        private readonly BankingDetailValidationRules $validationRules,
         private readonly BankingDetailsIndexService $indexService,
     ) {
     }
 
-    public function index(Request $request): Response
+    public function index(IndexBankingDetailsRequest $request): Response
     {
         $actor = $request->user('dealer');
         $dealer = $actor->dealer;
         Gate::forUser($actor)->authorize('dealerConfigurationIndexBankingDetails', $dealer);
 
-        $filters = $request->validate($this->validationRules->index());
+        $filters = $request->validated();
 
         $records = $this->indexService->paginate($filters, $dealer->id);
 
@@ -48,15 +51,18 @@ class BankingDetailsController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(
+        UpsertBankingDetailsRequest $request,
+        CreateBankingDetailAction $createBankingDetailAction
+    ): RedirectResponse
     {
         $actor = $request->user('dealer');
         $dealer = $actor->dealer;
         Gate::forUser($actor)->authorize('dealerConfigurationCreateBankingDetail', $dealer);
 
-        $data = $request->validate($this->validationRules->upsert());
+        $data = $request->validated();
 
-        BankingDetail::query()->create([
+        $createBankingDetailAction->execute([
             'dealer_id' => $dealer->id,
             'bank' => $data['bank'],
             'account_holder' => $data['account_holder'],
@@ -65,24 +71,32 @@ class BankingDetailsController extends Controller
             'branch_code' => $data['branch_code'] ?? null,
             'swift_code' => $data['swift_code'] ?? null,
             'other_details' => $data['other_details'],
-        ]);
+        ], $dealer);
 
         return back()->with('success', 'Banking detail created.');
     }
 
-    public function update(Request $request, BankingDetail $bankingDetail): RedirectResponse
+    public function update(
+        UpsertBankingDetailsRequest $request,
+        BankingDetail $bankingDetail,
+        UpdateBankingDetailAction $updateBankingDetailAction
+    ): RedirectResponse
     {
         $actor = $request->user('dealer');
         Gate::forUser($actor)->authorize('dealerConfigurationEditBankingDetail', $bankingDetail);
 
-        $data = $request->validate($this->validationRules->upsert());
+        $data = $request->validated();
 
-        $bankingDetail->update($data);
+        $updateBankingDetailAction->execute($bankingDetail, $data, $actor->dealer);
 
         return back()->with('success', 'Banking detail updated.');
     }
 
-    public function destroy(Request $request, BankingDetail $bankingDetail): RedirectResponse
+    public function destroy(
+        Request $request,
+        BankingDetail $bankingDetail,
+        DeleteBankingDetailAction $deleteBankingDetailAction
+    ): RedirectResponse
     {
         $actor = $request->user('dealer');
         Gate::forUser($actor)->authorize('dealerConfigurationDeleteBankingDetail', $bankingDetail);
@@ -91,7 +105,7 @@ class BankingDetailsController extends Controller
             return back()->with('error', 'These banking details are linked to payments and cannot be deleted.');
         }
 
-        $bankingDetail->delete();
+        $deleteBankingDetailAction->execute($bankingDetail, $actor->dealer);
 
         return back()->with('success', 'Banking detail deleted.');
     }

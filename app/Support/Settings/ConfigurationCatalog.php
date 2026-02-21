@@ -5,6 +5,7 @@ namespace App\Support\Settings;
 use App\Models\Stock\Stock;
 use App\Enums\ConfigurationCategoryEnum;
 use App\Enums\ConfigurationValueTypeEnum;
+use App\Support\Options\GeneralOptions;
 use DateTimeZone;
 use Illuminate\Validation\Rule;
 
@@ -278,12 +279,7 @@ class ConfigurationCatalog
 
     public function timezoneOptions(): array
     {
-        return collect(DateTimeZone::listIdentifiers())
-            ->unique()
-            ->sort()
-            ->map(fn (string $timezone) => ['label' => $timezone, 'value' => $timezone])
-            ->values()
-            ->all();
+        return GeneralOptions::timezoneOptions()->resolve();
     }
 
     public function systemValidationRules(): array
@@ -297,7 +293,38 @@ class ConfigurationCatalog
             ->filter(fn (array $definition) => $includeBackofficeOnly || ($definition['backoffice_only'] ?? false) === false)
             ->all();
 
-        return $this->definitionValidationRules($definitions);
+        $rules = $this->definitionValidationRules($definitions);
+
+        $rules['settings.dealer_currency'] = ['required', 'string', 'max:255'];
+        $rules['settings.contact_no_prefix'] = ['required', 'string', 'max:10', 'regex:/^\\+[0-9]+$/'];
+
+        $requiredNumericKeys = [
+            'rate_per_ai_input_million_tokens',
+            'rate_per_ai_output_million_tokens',
+            'rate_per_standard_whatsapp_message',
+            'rate_per_template_whatsapp_message',
+            'hours_to_reassign',
+            'lead_acknowledgement_minutes',
+            'max_historical_published_stock_items',
+            'minimum_images_required_for_live',
+            'max_concurrent_published_stock_items',
+            'maximum_images',
+            'maximum_files_in_bucket',
+        ];
+
+        foreach ($requiredNumericKeys as $key) {
+            if (! isset($definitions[$key])) {
+                continue;
+            }
+
+            $type = $definitions[$key]['type'];
+            $rules["settings.{$key}"] = match ($type) {
+                ConfigurationValueTypeEnum::FLOAT => ['required', 'numeric', 'min:0', 'max:100000000'],
+                default => ['required', 'integer', 'min:0', 'max:100000000'],
+            };
+        }
+
+        return $rules;
     }
 
     public function normalizeValue(ConfigurationValueTypeEnum $type, mixed $value): ?string
@@ -334,13 +361,7 @@ class ConfigurationCatalog
 
     public function categoryOptions(): array
     {
-        return collect(ConfigurationCategoryEnum::cases())
-            ->map(fn (ConfigurationCategoryEnum $category) => [
-                'label' => $category->label(),
-                'value' => $category->value,
-            ])
-            ->values()
-            ->all();
+        return GeneralOptions::configurationCategories()->resolve();
     }
 
     public function definitionKeys(array $definitions): array
@@ -364,7 +385,7 @@ class ConfigurationCatalog
             }
 
             if ($key === 'minimum_images_required_for_live') {
-                $rules["settings.{$key}"] = ['nullable', 'integer', 'min:1', 'max:50'];
+                $rules["settings.{$key}"] = ['nullable', 'integer', 'min:0', 'max:50'];
                 continue;
             }
 
@@ -379,7 +400,7 @@ class ConfigurationCatalog
             }
 
             if ($key === 'contact_no_prefix') {
-                $rules["settings.{$key}"] = ['nullable', 'string', 'max:7', 'regex:/^\\+[0-9]+$/'];
+                $rules["settings.{$key}"] = ['nullable', 'string', 'max:10', 'regex:/^\\+[0-9]+$/'];
                 continue;
             }
 

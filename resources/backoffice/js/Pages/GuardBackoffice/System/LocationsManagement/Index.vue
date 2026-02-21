@@ -318,7 +318,7 @@ hydrateFromInitialFilters()
                         emit-value
                         map-options
                         :options="stateOptions"
-                        label="State"
+                        label="Province"
                         @update:model-value="onStateChanged"
                     />
                 </div>

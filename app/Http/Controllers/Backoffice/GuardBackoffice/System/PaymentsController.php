@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers\Backoffice\GuardBackoffice\System;
 
+use App\Actions\Backoffice\Shared\Payments\DeletePaymentAction;
 use App\Actions\Backoffice\Shared\Payments\UpsertPaymentAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Backoffice\Shared\Payments\IndexPaymentsRequest;
+use App\Http\Requests\Backoffice\Shared\Payments\UpsertPaymentRequest;
 use App\Models\Invoice\Invoice;
 use App\Models\Payments\Payment;
 use App\Support\Stock\AssociatedStockPresenter;
-use App\Support\Payments\InvoicePaymentStateUpdater;
 use App\Support\Payments\InvoicePaymentSummaryService;
-use App\Support\Payments\PaymentValidationRules;
 use App\Support\Payments\PaymentsIndexService;
 use App\Support\Invoices\InvoiceAmountSummaryService;
 use App\Support\Settings\DocumentSettingsPresenter;
@@ -22,20 +23,18 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 class PaymentsController extends Controller
 {
     public function __construct(
-        private readonly PaymentValidationRules $validationRules,
         private readonly PaymentsIndexService $indexService,
-        private readonly InvoicePaymentStateUpdater $paymentStateUpdater,
         private readonly InvoicePaymentSummaryService $paymentSummaryService,
         private readonly InvoiceAmountSummaryService $amountSummaryService,
         private readonly DocumentSettingsPresenter $documentSettings,
     ) {
     }
 
-    public function index(Request $request): Response
+    public function index(IndexPaymentsRequest $request): Response
     {
         Gate::authorize('viewAny', Payment::class);
 
-        $filters = $request->validate($this->validationRules->index());
+        $filters = $request->validated();
 
         $records = $this->indexService->paginate($filters);
 
@@ -135,7 +134,11 @@ class PaymentsController extends Controller
         ]);
     }
 
-    public function storeForInvoice(Request $request, Invoice $invoice, UpsertPaymentAction $upsertPaymentAction): RedirectResponse
+    public function storeForInvoice(
+        UpsertPaymentRequest $request,
+        Invoice $invoice,
+        UpsertPaymentAction $upsertPaymentAction
+    ): RedirectResponse
     {
         Gate::authorize('update', $invoice);
         if ($invoice->dealer_id !== null) {
@@ -145,30 +148,31 @@ class PaymentsController extends Controller
             return back()->with('error', 'This invoice is fully paid and cannot accept additional payments.');
         }
 
-        $data = $request->validate($this->validationRules->upsert());
+        $data = $request->validated();
         $actor = $request->user('backoffice');
         $upsertPaymentAction->execute(null, $invoice, $data, $actor, $request->ip());
 
         return back()->with('success', 'Payment recorded.');
     }
 
-    public function update(Request $request, Payment $payment, UpsertPaymentAction $upsertPaymentAction): RedirectResponse
+    public function update(
+        UpsertPaymentRequest $request,
+        Payment $payment,
+        UpsertPaymentAction $upsertPaymentAction
+    ): RedirectResponse
     {
         Gate::authorize('update', $payment);
-        $data = $request->validate($this->validationRules->upsert());
+        $data = $request->validated();
         $actor = $request->user('backoffice');
         $upsertPaymentAction->execute($payment, $payment->invoice, $data, $actor, $request->ip());
 
         return back()->with('success', 'Payment updated.');
     }
 
-    public function destroy(Request $request, Payment $payment): RedirectResponse
+    public function destroy(Request $request, Payment $payment, DeletePaymentAction $deletePaymentAction): RedirectResponse
     {
         Gate::authorize('delete', $payment);
-        $invoice = $payment->invoice()->first();
-        $wasFullyPaid = (bool) ($invoice?->is_fully_paid ?? false);
-        $payment->delete();
-        $this->paymentStateUpdater->handleDeletedPayment($invoice, $wasFullyPaid);
+        $deletePaymentAction->execute($payment);
 
         return back()->with('success', 'Payment deleted.');
     }

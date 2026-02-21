@@ -1,14 +1,20 @@
 <?php
 
 namespace App\Actions\Backoffice\GuardBackoffice\System\Locations;
-use App\Support\Locations\LocationTypeResolver;
+use App\Support\Options\LocationOptions;
+use App\Support\Resolvers\Locations\LocationTypeResolver;
 use Illuminate\Database\Eloquent\Model;
 
 class UpdateLocationAction
 {
     public function execute(string $type, Model $location, array $data): bool
     {
-        return $location->update($this->payload($type, $data));
+        $updated = $location->update($this->payload($type, $data));
+        if ($updated) {
+            LocationOptions::bumpCacheVersion();
+        }
+
+        return $updated;
     }
 
     private function payload(string $type, array $data): array

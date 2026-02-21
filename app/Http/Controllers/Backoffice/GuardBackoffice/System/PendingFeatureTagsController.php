@@ -1,10 +1,14 @@
 <?php
 
 namespace App\Http\Controllers\Backoffice\GuardBackoffice\System;
+
+use App\Actions\Backoffice\Shared\PendingFeatureTags\ReviewPendingFeatureTagAction;
+
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\GuardBackoffice\System\IndexPendingFeatureTagsRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\System\UpdatePendingFeatureTagRequest;
 use App\Models\Stock\StockFeatureTag;
+use App\Support\Options\GeneralOptions;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -74,10 +78,7 @@ class PendingFeatureTagsController extends Controller
         return Inertia::render('GuardBackoffice/System/PendingFeatureTags/Index', [
             'publicTitle' => 'Pending Feature Tags',
             'filters' => $filters,
-            'statusOptions' => [
-                ['label' => 'Pending', 'value' => 'pending'],
-                ['label' => 'Reviewed', 'value' => 'reviewed'],
-            ],
+            'statusOptions' => GeneralOptions::pendingFeatureTagStatuses()->resolve(),
             'columns' => [
                 ['name' => 'name', 'label' => 'Tag', 'sortable' => true, 'align' => 'left', 'field' => 'name'],
                 ['name' => 'stock_type', 'label' => 'Type', 'sortable' => true, 'align' => 'left', 'field' => 'stock_type'],
@@ -90,15 +91,18 @@ class PendingFeatureTagsController extends Controller
         ]);
     }
 
-    public function update(UpdatePendingFeatureTagRequest $request, StockFeatureTag $stockFeatureTag): RedirectResponse
+    public function update(
+        UpdatePendingFeatureTagRequest $request,
+        StockFeatureTag $stockFeatureTag,
+        ReviewPendingFeatureTagAction $reviewPendingFeatureTagAction
+    ): RedirectResponse
     {
-        $stockFeatureTag->update([
-            'is_approved' => (bool) $request->validated('is_approved'),
-            'reviewed_at' => now(),
-            'reviewed_by_user_id' => $request->user('backoffice')?->id,
-        ]);
+        $reviewPendingFeatureTagAction->execute(
+            stockFeatureTag: $stockFeatureTag,
+            isApproved: (bool) $request->validated('is_approved'),
+            reviewedByUserId: $request->user('backoffice')?->id
+        );
 
         return back()->with('success', 'Feature tag review saved.');
     }
 }
-

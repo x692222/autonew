@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Invoices;
 
 use App\Models\Dealer\Dealer;
-use App\Support\Invoices\InvoiceValidationRules;
+use App\Support\Validation\Invoices\InvoiceValidationRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 

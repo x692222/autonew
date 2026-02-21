@@ -2,6 +2,7 @@
 import { Head, router, useForm } from '@inertiajs/vue3'
 import { computed, inject } from 'vue'
 import Layout from 'bo@/Layouts/Layout.vue'
+import BranchContactLocationFields from 'bo@/Components/Branches/BranchContactLocationFields.vue'
 import DealerConfigurationNav from 'bo@/Pages/GuardDealer/DealerConfiguration/_Nav.vue'
 import { useLocationHierarchy } from 'bo@/Composables/useLocationHierarchy'
 
@@ -88,14 +89,21 @@ const cancel = () => {
             <q-form @submit.prevent="submit">
                 <div class="row q-col-gutter-md">
                     <div class="col-12 col-md-6"><q-input v-model="form.name" label="Branch name" filled dense :error="!!form.errors.name" :error-message="form.errors.name" /></div>
-                    <div class="col-12 col-md-6"><q-input v-model="form.contact_numbers" label="Contact numbers" filled dense :error="!!form.errors.contact_numbers" :error-message="form.errors.contact_numbers" /></div>
                     <div class="col-12"><q-input v-model="form.display_address" label="Display address" filled dense :error="!!form.errors.display_address" :error-message="form.errors.display_address" /></div>
                     <div class="col-12 col-md-6"><q-select v-model="form.country_id" filled dense emit-value map-options :options="countriesAll" label="Country" @update:model-value="onCountryChanged" /></div>
-                    <div class="col-12 col-md-6"><q-select v-model="form.state_id" filled dense emit-value map-options :options="stateOptions" label="State" @update:model-value="onStateChanged" /></div>
+                    <div class="col-12 col-md-6"><q-select v-model="form.state_id" filled dense emit-value map-options :options="stateOptions" label="Province" @update:model-value="onStateChanged" /></div>
                     <div class="col-12 col-md-6"><q-select v-model="form.city_id" filled dense emit-value map-options :options="cityOptions" label="City" @update:model-value="onCityChanged" /></div>
                     <div class="col-12 col-md-6"><q-select v-model="form.suburb_id" filled dense emit-value map-options :options="suburbOptions" label="Suburb" @update:model-value="onSuburbChanged" /></div>
-                    <div class="col-12 col-md-6"><q-input v-model="form.latitude" type="number" filled dense label="Latitude" :error="!!form.errors.latitude" :error-message="form.errors.latitude" /></div>
-                    <div class="col-12 col-md-6"><q-input v-model="form.longitude" type="number" filled dense label="Longitude" :error="!!form.errors.longitude" :error-message="form.errors.longitude" /></div>
+                    <div class="col-12">
+                        <BranchContactLocationFields
+                            :model-value="form"
+                            :errors="form.errors"
+                            variant="filled"
+                            :dense="true"
+                            :contact-required="false"
+                            @update:model-value="(value) => Object.assign(form, value)"
+                        />
+                    </div>
                 </div>
                 <div class="row justify-end q-mt-lg"><div class="q-gutter-sm"><q-btn color="grey-4" text-color="standard" label="Cancel" no-wrap unelevated @click="cancel" /><q-btn color="primary" label="Save" no-wrap unelevated :loading="form.processing" :disable="form.processing" @click="submit" /></div></div>
             </q-form>

@@ -3,9 +3,15 @@
 namespace App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers;
 use App\Models\WhatsappNumber;
 use App\Models\Dealer\Dealer;
+use App\Support\Validation\BankingDetails\BankingDetailValidationRules;
+use App\Support\Validation\Dealers\DealerBranchValidationRules;
+use App\Support\Validation\Dealers\DealerSalesPersonValidationRules;
+use App\Support\Validation\Dealers\DealerUserValidationRules;
+use App\Support\Validation\Settings\DealerSettingsValidation;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreDealersManagementRequest extends FormRequest
 {
@@ -16,7 +22,7 @@ class StoreDealersManagementRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        return array_merge([
             'name' => ['required', 'string', 'max:255'],
             'whatsapp_number_id' => [
                 'nullable',
@@ -28,34 +34,13 @@ class StoreDealersManagementRequest extends FormRequest
                         ->whereNull('deleted_at')),
             ],
 
-            'branches' => ['required', 'array', 'min:1'],
-            'branches.*.client_key' => ['required', 'string', 'max:100', 'distinct'],
-            'branches.*.name' => ['required', 'string', 'max:255'],
-            'branches.*.country_id' => ['nullable', 'string', Rule::exists('location_countries', 'id')],
-            'branches.*.state_id' => ['nullable', 'string', Rule::exists('location_states', 'id')],
-            'branches.*.city_id' => ['nullable', 'string', Rule::exists('location_cities', 'id')],
-            'branches.*.suburb_id' => ['required', 'string', Rule::exists('location_suburbs', 'id')],
-            'branches.*.contact_numbers' => ['required', 'string', 'max:255'],
-            'branches.*.display_address' => ['required', 'string', 'max:255'],
-            'branches.*.latitude' => ['nullable', 'numeric', 'between:-90,90'],
-            'branches.*.longitude' => ['nullable', 'numeric', 'between:-180,180'],
-
-            'dealer_users' => ['nullable', 'array'],
-            'dealer_users.*.firstname' => ['required', 'string', 'max:255'],
-            'dealer_users.*.lastname' => ['required', 'string', 'max:255'],
-            'dealer_users.*.email' => ['required', 'email', 'max:255', 'unique:dealer_users,email'],
-
-            'sales_people' => ['nullable', 'array'],
-            'sales_people.*.branch_client_key' => ['required', 'string', 'max:100'],
-            'sales_people.*.firstname' => ['required', 'string', 'max:255'],
-            'sales_people.*.lastname' => ['required', 'string', 'max:255'],
-            'sales_people.*.contact_no' => ['required', 'string', 'max:255'],
-            'sales_people.*.email' => ['nullable', 'email', 'max:255'],
-        ];
+        ], app(DealerBranchValidationRules::class)->many('branches', requireContactNumbers: true), app(DealerUserValidationRules::class)->many('dealer_users'), app(DealerSalesPersonValidationRules::class)->many('sales_people'), app(BankingDetailValidationRules::class)->upsertMany('banking_details', required: true), app(DealerSettingsValidation::class)->rules(includeBackofficeOnly: true));
     }
 
-    public function withValidator($validator): void
+    public function withValidator(Validator $validator): void
     {
+        $settingsValidation = app(DealerSettingsValidation::class);
+
         $validator->after(function ($validator) {
             $branchKeys = collect($this->input('branches', []))
                 ->pluck('client_key')
@@ -74,5 +59,34 @@ class StoreDealersManagementRequest extends FormRequest
                 $validator->errors()->add("sales_people.{$index}.branch_client_key", 'Selected branch is invalid.');
             }
         });
+
+        $validator->after(function (Validator $validator) use ($settingsValidation) {
+            $settingsValidation->validatePayload(
+                settings: (array) $this->input('settings', []),
+                validator: $validator,
+                includeBackofficeOnly: true
+            );
+        });
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $branchValidator = app(DealerBranchValidationRules::class);
+
+        $normalizedBranches = collect((array) $this->input('branches', []))
+            ->map(function ($branch) use ($branchValidator) {
+                if (!is_array($branch)) {
+                    return $branch;
+                }
+
+                $branch['contact_numbers'] = $branchValidator->normalizeContactNumbers($branch['contact_numbers'] ?? null);
+
+                return $branch;
+            })
+            ->all();
+
+        $this->merge([
+            'branches' => $normalizedBranches,
+        ]);
     }
 }

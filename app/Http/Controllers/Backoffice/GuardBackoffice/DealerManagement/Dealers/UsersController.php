@@ -10,8 +10,12 @@ use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Users\
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Users\StoreDealerUsersRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Users\UpdateDealerUsersRequest;
 use App\Http\Resources\Backoffice\GuardBackoffice\DealerManagement\Dealers\Users\DealerUsersIndexResource;
+use App\Actions\Backoffice\Shared\DealerUsers\CreateDealerUserRecordAction;
+use App\Actions\Backoffice\Shared\DealerUsers\UpdateDealerUserRecordAction;
+use App\Actions\Backoffice\Shared\DealerUsers\DeleteDealerUserRecordAction;
 use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerUser;
+use App\Support\Tables\DataTableColumnBuilder;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -50,18 +54,11 @@ class UsersController extends Controller
             )
         );
 
-        $columns = collect([
-            'name',
-            'email',
-            'status',
-        ])->map(fn (string $key) => [
-            'name' => $key,
-            'label' => Str::headline($key),
-            'sortable' => in_array($key, ['name', 'email', 'status'], true),
-            'align' => Str::endsWith($key, '_count') ? 'right' : 'left',
-            'field' => $key,
-            'numeric' => Str::endsWith($key, '_count'),
-        ])->values()->all();
+        $columns = DataTableColumnBuilder::make(
+            keys: ['name', 'email', 'status'],
+            sortableKeys: ['name', 'email', 'status'],
+            numericCountSuffix: true
+        );
 
         return Inertia::render('GuardBackoffice/DealerManagement/Dealers/Tabs/Users', [
             'publicTitle' => 'Dealer Management',
@@ -108,29 +105,29 @@ class UsersController extends Controller
         ]);
     }
 
-    public function store(StoreDealerUsersRequest $request, Dealer $dealer): RedirectResponse
+    public function store(StoreDealerUsersRequest $request, Dealer $dealer, CreateDealerUserRecordAction $action): RedirectResponse
     {
         $data = $request->safe()->except(['return_to']);
-        $dealerUser = $dealer->users()->create($data);
+        $dealerUser = $action->execute($dealer, $data);
         Password::broker('dealers')->sendResetLink(['email' => $dealerUser->email]);
 
         return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.users', $dealer->id)))
             ->with('success', 'Dealer user created.');
     }
 
-    public function update(UpdateDealerUsersRequest $request, Dealer $dealer, DealerUser $dealerUser): RedirectResponse
+    public function update(UpdateDealerUsersRequest $request, Dealer $dealer, DealerUser $dealerUser, UpdateDealerUserRecordAction $action): RedirectResponse
     {
         $data = $request->safe()->except(['return_to']);
-        $dealerUser->update($data);
+        $action->execute($dealer, $dealerUser, $data);
 
         return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.users', $dealer->id)))
             ->with('success', 'Dealer user updated.');
     }
 
-    public function destroy(DestroyDealerUsersRequest $request, Dealer $dealer, DealerUser $dealerUser): RedirectResponse
+    public function destroy(DestroyDealerUsersRequest $request, Dealer $dealer, DealerUser $dealerUser, DeleteDealerUserRecordAction $action): RedirectResponse
     {
         // @todo Revisit destroy behavior and ensure dependent entities are handled per business rules.
-        $dealerUser->delete();
+        $action->execute($dealer, $dealerUser);
 
         return back()->with('success', 'Dealer user deleted.');
     }

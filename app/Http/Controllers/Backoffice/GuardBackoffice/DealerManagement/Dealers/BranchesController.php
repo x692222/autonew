@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers;
 use App\Http\Controllers\Controller;
+use App\Actions\Backoffice\Shared\DealerBranches\CreateDealerBranchRecordAction;
+use App\Actions\Backoffice\Shared\DealerBranches\UpdateDealerBranchRecordAction;
+use App\Actions\Backoffice\Shared\DealerBranches\DeleteDealerBranchRecordAction;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Branches\CreateDealerBranchesRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Branches\DestroyDealerBranchesRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Branches\EditDealerBranchesRequest;
@@ -11,12 +14,11 @@ use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Branch
 use App\Http\Resources\Backoffice\GuardBackoffice\DealerManagement\Dealers\Branches\DealerBranchIndexResource;
 use App\Models\Dealer\DealerBranch;
 use App\Models\Dealer\Dealer;
-use App\Models\Location\LocationCity;
-use App\Models\Location\LocationCountry;
-use App\Models\Location\LocationState;
-use App\Models\Location\LocationSuburb;
 use App\Support\DeferredDatasets\DeferredBranchStockCount;
+use App\Support\Locations\DealerBranchLocationOptionsService;
+use App\Support\Options\LocationOptions;
 use App\Support\Options\StockOptions;
+use App\Support\Tables\DataTableColumnBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -26,6 +28,10 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 
 class BranchesController extends Controller
 {
+    public function __construct(private readonly DealerBranchLocationOptionsService $locationOptionsService)
+    {
+    }
+
     public function show(IndexDealerBranchesRequest $request, Dealer $dealer): Response
     {
         $filters = $request->validated();
@@ -76,25 +82,11 @@ class BranchesController extends Controller
             )
         );
 
-        $columns = collect([
-            'name',
-            'country',
-            'state',
-            'city',
-            'suburb',
-            'sale_people_count',
-            'total_stock_count',
-            'published_count',
-            'unpublished_count',
-            'notes_count',
-        ])->map(fn (string $key) => [
-            'name' => $key,
-            'label' => Str::headline($key),
-            'sortable' => in_array($key, ['name', 'sale_people_count', 'notes_count'], true),
-            'align' => Str::endsWith($key, '_count') ? 'right' : 'left',
-            'field' => $key,
-            'numeric' => Str::endsWith($key, '_count'),
-        ])->values()->all();
+        $columns = DataTableColumnBuilder::make(
+            keys: ['name', 'country', 'state', 'city', 'suburb', 'sale_people_count', 'total_stock_count', 'published_count', 'unpublished_count', 'notes_count'],
+            sortableKeys: ['name', 'sale_people_count', 'notes_count'],
+            numericCountSuffix: true
+        );
 
         return Inertia::render('GuardBackoffice/DealerManagement/Dealers/Tabs/Branches', [
             'publicTitle' => 'Dealer Management',
@@ -107,7 +99,7 @@ class BranchesController extends Controller
             'columns' => $columns,
             'records' => $records,
             'typeOptions' => StockOptions::types(withAll: true)->resolve(),
-            'options' => $this->locationOptionsForDealer($dealer),
+            'options' => $this->locationOptionsService->forDealer($dealer),
             'deferredStockCount' => DeferredBranchStockCount::resolve($branchIds, true, $stockType),
         ]);
     }
@@ -123,18 +115,18 @@ class BranchesController extends Controller
             'pageTab' => 'branches',
             'returnTo' => $request->input('return_to', route('backoffice.dealer-management.dealers.branches', $dealer->id)),
             'options' => [
-                'countries' => LocationCountry::query()->select(['id as value', 'name as label'])->orderBy('name')->get()->toArray(),
-                'states' => LocationState::query()->select(['id as value', 'name as label', 'country_id'])->orderBy('name')->get()->toArray(),
-                'cities' => LocationCity::query()->select(['id as value', 'name as label', 'state_id'])->orderBy('name')->get()->toArray(),
-                'suburbs' => LocationSuburb::query()->select(['id as value', 'name as label', 'city_id'])->orderBy('name')->get()->toArray(),
+                'countries' => LocationOptions::countries(null, null)->resolve(),
+                'states' => LocationOptions::states(null, null)->resolve(),
+                'cities' => LocationOptions::cities(null, null)->resolve(),
+                'suburbs' => LocationOptions::suburbs(null, null)->resolve(),
             ],
         ]);
     }
 
-    public function store(StoreDealerBranchesRequest $request, Dealer $dealer): RedirectResponse
+    public function store(StoreDealerBranchesRequest $request, Dealer $dealer, CreateDealerBranchRecordAction $action): RedirectResponse
     {
         $data = $request->safe()->except(['return_to']);
-        $dealer->branches()->create($data);
+        $action->execute($dealer, $data);
 
         return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.branches', $dealer->id)))
             ->with('success', 'Branch created.');
@@ -160,78 +152,28 @@ class BranchesController extends Controller
                 'longitude' => $branch->longitude,
             ],
             'options' => [
-                'countries' => LocationCountry::query()->select(['id as value', 'name as label'])->orderBy('name')->get()->toArray(),
-                'states' => LocationState::query()->select(['id as value', 'name as label', 'country_id'])->orderBy('name')->get()->toArray(),
-                'cities' => LocationCity::query()->select(['id as value', 'name as label', 'state_id'])->orderBy('name')->get()->toArray(),
-                'suburbs' => LocationSuburb::query()->select(['id as value', 'name as label', 'city_id'])->orderBy('name')->get()->toArray(),
+                'countries' => LocationOptions::countries(null, null)->resolve(),
+                'states' => LocationOptions::states(null, null)->resolve(),
+                'cities' => LocationOptions::cities(null, null)->resolve(),
+                'suburbs' => LocationOptions::suburbs(null, null)->resolve(),
             ],
         ]);
     }
 
-    public function update(UpdateDealerBranchesRequest $request, Dealer $dealer, DealerBranch $branch): RedirectResponse
+    public function update(UpdateDealerBranchesRequest $request, Dealer $dealer, DealerBranch $branch, UpdateDealerBranchRecordAction $action): RedirectResponse
     {
         $data = $request->safe()->except(['return_to']);
-        $branch->update($data);
+        $action->execute($dealer, $branch, $data);
 
         return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.branches', $dealer->id)))
             ->with('success', 'Branch updated.');
     }
 
-    public function destroy(DestroyDealerBranchesRequest $request, Dealer $dealer, DealerBranch $branch): RedirectResponse
+    public function destroy(DestroyDealerBranchesRequest $request, Dealer $dealer, DealerBranch $branch, DeleteDealerBranchRecordAction $action): RedirectResponse
     {
         // @todo Revisit destroy behavior and ensure dependent entities are handled per business rules.
-        $branch->delete();
+        $action->execute($dealer, $branch);
 
         return back()->with('success', 'Branch deleted.');
-    }
-
-    private function locationOptionsForDealer(Dealer $dealer): array
-    {
-        $rows = $dealer->branches()
-            ->join('location_suburbs', 'location_suburbs.id', '=', 'dealer_branches.suburb_id')
-            ->join('location_cities', 'location_cities.id', '=', 'location_suburbs.city_id')
-            ->join('location_states', 'location_states.id', '=', 'location_cities.state_id')
-            ->join('location_countries', 'location_countries.id', '=', 'location_states.country_id')
-            ->select([
-                'location_countries.id as country_id',
-                'location_countries.name as country_name',
-                'location_states.id as state_id',
-                'location_states.name as state_name',
-                'location_states.country_id as state_country_id',
-                'location_cities.id as city_id',
-                'location_cities.name as city_name',
-                'location_cities.state_id as city_state_id',
-                'location_suburbs.id as suburb_id',
-                'location_suburbs.name as suburb_name',
-                'location_suburbs.city_id as suburb_city_id',
-            ])
-            ->distinct()
-            ->orderBy('location_countries.name')
-            ->orderBy('location_states.name')
-            ->orderBy('location_cities.name')
-            ->orderBy('location_suburbs.name')
-            ->get();
-
-        return [
-            'countries' => $rows->map(fn ($row) => [
-                'value' => $row->country_id,
-                'label' => $row->country_name,
-            ])->unique('value')->values()->all(),
-            'states' => $rows->map(fn ($row) => [
-                'value' => $row->state_id,
-                'label' => $row->state_name,
-                'country_id' => $row->state_country_id,
-            ])->unique('value')->values()->all(),
-            'cities' => $rows->map(fn ($row) => [
-                'value' => $row->city_id,
-                'label' => $row->city_name,
-                'state_id' => $row->city_state_id,
-            ])->unique('value')->values()->all(),
-            'suburbs' => $rows->map(fn ($row) => [
-                'value' => $row->suburb_id,
-                'label' => $row->suburb_name,
-                'city_id' => $row->suburb_city_id,
-            ])->unique('value')->values()->all(),
-        ];
     }
 }

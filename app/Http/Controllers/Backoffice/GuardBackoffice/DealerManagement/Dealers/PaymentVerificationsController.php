@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Deale
 
 use App\Actions\Backoffice\Shared\Payments\VerifyPaymentAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Backoffice\Shared\Payments\IndexPaymentVerificationsRequest;
 use App\Models\Dealer\Dealer;
 use App\Models\Payments\Payment;
-use App\Support\Payments\PaymentValidationRules;
 use App\Support\Payments\PaymentVerificationsIndexService;
 use App\Support\Settings\DocumentSettingsPresenter;
 use Illuminate\Http\Request;
@@ -18,17 +18,16 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 class PaymentVerificationsController extends Controller
 {
     public function __construct(
-        private readonly PaymentValidationRules $validationRules,
         private readonly PaymentVerificationsIndexService $indexService,
         private readonly VerifyPaymentAction $verifyPaymentAction,
         private readonly DocumentSettingsPresenter $documentSettings,
     ) {
     }
 
-    public function index(Request $request, Dealer $dealer): Response
+    public function index(IndexPaymentVerificationsRequest $request, Dealer $dealer): Response
     {
         Gate::authorize('showPaymentVerifications', $dealer);
-        $filters = $request->validate($this->validationRules->index());
+        $filters = $request->validated();
         $filters['verification_status'] = $filters['verification_status'] ?? 'pending';
         $records = $this->indexService->paginate($filters, $dealer->id);
 
@@ -54,7 +53,7 @@ class PaymentVerificationsController extends Controller
     public function verify(Request $request, Dealer $dealer, Payment $payment): RedirectResponse
     {
         Gate::authorize('verifyPayment', [$dealer, $payment]);
-        $this->verifyPaymentAction->execute($payment, $request->user('backoffice'));
+        $this->verifyPaymentAction->execute($payment, $request->user('backoffice'), $dealer);
 
         return back()->with('success', 'Payment verified.');
     }

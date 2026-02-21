@@ -3,6 +3,7 @@ import { Head, router, usePage, useForm } from '@inertiajs/vue3'
 import { computed, ref } from 'vue'
 import Layout from 'bo@/Layouts/Layout.vue'
 import PaginatedTable from 'bo@/Components/Shared/PaginatedTable.vue'
+import BankingDetailFields from 'bo@/Components/BankingDetails/BankingDetailFields.vue'
 import DealerTabs from 'bo@/Pages/GuardBackoffice/DealerManagement/Dealers/_Tabs.vue'
 import DealerConfigurationNav from 'bo@/Pages/GuardDealer/DealerConfiguration/_Nav.vue'
 import { useConfirmAction } from 'bo@/Composables/useConfirmAction'
@@ -205,88 +206,13 @@ const confirmDelete = (row) => {
             <q-card-section><div class="text-h6">{{ editingId ? 'Edit Banking Details Record' : 'Create Banking Details Record' }}</div></q-card-section>
             <q-separator />
             <q-card-section>
-                <div class="row q-col-gutter-md">
-                    <div class="col-12">
-                        <q-input
-                            v-model="form.bank"
-                            dense
-                            outlined
-                            maxlength="50"
-                            label="Bank"
-                            :error="!!form.errors.bank"
-                            :error-message="form.errors.bank"
-                        />
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <q-input
-                            v-model="form.account_holder"
-                            dense
-                            outlined
-                            maxlength="75"
-                            label="Account Holder"
-                            :error="!!form.errors.account_holder"
-                            :error-message="form.errors.account_holder"
-                        />
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <q-input
-                            v-model="form.account_number"
-                            dense
-                            outlined
-                            maxlength="25"
-                            label="Account Number"
-                            :error="!!form.errors.account_number"
-                            :error-message="form.errors.account_number"
-                        />
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <q-input
-                            v-model="form.branch_name"
-                            dense
-                            outlined
-                            maxlength="50"
-                            label="Branch Name"
-                            :error="!!form.errors.branch_name"
-                            :error-message="form.errors.branch_name"
-                        />
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <q-input
-                            v-model="form.branch_code"
-                            dense
-                            outlined
-                            maxlength="50"
-                            label="Branch Code"
-                            :error="!!form.errors.branch_code"
-                            :error-message="form.errors.branch_code"
-                        />
-                    </div>
-                    <div class="col-12">
-                        <q-input
-                            v-model="form.swift_code"
-                            dense
-                            outlined
-                            maxlength="20"
-                            label="Swift Code"
-                            :error="!!form.errors.swift_code"
-                            :error-message="form.errors.swift_code"
-                        />
-                    </div>
-                    <div class="col-12">
-                        <q-input
-                            v-model="form.other_details"
-                            dense
-                            outlined
-                            type="textarea"
-                            rows="5"
-                            maxlength="200"
-                            counter
-                            label="Other Details"
-                            :error="!!form.errors.other_details"
-                            :error-message="form.errors.other_details"
-                        />
-                    </div>
-                </div>
+                <BankingDetailFields
+                    :model-value="form"
+                    :errors="form.errors"
+                    variant="outlined"
+                    :dense="true"
+                    @update:model-value="(value) => Object.assign(form, value)"
+                />
             </q-card-section>
             <q-separator />
             <q-card-actions align="right">

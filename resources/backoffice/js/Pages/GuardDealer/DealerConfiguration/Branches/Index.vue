@@ -127,7 +127,7 @@ hydrateFromCurrent()
             <div class="row q-col-gutter-sm items-center">
                 <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedType" dense outlined emit-value map-options :options="typeOptions" label="Stock Type" @update:model-value="goFirst" /></div>
                 <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedCountry" dense outlined clearable emit-value map-options :options="countriesAll" label="Country" @update:model-value="onCountryFilterChanged" /></div>
-                <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedState" dense outlined clearable emit-value map-options :options="stateOptions" label="State" @update:model-value="onStateFilterChanged" /></div>
+                <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedState" dense outlined clearable emit-value map-options :options="stateOptions" label="Province" @update:model-value="onStateFilterChanged" /></div>
                 <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedCity" dense outlined clearable emit-value map-options :options="cityOptions" label="City" @update:model-value="onCityFilterChanged" /></div>
                 <div class="col-auto" style="min-width: 180px;"><q-select v-model="selectedSuburb" dense outlined clearable emit-value map-options :options="suburbOptions" label="Suburb" @update:model-value="onSuburbFilterChanged" /></div>
                 <div class="col-auto" style="min-width: 280px;"><q-input v-model="search" dense outlined clearable debounce="700" placeholder="Search branches..." :input-attrs="{ autocomplete: 'off' }" @update:model-value="goFirst" /></div>

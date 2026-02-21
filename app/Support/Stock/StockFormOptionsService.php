@@ -4,7 +4,7 @@ namespace App\Support\Stock;
 
 use App\Models\Dealer\Dealer;
 use App\Models\Stock\Stock;
-use App\Models\Stock\StockFeatureTag;
+use App\Http\Resources\KeyValueOptions\GeneralCollection;
 use App\Support\StockHelper;
 use App\Support\Options\DealerOptions;
 use App\Support\Options\StockOptions;
@@ -13,11 +13,6 @@ class StockFormOptionsService
 {
     public function createOptions(Dealer $dealer): array
     {
-        $featureTagsRaw = StockFeatureTag::query()
-            ->select(['id', 'name', 'stock_type'])
-            ->orderBy('name')
-            ->get();
-
         return [
             'branches' => DealerOptions::branchesList((string) $dealer->id, withAll: false)->resolve(),
             'typeOptions' => StockOptions::types(withAll: false)->resolve(),
@@ -31,18 +26,9 @@ class StockFormOptionsService
             ],
             'vehicleModelsByMakeId' => collect(StockOptions::modelsByMakeAndType(Stock::STOCK_TYPE_VEHICLE, null, withAll: false)->resolve())
                 ->groupBy('make_id')
-                ->map(fn ($rows) => collect($rows)->map(fn ($item) => [
-                    'label' => $item['label'],
-                    'value' => $item['value'],
-                ])->values()->all())
+                ->map(fn ($rows) => (new GeneralCollection(collect($rows)))->resolve())
                 ->all(),
-            'featureTagsByType' => $featureTagsRaw
-                ->groupBy('stock_type')
-                ->map(fn ($rows) => $rows->map(fn ($item) => [
-                    'label' => $item->name,
-                    'value' => $item->id,
-                ])->values()->all())
-                ->all(),
+            'featureTagsByType' => StockOptions::featureTagsGroupedByType(),
             'enumOptions' => [
                 Stock::STOCK_TYPE_VEHICLE => $this->enumSet(Stock::STOCK_TYPE_VEHICLE),
                 Stock::STOCK_TYPE_MOTORBIKE => $this->enumSet(Stock::STOCK_TYPE_MOTORBIKE),
@@ -63,19 +49,9 @@ class StockFormOptionsService
             'makes' => StockOptions::makesByType($type, withAll: false)->resolve(),
             'vehicleModelsByMakeId' => collect(StockOptions::modelsByMakeAndType(Stock::STOCK_TYPE_VEHICLE, null, withAll: false)->resolve())
                 ->groupBy('make_id')
-                ->map(fn ($rows) => collect($rows)->map(fn ($item) => [
-                    'label' => $item['label'],
-                    'value' => $item['value'],
-                ])->values()->all())
+                ->map(fn ($rows) => (new GeneralCollection(collect($rows)))->resolve())
                 ->all(),
-            'featureOptions' => StockFeatureTag::query()
-                ->select(['id', 'name'])
-                ->where('stock_type', $type)
-                ->orderBy('name')
-                ->get()
-                ->map(fn ($item) => ['label' => $item->name, 'value' => $item->id])
-                ->values()
-                ->all(),
+            'featureOptions' => StockOptions::featureTagsSimpleByType(type: $type)->resolve(),
             'enumOptions' => [
                 $type => $this->enumSet($type),
             ],

@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Backoffice\GuardBackoffice\System\Quotations;
 
 use App\Models\Quotation\Quotation;
-use App\Support\Quotations\QuotationValidationRules;
+use App\Support\Validation\Quotations\QuotationValidationRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 

@@ -6,6 +6,7 @@ use App\Models\Location\LocationCity;
 use App\Models\Location\LocationCountry;
 use App\Models\Location\LocationState;
 use App\Models\Location\LocationSuburb;
+use App\Support\Options\LocationOptions;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -56,5 +57,7 @@ class LocationDatasetSeeder extends Seeder
                 }
             }
         });
+
+        LocationOptions::bumpCacheVersion();
     }
 }

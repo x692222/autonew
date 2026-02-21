@@ -4,6 +4,7 @@ namespace App\Support\Quotations;
 
 use App\Models\Dealer\Dealer;
 use App\Models\Quotation\Quotation;
+use App\Support\Resolvers\Quotations\QuotationVatSnapshotResolver;
 
 class QuotationEditabilityService
 {
@@ -33,4 +34,3 @@ class QuotationEditabilityService
         return $this->vatSnapshotResolver->hasMatchingVatSnapshot($current, $snapshot);
     }
 }
-

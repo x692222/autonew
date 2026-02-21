@@ -6,6 +6,7 @@ use App\Models\Invoice\Invoice;
 use App\Models\Payments\Payment;
 use App\Support\Invoices\InvoiceAmountSummaryService;
 use App\Support\Payments\InvoicePaymentStateUpdater;
+use App\Support\Security\TenantScopeEnforcer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -14,13 +15,23 @@ class UpsertPaymentAction
 {
     public function __construct(
         private readonly InvoicePaymentStateUpdater $invoicePaymentStateUpdater,
-        private readonly InvoiceAmountSummaryService $amountSummaryService
+        private readonly InvoiceAmountSummaryService $amountSummaryService,
+        private readonly TenantScopeEnforcer $tenantScopeEnforcer,
     ) {
     }
 
     public function execute(?Payment $payment, Invoice $invoice, array $data, Model $actor, ?string $ipAddress = null): Payment
     {
         return DB::transaction(function () use ($payment, $invoice, $data, $actor, $ipAddress): Payment {
+            if ($payment) {
+                $this->tenantScopeEnforcer->assertPaymentMatchesInvoiceScope($payment, $invoice);
+            }
+
+            $this->tenantScopeEnforcer->assertBankingDetailInScope(
+                bankingDetailId: $data['payment_method'] === 'eft' ? ($data['banking_detail_id'] ?? null) : null,
+                dealerId: $invoice->dealer_id
+            );
+
             $amount = round((float) ($data['amount'] ?? 0), 2);
             $existingTotal = round((float) $invoice->payments()->when($payment, fn ($query) => $query->where('id', '!=', $payment->id))->sum('amount'), 2);
             $wouldBeTotal = round($existingTotal + $amount, 2);

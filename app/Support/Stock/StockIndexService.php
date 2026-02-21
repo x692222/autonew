@@ -2,7 +2,6 @@
 
 namespace App\Support\Stock;
 
-use App\Enums\PoliceClearanceStatusEnum;
 use App\Models\Stock\Stock;
 use App\Models\Stock\StockTypeCommercial;
 use App\Models\Stock\StockTypeGear;
@@ -122,14 +121,7 @@ class StockIndexService
             'typeOptions' => StockOptions::types(withAll: true)->resolve(),
             'activeStatusOptions' => GeneralOptions::activeOptions(withAll: true)->resolve(),
             'soldStatusOptions' => GeneralOptions::isSoldOptions(withAll: true)->resolve(),
-            'policeClearanceReadyOptions' => collect(PoliceClearanceStatusEnum::cases())
-                ->map(fn (PoliceClearanceStatusEnum $item) => [
-                    'label' => ucfirst($item->value),
-                    'value' => $item->value,
-                ])
-                ->prepend(['label' => 'All', 'value' => ''])
-                ->values()
-                ->all(),
+            'policeClearanceReadyOptions' => GeneralOptions::policeClearanceStatuses(withAll: true)->resolve(),
             'conditionOptions' => StockOptions::conditions($type, withAll: true)->resolve(),
             'colorOptions' => StockOptions::colors($type, withAll: true)->resolve(),
             'makes' => StockOptions::makesByType($type, withAll: true)->resolve(),

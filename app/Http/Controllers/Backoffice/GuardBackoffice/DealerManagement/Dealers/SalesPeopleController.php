@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers;
 use App\Http\Controllers\Controller;
+use App\Actions\Backoffice\Shared\DealerSalesPeople\CreateDealerSalesPersonRecordAction;
+use App\Actions\Backoffice\Shared\DealerSalesPeople\UpdateDealerSalesPersonRecordAction;
+use App\Actions\Backoffice\Shared\DealerSalesPeople\DeleteDealerSalesPersonRecordAction;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\SalesPeople\CreateDealerSalesPeopleRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\SalesPeople\DestroyDealerSalesPeopleRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\SalesPeople\EditDealerSalesPeopleRequest;
@@ -12,6 +15,8 @@ use App\Http\Resources\Backoffice\GuardBackoffice\DealerManagement\Dealers\Sales
 use App\Models\Dealer\DealerBranch;
 use App\Models\Dealer\DealerSalePerson;
 use App\Models\Dealer\Dealer;
+use App\Support\Options\DealerOptions;
+use App\Support\Tables\DataTableColumnBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -61,20 +66,11 @@ class SalesPeopleController extends Controller
             )
         );
 
-        $columns = collect([
-            'branch',
-            'firstname',
-            'lastname',
-            'contact_no',
-            'email',
-        ])->map(fn (string $key) => [
-            'name' => $key,
-            'label' => Str::headline($key),
-            'sortable' => in_array($key, ['branch', 'firstname', 'lastname'], true),
-            'align' => Str::endsWith($key, '_count') ? 'right' : 'left',
-            'field' => $key,
-            'numeric' => Str::endsWith($key, '_count'),
-        ])->values()->all();
+        $columns = DataTableColumnBuilder::make(
+            keys: ['branch', 'firstname', 'lastname', 'contact_no', 'email'],
+            sortableKeys: ['branch', 'firstname', 'lastname'],
+            numericCountSuffix: true
+        );
 
         return Inertia::render('GuardBackoffice/DealerManagement/Dealers/Tabs/SalesPeople', [
             'publicTitle' => 'Dealer Management',
@@ -86,11 +82,7 @@ class SalesPeopleController extends Controller
             'filters' => $filters,
             'columns' => $columns,
             'records' => $records,
-            'branchOptions' => $dealer->branches()
-                ->select(['id as value', 'name as label'])
-                ->orderBy('name')
-                ->get()
-                ->toArray(),
+            'branchOptions' => DealerOptions::branchesSimpleList((string) $dealer->id)->resolve(),
         ]);
     }
 
@@ -104,11 +96,7 @@ class SalesPeopleController extends Controller
             ],
             'pageTab' => 'sales-people',
             'returnTo' => $request->input('return_to', route('backoffice.dealer-management.dealers.sales-people', $dealer->id)),
-            'branchOptions' => $dealer->branches()
-                ->select(['id as value', 'name as label'])
-                ->orderBy('name')
-                ->get()
-                ->toArray(),
+            'branchOptions' => DealerOptions::branchesSimpleList((string) $dealer->id)->resolve(),
             'data' => [
                 'id' => $salesPerson->id,
                 'branch_id' => $salesPerson->branch_id,
@@ -130,46 +118,32 @@ class SalesPeopleController extends Controller
             ],
             'pageTab' => 'sales-people',
             'returnTo' => $request->input('return_to', route('backoffice.dealer-management.dealers.sales-people', $dealer->id)),
-            'branchOptions' => $dealer->branches()
-                ->select(['id as value', 'name as label'])
-                ->orderBy('name')
-                ->get()
-                ->toArray(),
+            'branchOptions' => DealerOptions::branchesSimpleList((string) $dealer->id)->resolve(),
         ]);
     }
 
-    public function store(StoreDealerSalesPeopleRequest $request, Dealer $dealer): RedirectResponse
+    public function store(StoreDealerSalesPeopleRequest $request, Dealer $dealer, CreateDealerSalesPersonRecordAction $action): RedirectResponse
     {
         $data = $request->safe()->except(['return_to']);
-        $branchBelongsToDealer = $dealer->branches()->whereKey($data['branch_id'])->exists();
-        if (! $branchBelongsToDealer) {
-            return back()->withErrors(['branch_id' => 'Selected branch is invalid for this dealer.'])->withInput();
-        }
-
-        DealerSalePerson::query()->create($data);
+        $action->execute($dealer, $data);
 
         return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.sales-people', $dealer->id)))
             ->with('success', 'Sales person created.');
     }
 
-    public function update(UpdateDealerSalesPeopleRequest $request, Dealer $dealer, DealerSalePerson $salesPerson): RedirectResponse
+    public function update(UpdateDealerSalesPeopleRequest $request, Dealer $dealer, DealerSalePerson $salesPerson, UpdateDealerSalesPersonRecordAction $action): RedirectResponse
     {
         $data = $request->safe()->except(['return_to']);
-        $branchBelongsToDealer = $dealer->branches()->whereKey($data['branch_id'])->exists();
-        if (! $branchBelongsToDealer) {
-            return back()->withErrors(['branch_id' => 'Selected branch is invalid for this dealer.'])->withInput();
-        }
-
-        $salesPerson->update($data);
+        $action->execute($dealer, $salesPerson, $data);
 
         return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.sales-people', $dealer->id)))
             ->with('success', 'Sales person updated.');
     }
 
-    public function destroy(DestroyDealerSalesPeopleRequest $request, Dealer $dealer, DealerSalePerson $salesPerson): RedirectResponse
+    public function destroy(DestroyDealerSalesPeopleRequest $request, Dealer $dealer, DealerSalePerson $salesPerson, DeleteDealerSalesPersonRecordAction $action): RedirectResponse
     {
         // @todo Revisit destroy behavior and ensure dependent entities are handled per business rules.
-        $salesPerson->delete();
+        $action->execute($dealer, $salesPerson);
 
         return back()->with('success', 'Sales person deleted.');
     }

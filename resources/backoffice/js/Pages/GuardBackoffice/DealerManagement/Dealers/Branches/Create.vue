@@ -2,6 +2,7 @@
 import { Head, router, useForm } from '@inertiajs/vue3'
 import { computed, inject } from 'vue'
 import Layout from 'bo@/Layouts/Layout.vue'
+import BranchContactLocationFields from 'bo@/Components/Branches/BranchContactLocationFields.vue'
 import DealerTabs from 'bo@/Pages/GuardBackoffice/DealerManagement/Dealers/_Tabs.vue'
 import { useLocationHierarchy } from 'bo@/Composables/useLocationHierarchy'
 
@@ -107,10 +108,6 @@ const cancel = () => {
                     </div>
 
                     <div class="col-12 col-md-6">
-                        <q-input v-model="form.contact_numbers" label="Contact numbers" filled dense :error="!!form.errors.contact_numbers" :error-message="form.errors.contact_numbers" />
-                    </div>
-
-                    <div class="col-12">
                         <q-input v-model="form.display_address" label="Display address" filled dense :error="!!form.errors.display_address" :error-message="form.errors.display_address" />
                     </div>
 
@@ -119,7 +116,7 @@ const cancel = () => {
                     </div>
 
                     <div class="col-12 col-md-6">
-                        <q-select v-model="form.state_id" filled dense emit-value map-options :options="stateOptions" label="State" :error="!!form.errors.state_id" :error-message="form.errors.state_id" @update:model-value="onStateChanged" />
+                        <q-select v-model="form.state_id" filled dense emit-value map-options :options="stateOptions" label="Province" :error="!!form.errors.state_id" :error-message="form.errors.state_id" @update:model-value="onStateChanged" />
                     </div>
 
                     <div class="col-12 col-md-6">
@@ -130,12 +127,15 @@ const cancel = () => {
                         <q-select v-model="form.suburb_id" filled dense emit-value map-options :options="suburbOptions" label="Suburb" :error="!!form.errors.suburb_id" :error-message="form.errors.suburb_id" @update:model-value="onSuburbChanged" />
                     </div>
 
-                    <div class="col-12 col-md-6">
-                        <q-input v-model="form.latitude" type="number" filled dense label="Latitude" :error="!!form.errors.latitude" :error-message="form.errors.latitude" />
-                    </div>
-
-                    <div class="col-12 col-md-6">
-                        <q-input v-model="form.longitude" type="number" filled dense label="Longitude" :error="!!form.errors.longitude" :error-message="form.errors.longitude" />
+                    <div class="col-12">
+                        <BranchContactLocationFields
+                            :model-value="form"
+                            :errors="form.errors"
+                            variant="filled"
+                            :dense="true"
+                            :contact-required="false"
+                            @update:model-value="(value) => Object.assign(form, value)"
+                        />
                     </div>
                 </div>
 

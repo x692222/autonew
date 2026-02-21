@@ -3,9 +3,7 @@
 namespace App\Http\Controllers\Backoffice\GuardBackoffice\System;
 
 use App\Actions\Backoffice\Shared\Invoices\UpsertInvoiceAction;
-use App\Enums\PaymentMethodEnum;
-use App\Models\Billing\BankingDetail;
-use App\Enums\InvoiceCustomerTypeEnum;
+use App\Actions\Backoffice\Shared\Documents\DeleteInvoiceAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\GuardBackoffice\System\Invoices\CreateSystemInvoicesRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\System\Invoices\DestroySystemInvoicesRequest;
@@ -20,9 +18,11 @@ use App\Models\Invoice\Invoice;
 use App\Support\Invoices\InvoiceEditabilityService;
 use App\Support\Invoices\InvoiceIndexService;
 use App\Support\Invoices\InvoiceSectionOptions;
-use App\Support\Invoices\InvoiceVatSnapshotResolver;
+use App\Support\Resolvers\Invoices\InvoiceVatSnapshotResolver;
+use App\Support\Options\BankingDetailOptions;
+use App\Support\Options\GeneralOptions;
 use App\Support\Settings\DocumentSettingsPresenter;
-use Illuminate\Support\Str;
+use App\Support\Tables\DataTableColumnBuilder;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -65,25 +65,22 @@ class InvoicesController extends Controller
             )
         );
 
-        $columns = collect([
-            'invoice_date',
-            'is_fully_paid',
-            'is_fully_verified',
-            'invoice_identifier',
-            'payable_by',
-            'customer_firstname',
-            'customer_lastname',
-            'total_amount',
-            'total_paid_amount',
-            'total_due',
-        ])->map(fn (string $key) => [
-            'name' => $key,
-            'label' => Str::headline($key),
-            'sortable' => true,
-            'align' => in_array($key, ['total_amount', 'total_paid_amount', 'total_due'], true) ? 'right' : 'left',
-            'field' => $key,
-            'numeric' => in_array($key, ['total_amount', 'total_paid_amount', 'total_due'], true),
-        ])->values()->all();
+        $columns = DataTableColumnBuilder::make(
+            keys: [
+                'invoice_date',
+                'is_fully_paid',
+                'is_fully_verified',
+                'invoice_identifier',
+                'payable_by',
+                'customer_firstname',
+                'customer_lastname',
+                'total_amount',
+                'total_paid_amount',
+                'total_due',
+            ],
+            allSortable: true,
+            numericKeys: ['total_amount', 'total_paid_amount', 'total_due']
+        );
 
         return Inertia::render('Shared/Invoices/Index', [
             'publicTitle' => 'Invoices',
@@ -116,10 +113,7 @@ class InvoicesController extends Controller
                 'showDealerAssociatedStock' => false,
             ],
             'data' => null,
-            'customerTypeOptions' => collect(InvoiceCustomerTypeEnum::cases())
-                ->map(fn (InvoiceCustomerTypeEnum $enumCase) => ['label' => Str::headline($enumCase->value), 'value' => $enumCase->value])
-                ->values()
-                ->all(),
+            'customerTypeOptions' => GeneralOptions::invoiceCustomerTypes()->resolve(),
             'sectionOptions' => InvoiceSectionOptions::system(),
             'vat' => $vatSnapshot,
             'canEdit' => true,
@@ -189,10 +183,7 @@ class InvoicesController extends Controller
                 'showDealerAssociatedStock' => true,
             ],
             'data' => (new InvoiceEditResource($invoice))->resolve(),
-            'customerTypeOptions' => collect(InvoiceCustomerTypeEnum::cases())
-                ->map(fn (InvoiceCustomerTypeEnum $enumCase) => ['label' => Str::headline($enumCase->value), 'value' => $enumCase->value])
-                ->values()
-                ->all(),
+            'customerTypeOptions' => GeneralOptions::invoiceCustomerTypes()->resolve(),
             'sectionOptions' => InvoiceSectionOptions::system(),
             'vat' => [
                 'vat_enabled' => (bool) $invoice->vat_enabled,
@@ -220,21 +211,8 @@ class InvoicesController extends Controller
                 ])
                 ->values()
                 ->all(),
-            'bankingDetailOptions' => BankingDetail::query()
-                ->system()
-                ->select(['id as value', 'bank', 'account_number'])
-                ->orderBy('bank')
-                ->get()
-                ->map(fn ($row) => [
-                    'value' => $row->value,
-                    'label' => trim((string) ($row->bank ?? '')) . ' (' . trim((string) ($row->account_number ?? '')) . ')',
-                ])
-                ->values()
-                ->all(),
-            'paymentMethodOptions' => collect(PaymentMethodEnum::cases())
-                ->map(fn (PaymentMethodEnum $method) => ['value' => $method->value, 'label' => str($method->value)->replace('_', ' ')->upper()->toString()])
-                ->values()
-                ->all(),
+            'bankingDetailOptions' => BankingDetailOptions::system()->resolve(),
+            'paymentMethodOptions' => GeneralOptions::paymentMethods()->resolve(),
             'paymentRoutes' => [
                 'store' => route('backoffice.system.invoices.payments.store', $invoice),
                 'showName' => 'backoffice.system.payments.show',
@@ -280,10 +258,10 @@ class InvoicesController extends Controller
         return back()->with('success', 'Invoice updated.');
     }
 
-    public function destroy(DestroySystemInvoicesRequest $request, Invoice $invoice): RedirectResponse
+    public function destroy(DestroySystemInvoicesRequest $request, Invoice $invoice, DeleteInvoiceAction $action): RedirectResponse
     {
         // @todo Revisit destroy behavior and ensure dependent entities are handled per business rules.
-        $invoice->delete();
+        $action->execute($invoice);
 
         return back()->with('success', 'Invoice deleted.');
     }

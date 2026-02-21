@@ -2,6 +2,9 @@
 import { Head, router, useForm } from '@inertiajs/vue3'
 import { computed, inject } from 'vue'
 import Layout from 'bo@/Layouts/Layout.vue'
+import BankingDetailFields from 'bo@/Components/BankingDetails/BankingDetailFields.vue'
+import BranchContactLocationFields from 'bo@/Components/Branches/BranchContactLocationFields.vue'
+import SettingsFields from 'bo@/Components/Settings/SettingsFields.vue'
 
 defineOptions({ layout: Layout })
 
@@ -14,7 +17,35 @@ const props = defineProps({
         type: Object,
         default: () => ({ countries: [], states: [], cities: [], suburbs: [], whatsappNumbers: [] }),
     },
+    settings: { type: Array, default: () => [] },
+    settingsFallback: { type: Array, default: () => [] },
+    timezoneOptions: { type: Array, default: () => [] },
+    stockTypeOptions: { type: Array, default: () => [] },
 })
+
+const dealerSettings = computed(() => {
+    if (Array.isArray(props.settings) && props.settings.length > 0) {
+        return props.settings
+    }
+
+    return Array.isArray(props.settingsFallback) ? props.settingsFallback : []
+})
+
+const requiredDealerSettingKeys = [
+    'contact_no_prefix',
+    'dealer_currency',
+    'rate_per_ai_input_million_tokens',
+    'rate_per_ai_output_million_tokens',
+    'rate_per_standard_whatsapp_message',
+    'rate_per_template_whatsapp_message',
+    'hours_to_reassign',
+    'lead_acknowledgement_minutes',
+    'max_historical_published_stock_items',
+    'minimum_images_required_for_live',
+    'max_concurrent_published_stock_items',
+    'maximum_images',
+    'maximum_files_in_bucket',
+]
 
 const createKey = () => {
     if (globalThis.crypto?.randomUUID) {
@@ -51,10 +82,22 @@ const newSalesPerson = () => ({
     email: '',
 })
 
+const newBankingDetail = () => ({
+    bank: '',
+    account_holder: '',
+    account_number: '',
+    branch_name: '',
+    branch_code: '',
+    swift_code: '',
+    other_details: '',
+})
+
 const form = useForm({
     return_to: props.returnTo || '',
     name: '',
     whatsapp_number_id: null,
+    settings: Object.fromEntries((dealerSettings.value || []).map((row) => [row.key, row.value])),
+    banking_details: [newBankingDetail()],
     branches: [newBranch()],
     dealer_users: [newDealerUser()],
     sales_people: [newSalesPerson()],
@@ -288,16 +331,22 @@ const removeSalesPerson = (index) => {
     }
 }
 
+const addBankingDetail = () => {
+    form.banking_details.push(newBankingDetail())
+}
+
+const removeBankingDetail = (index) => {
+    form.banking_details.splice(index, 1)
+
+    if (form.banking_details.length === 0) {
+        form.banking_details.push(newBankingDetail())
+    }
+}
+
 const err = (path) => form.errors[path] ?? ''
 
 const submit = () => {
-    const payload = {
-        ...form.data(),
-        dealer_users: form.dealer_users.filter((row) => row.firstname || row.lastname || row.email),
-        sales_people: form.sales_people.filter((row) => row.firstname || row.lastname || row.contact_no || row.email),
-    }
-
-    form.transform(() => payload).post(route('backoffice.dealer-management.dealers.store'), {
+    form.post(route('backoffice.dealer-management.dealers.store'), {
         preserveScroll: true,
     })
 }
@@ -314,341 +363,413 @@ const cancel = () => {
         <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
     </div>
 
-    <q-card flat bordered>
-        <q-card-section>
-            <div class="text-h6 q-pb-lg">Create Dealer</div>
+    <q-form @submit.prevent="submit">
+        <div class="column q-gutter-md">
+            <q-card flat bordered>
+                <q-card-section>
+                    <div class="text-h6 q-pb-lg">General Dealer Info</div>
 
-            <q-form @submit.prevent="submit">
-                <div class="row q-col-gutter-md">
-                    <div class="col-12 col-md-6">
-                        <q-input
-                            v-model="form.name"
-                            label="Dealer name"
-                            filled
-                            dense
-                            :error="!!err('name')"
-                            :error-message="err('name')"
-                            autocomplete="off"
-                        />
+                    <div class="row q-col-gutter-md">
+                        <div class="col-12 col-md-6">
+                            <q-input
+                                v-model="form.name"
+                                label="Dealer name"
+                                filled
+                                dense
+                                :error="!!err('name')"
+                                :error-message="err('name')"
+                                autocomplete="off"
+                            />
+                        </div>
+
+                        <div class="col-12 col-md-6">
+                            <q-select
+                                v-model="form.whatsapp_number_id"
+                                label="Whatsapp number"
+                                dense
+                                filled
+                                clearable
+                                emit-value
+                                map-options
+                                :options="whatsappNumbers"
+                                :error="!!err('whatsapp_number_id')"
+                                :error-message="err('whatsapp_number_id')"
+                            />
+                        </div>
                     </div>
+                </q-card-section>
+            </q-card>
 
-                    <div class="col-12 col-md-6">
-                        <q-select
-                            v-model="form.whatsapp_number_id"
-                            label="Whatsapp number"
-                            dense
-                            filled
-                            clearable
-                            emit-value
-                            map-options
-                            :options="whatsappNumbers"
-                            :error="!!err('whatsapp_number_id')"
-                            :error-message="err('whatsapp_number_id')"
-                        />
+            <q-card flat bordered>
+                <q-card-section>
+                    <div class="row items-center justify-between q-mb-sm">
+                        <div class="row items-center q-gutter-sm">
+                            <div class="text-h6">Branches</div>
+                            <q-badge color="negative" text-color="white" label="Required" />
+                        </div>
+                        <q-btn color="primary" flat icon="add" label="Add Branch" @click="addBranch" />
                     </div>
-                </div>
+                    <div class="text-caption text-grey-7 q-mb-md">At least one branch is required.</div>
 
-                <q-separator class="q-my-lg" />
-
-                <div class="row items-center justify-between q-mb-sm">
-                    <div class="text-subtitle1 text-weight-medium">Branches</div>
-                    <q-btn color="primary" flat icon="add" label="Add Branch" @click="addBranch" />
-                </div>
-
-                <div v-for="(branch, bIndex) in form.branches" :key="branch.client_key" class="q-mb-md">
-                    <q-card flat bordered>
-                        <q-card-section>
-                            <div class="row items-center justify-between q-mb-md">
-                                <div class="text-subtitle2">Branch {{ bIndex + 1 }}</div>
-                                <q-btn
-                                    v-if="form.branches.length > 1"
-                                    flat
-                                    color="negative"
-                                    icon="delete"
-                                    label="Remove"
-                                    @click="removeBranch(bIndex)"
-                                />
-                            </div>
-
-                            <div class="row q-col-gutter-md">
-                                <div class="col-12 col-md-6">
-                                    <q-input
-                                        v-model="branch.name"
-                                        label="Branch name"
-                                        filled
-                                        dense
-                                        :error="!!err(`branches.${bIndex}.name`)"
-                                        :error-message="err(`branches.${bIndex}.name`)"
-                                    />
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <q-input
-                                        v-model="branch.contact_numbers"
-                                        label="Contact numbers"
-                                        filled
-                                        dense
-                                        :error="!!err(`branches.${bIndex}.contact_numbers`)"
-                                        :error-message="err(`branches.${bIndex}.contact_numbers`)"
+                    <div v-for="(branch, bIndex) in form.branches" :key="branch.client_key" class="q-mb-md">
+                        <q-card flat bordered>
+                            <q-card-section>
+                                <div class="row items-center justify-between q-mb-md">
+                                    <div class="text-subtitle2">Branch {{ bIndex + 1 }}</div>
+                                    <q-btn
+                                        v-if="form.branches.length > 1"
+                                        flat
+                                        color="negative"
+                                        icon="delete"
+                                        label="Remove"
+                                        @click="removeBranch(bIndex)"
                                     />
                                 </div>
 
-                                <div class="col-12">
-                                    <q-input
-                                        v-model="branch.display_address"
-                                        label="Display address"
-                                        filled
-                                        dense
-                                        :error="!!err(`branches.${bIndex}.display_address`)"
-                                        :error-message="err(`branches.${bIndex}.display_address`)"
-                                    />
-                                </div>
+                                <div class="row q-col-gutter-md">
+                                    <div class="col-12 col-md-6">
+                                        <q-input
+                                            v-model="branch.name"
+                                            label="Branch name *"
+                                            filled
+                                            dense
+                                            :error="!!err(`branches.${bIndex}.name`)"
+                                            :error-message="err(`branches.${bIndex}.name`)"
+                                        />
+                                    </div>
+                                    <div class="col-12">
+                                        <q-input
+                                            v-model="branch.display_address"
+                                            label="Display address *"
+                                            filled
+                                            dense
+                                            :error="!!err(`branches.${bIndex}.display_address`)"
+                                            :error-message="err(`branches.${bIndex}.display_address`)"
+                                        />
+                                    </div>
 
-                                <div class="col-12 col-md-3">
-                                    <q-select
-                                        v-model="branch.country_id"
-                                        label="Country"
-                                        dense
-                                        filled
-                                        clearable
-                                        emit-value
-                                        map-options
-                                        :options="countries"
-                                        :error="!!err(`branches.${bIndex}.country_id`)"
-                                        :error-message="err(`branches.${bIndex}.country_id`)"
-                                        @update:model-value="(value) => onBranchCountryChanged(bIndex, value)"
-                                    />
-                                </div>
+                                    <div class="col-12 col-md-3">
+                                        <q-select
+                                            v-model="branch.country_id"
+                                            label="Country"
+                                            dense
+                                            filled
+                                            clearable
+                                            emit-value
+                                            map-options
+                                            :options="countries"
+                                            :error="!!err(`branches.${bIndex}.country_id`)"
+                                            :error-message="err(`branches.${bIndex}.country_id`)"
+                                            @update:model-value="(value) => onBranchCountryChanged(bIndex, value)"
+                                        />
+                                    </div>
 
-                                <div class="col-12 col-md-3">
-                                    <q-select
-                                        v-model="branch.state_id"
-                                        label="State"
-                                        dense
-                                        filled
-                                        clearable
-                                        emit-value
-                                        map-options
-                                        :options="stateOptionsFor(branch)"
-                                        :error="!!err(`branches.${bIndex}.state_id`)"
-                                        :error-message="err(`branches.${bIndex}.state_id`)"
-                                        @update:model-value="(value) => onBranchStateChanged(bIndex, value)"
-                                    />
-                                </div>
+                                    <div class="col-12 col-md-3">
+                                        <q-select
+                                            v-model="branch.state_id"
+                                            label="Province"
+                                            dense
+                                            filled
+                                            clearable
+                                            emit-value
+                                            map-options
+                                            :options="stateOptionsFor(branch)"
+                                            :error="!!err(`branches.${bIndex}.state_id`)"
+                                            :error-message="err(`branches.${bIndex}.state_id`)"
+                                            @update:model-value="(value) => onBranchStateChanged(bIndex, value)"
+                                        />
+                                    </div>
 
-                                <div class="col-12 col-md-3">
-                                    <q-select
-                                        v-model="branch.city_id"
-                                        label="City"
-                                        dense
-                                        filled
-                                        clearable
-                                        emit-value
-                                        map-options
-                                        :options="cityOptionsFor(branch)"
-                                        :error="!!err(`branches.${bIndex}.city_id`)"
-                                        :error-message="err(`branches.${bIndex}.city_id`)"
-                                        @update:model-value="(value) => onBranchCityChanged(bIndex, value)"
-                                    />
-                                </div>
+                                    <div class="col-12 col-md-3">
+                                        <q-select
+                                            v-model="branch.city_id"
+                                            label="City"
+                                            dense
+                                            filled
+                                            clearable
+                                            emit-value
+                                            map-options
+                                            :options="cityOptionsFor(branch)"
+                                            :error="!!err(`branches.${bIndex}.city_id`)"
+                                            :error-message="err(`branches.${bIndex}.city_id`)"
+                                            @update:model-value="(value) => onBranchCityChanged(bIndex, value)"
+                                        />
+                                    </div>
 
-                                <div class="col-12 col-md-3">
-                                    <q-select
-                                        v-model="branch.suburb_id"
-                                        label="Suburb"
-                                        dense
-                                        filled
-                                        clearable
-                                        emit-value
-                                        map-options
-                                        :options="suburbOptionsFor(branch)"
-                                        :error="!!err(`branches.${bIndex}.suburb_id`)"
-                                        :error-message="err(`branches.${bIndex}.suburb_id`)"
-                                        @update:model-value="(value) => onBranchSuburbChanged(bIndex, value)"
-                                    />
-                                </div>
+                                    <div class="col-12 col-md-3">
+                                        <q-select
+                                            v-model="branch.suburb_id"
+                                            label="Suburb"
+                                            dense
+                                            filled
+                                            clearable
+                                            emit-value
+                                            map-options
+                                            :options="suburbOptionsFor(branch)"
+                                            :error="!!err(`branches.${bIndex}.suburb_id`)"
+                                            :error-message="err(`branches.${bIndex}.suburb_id`)"
+                                            @update:model-value="(value) => onBranchSuburbChanged(bIndex, value)"
+                                        />
+                                    </div>
 
-                                <div class="col-12 col-md-6">
-                                    <q-input
-                                        v-model="branch.latitude"
-                                        label="Latitude"
-                                        dense
-                                        filled
-                                        :error="!!err(`branches.${bIndex}.latitude`)"
-                                        :error-message="err(`branches.${bIndex}.latitude`)"
-                                    />
+                                    <div class="col-12">
+                                        <BranchContactLocationFields
+                                            :model-value="branch"
+                                            :errors="form.errors"
+                                            :error-prefix="`branches.${bIndex}`"
+                                            variant="filled"
+                                            :dense="true"
+                                            :contact-required="true"
+                                            @update:model-value="(value) => { form.branches[bIndex] = value }"
+                                        />
+                                    </div>
                                 </div>
-
-                                <div class="col-12 col-md-6">
-                                    <q-input
-                                        v-model="branch.longitude"
-                                        label="Longitude"
-                                        dense
-                                        filled
-                                        :error="!!err(`branches.${bIndex}.longitude`)"
-                                        :error-message="err(`branches.${bIndex}.longitude`)"
-                                    />
-                                </div>
-                            </div>
-                        </q-card-section>
-                    </q-card>
-                </div>
-
-                <q-separator class="q-my-lg" />
-
-                <div class="row items-center justify-between q-mb-sm">
-                    <div class="text-subtitle1 text-weight-medium">Dealer Users</div>
-                    <q-btn color="primary" flat icon="add" label="Add User" @click="addDealerUser" />
-                </div>
-
-                <div v-for="(user, uIndex) in form.dealer_users" :key="`dealer-user-${uIndex}`" class="q-mb-md">
-                    <q-card flat bordered>
-                        <q-card-section>
-                            <div class="row items-center justify-between q-mb-md">
-                                <div class="text-subtitle2">User {{ uIndex + 1 }}</div>
-                                <q-btn
-                                    v-if="form.dealer_users.length > 1"
-                                    flat
-                                    color="negative"
-                                    icon="delete"
-                                    label="Remove"
-                                    @click="removeDealerUser(uIndex)"
-                                />
-                            </div>
-
-                            <div class="row q-col-gutter-md">
-                                <div class="col-12 col-md-4">
-                                    <q-input
-                                        v-model="user.firstname"
-                                        label="First name"
-                                        filled
-                                        dense
-                                        :error="!!err(`dealer_users.${uIndex}.firstname`)"
-                                        :error-message="err(`dealer_users.${uIndex}.firstname`)"
-                                    />
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <q-input
-                                        v-model="user.lastname"
-                                        label="Last name"
-                                        filled
-                                        dense
-                                        :error="!!err(`dealer_users.${uIndex}.lastname`)"
-                                        :error-message="err(`dealer_users.${uIndex}.lastname`)"
-                                    />
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <q-input
-                                        v-model="user.email"
-                                        label="Email"
-                                        type="email"
-                                        filled
-                                        dense
-                                        :error="!!err(`dealer_users.${uIndex}.email`)"
-                                        :error-message="err(`dealer_users.${uIndex}.email`)"
-                                    />
-                                </div>
-                            </div>
-                        </q-card-section>
-                    </q-card>
-                </div>
-
-                <q-separator class="q-my-lg" />
-
-                <div class="row items-center justify-between q-mb-sm">
-                    <div class="text-subtitle1 text-weight-medium">Sales People</div>
-                    <q-btn color="primary" flat icon="add" label="Add Sales Person" @click="addSalesPerson" />
-                </div>
-
-                <div v-for="(salesPerson, sIndex) in form.sales_people" :key="`sales-person-${sIndex}`" class="q-mb-md">
-                    <q-card flat bordered>
-                        <q-card-section>
-                            <div class="row items-center justify-between q-mb-md">
-                                <div class="text-subtitle2">Sales Person {{ sIndex + 1 }}</div>
-                                <q-btn
-                                    v-if="form.sales_people.length > 1"
-                                    flat
-                                    color="negative"
-                                    icon="delete"
-                                    label="Remove"
-                                    @click="removeSalesPerson(sIndex)"
-                                />
-                            </div>
-
-                            <div class="row q-col-gutter-md">
-                                <div class="col-12 col-md-4">
-                                    <q-select
-                                        v-model="salesPerson.branch_client_key"
-                                        label="Branch"
-                                        dense
-                                        filled
-                                        emit-value
-                                        map-options
-                                        :options="branchLinkOptions"
-                                        :error="!!err(`sales_people.${sIndex}.branch_client_key`)"
-                                        :error-message="err(`sales_people.${sIndex}.branch_client_key`)"
-                                    />
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <q-input
-                                        v-model="salesPerson.firstname"
-                                        label="First name"
-                                        filled
-                                        dense
-                                        :error="!!err(`sales_people.${sIndex}.firstname`)"
-                                        :error-message="err(`sales_people.${sIndex}.firstname`)"
-                                    />
-                                </div>
-                                <div class="col-12 col-md-4">
-                                    <q-input
-                                        v-model="salesPerson.lastname"
-                                        label="Last name"
-                                        filled
-                                        dense
-                                        :error="!!err(`sales_people.${sIndex}.lastname`)"
-                                        :error-message="err(`sales_people.${sIndex}.lastname`)"
-                                    />
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <q-input
-                                        v-model="salesPerson.contact_no"
-                                        label="Contact number"
-                                        filled
-                                        dense
-                                        :error="!!err(`sales_people.${sIndex}.contact_no`)"
-                                        :error-message="err(`sales_people.${sIndex}.contact_no`)"
-                                    />
-                                </div>
-                                <div class="col-12 col-md-6">
-                                    <q-input
-                                        v-model="salesPerson.email"
-                                        label="Email"
-                                        type="email"
-                                        filled
-                                        dense
-                                        :error="!!err(`sales_people.${sIndex}.email`)"
-                                        :error-message="err(`sales_people.${sIndex}.email`)"
-                                    />
-                                </div>
-                            </div>
-                        </q-card-section>
-                    </q-card>
-                </div>
-
-                <div class="row justify-end q-mt-lg">
-                    <div class="q-gutter-sm">
-                        <q-btn color="grey-4" text-color="standard" label="Cancel" no-wrap unelevated @click="cancel" />
-                        <q-btn
-                            color="primary"
-                            label="Save"
-                            no-wrap
-                            unelevated
-                            :loading="form.processing"
-                            :disable="form.processing"
-                            @click="submit"
-                        />
+                            </q-card-section>
+                        </q-card>
                     </div>
+                </q-card-section>
+            </q-card>
+
+            <q-card flat bordered>
+                <q-card-section>
+                    <div class="row items-center justify-between q-mb-sm">
+                        <div class="row items-center q-gutter-sm">
+                            <div class="text-h6">Dealer Users</div>
+                            <q-badge color="negative" text-color="white" label="Required" />
+                        </div>
+                        <q-btn color="primary" flat icon="add" label="Add User" @click="addDealerUser" />
+                    </div>
+                    <div class="text-caption text-grey-7 q-mb-md">At least one dealer user is required.</div>
+                    <q-banner rounded class="bg-blue-1 text-blue-10 q-mb-md">
+                        <template #avatar>
+                            <q-icon name="verified_user" />
+                        </template>
+                        The first user is the <strong>Super User</strong>. All dealer system permissions are assigned
+                        automatically when this dealership is created. Permissions can be changed or assigned later.
+                    </q-banner>
+
+                    <div v-for="(user, uIndex) in form.dealer_users" :key="`dealer-user-${uIndex}`" class="q-mb-md">
+                        <q-card flat bordered>
+                            <q-card-section>
+                                <div class="row items-center justify-between q-mb-md">
+                                    <div class="row items-center q-gutter-sm">
+                                        <div class="text-subtitle2">User {{ uIndex + 1 }}</div>
+                                        <q-badge
+                                            v-if="uIndex === 0"
+                                            color="positive"
+                                            text-color="white"
+                                            label="Super User (All Permissions)"
+                                        />
+                                    </div>
+                                    <q-btn
+                                        v-if="form.dealer_users.length > 1"
+                                        flat
+                                        color="negative"
+                                        icon="delete"
+                                        label="Remove"
+                                        @click="removeDealerUser(uIndex)"
+                                    />
+                                </div>
+
+                                <div class="row q-col-gutter-md">
+                                    <div class="col-12 col-md-4">
+                                        <q-input
+                                            v-model="user.firstname"
+                                            label="First name *"
+                                            filled
+                                            dense
+                                            :error="!!err(`dealer_users.${uIndex}.firstname`)"
+                                            :error-message="err(`dealer_users.${uIndex}.firstname`)"
+                                        />
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <q-input
+                                            v-model="user.lastname"
+                                            label="Last name *"
+                                            filled
+                                            dense
+                                            :error="!!err(`dealer_users.${uIndex}.lastname`)"
+                                            :error-message="err(`dealer_users.${uIndex}.lastname`)"
+                                        />
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <q-input
+                                            v-model="user.email"
+                                            label="Email *"
+                                            type="email"
+                                            filled
+                                            dense
+                                            :error="!!err(`dealer_users.${uIndex}.email`)"
+                                            :error-message="err(`dealer_users.${uIndex}.email`)"
+                                        />
+                                    </div>
+                                </div>
+                            </q-card-section>
+                        </q-card>
+                    </div>
+                </q-card-section>
+            </q-card>
+
+            <q-card flat bordered>
+                <q-card-section>
+                    <div class="row items-center justify-between q-mb-sm">
+                        <div class="row items-center q-gutter-sm">
+                            <div class="text-h6">Sales People</div>
+                            <q-badge color="negative" text-color="white" label="Required" />
+                        </div>
+                        <q-btn color="primary" flat icon="add" label="Add Sales Person" @click="addSalesPerson" />
+                    </div>
+                    <div class="text-caption text-grey-7 q-mb-md">At least one sales person is required.</div>
+
+                    <div v-for="(salesPerson, sIndex) in form.sales_people" :key="`sales-person-${sIndex}`" class="q-mb-md">
+                        <q-card flat bordered>
+                            <q-card-section>
+                                <div class="row items-center justify-between q-mb-md">
+                                    <div class="text-subtitle2">Sales Person {{ sIndex + 1 }}</div>
+                                    <q-btn
+                                        v-if="form.sales_people.length > 1"
+                                        flat
+                                        color="negative"
+                                        icon="delete"
+                                        label="Remove"
+                                        @click="removeSalesPerson(sIndex)"
+                                    />
+                                </div>
+
+                                <div class="row q-col-gutter-md">
+                                    <div class="col-12 col-md-4">
+                                        <q-select
+                                            v-model="salesPerson.branch_client_key"
+                                            label="Branch *"
+                                            dense
+                                            filled
+                                            emit-value
+                                            map-options
+                                            :options="branchLinkOptions"
+                                            :error="!!err(`sales_people.${sIndex}.branch_client_key`)"
+                                            :error-message="err(`sales_people.${sIndex}.branch_client_key`)"
+                                        />
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <q-input
+                                            v-model="salesPerson.firstname"
+                                            label="First name *"
+                                            filled
+                                            dense
+                                            :error="!!err(`sales_people.${sIndex}.firstname`)"
+                                            :error-message="err(`sales_people.${sIndex}.firstname`)"
+                                        />
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <q-input
+                                            v-model="salesPerson.lastname"
+                                            label="Last name *"
+                                            filled
+                                            dense
+                                            :error="!!err(`sales_people.${sIndex}.lastname`)"
+                                            :error-message="err(`sales_people.${sIndex}.lastname`)"
+                                        />
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <q-input
+                                            v-model="salesPerson.contact_no"
+                                            label="Contact number *"
+                                            filled
+                                            dense
+                                            :error="!!err(`sales_people.${sIndex}.contact_no`)"
+                                            :error-message="err(`sales_people.${sIndex}.contact_no`)"
+                                        />
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <q-input
+                                            v-model="salesPerson.email"
+                                            label="Email"
+                                            type="email"
+                                            filled
+                                            dense
+                                            :error="!!err(`sales_people.${sIndex}.email`)"
+                                            :error-message="err(`sales_people.${sIndex}.email`)"
+                                        />
+                                    </div>
+                                </div>
+                            </q-card-section>
+                        </q-card>
+                    </div>
+                </q-card-section>
+            </q-card>
+
+            <q-card flat bordered>
+                <q-card-section>
+                    <div class="row items-center justify-between q-mb-sm">
+                        <div class="row items-center q-gutter-sm">
+                            <div class="text-h6">Banking Details</div>
+                            <q-badge color="negative" text-color="white" label="Required" />
+                        </div>
+                        <q-btn color="primary" flat icon="add" label="Add Banking Detail" @click="addBankingDetail" />
+                    </div>
+                    <div class="text-caption text-grey-7 q-mb-md">At least one banking detail record is required.</div>
+
+                    <div v-for="(bankingDetail, bdIndex) in form.banking_details" :key="`banking-detail-${bdIndex}`" class="q-mb-md">
+                        <q-card flat bordered>
+                            <q-card-section>
+                                <div class="row items-center justify-between q-mb-md">
+                                    <div class="text-subtitle2">Banking Detail {{ bdIndex + 1 }}</div>
+                                    <q-btn
+                                        v-if="form.banking_details.length > 1"
+                                        flat
+                                        color="negative"
+                                        icon="delete"
+                                        label="Remove"
+                                        @click="removeBankingDetail(bdIndex)"
+                                    />
+                                </div>
+
+                                <BankingDetailFields
+                                    :model-value="bankingDetail"
+                                    :errors="form.errors"
+                                    :error-prefix="`banking_details.${bdIndex}`"
+                                    variant="filled"
+                                    :dense="true"
+                                    @update:model-value="(value) => { form.banking_details[bdIndex] = value }"
+                                />
+                            </q-card-section>
+                        </q-card>
+                    </div>
+                </q-card-section>
+            </q-card>
+
+            <q-card flat bordered>
+                <q-card-section>
+                    <div class="text-h6 q-mb-md">Dealer Settings</div>
+                    <div class="text-caption text-grey-7 q-mb-md">Fields marked with * are required.</div>
+
+                    <SettingsFields
+                        v-model="form.settings"
+                        :settings="dealerSettings"
+                        :errors="form.errors"
+                        :disabled="form.processing"
+                        :timezone-options="timezoneOptions"
+                        :stock-type-options="stockTypeOptions"
+                        :show-backoffice-only-badge="true"
+                        :required-keys="requiredDealerSettingKeys"
+                    />
+                </q-card-section>
+            </q-card>
+
+            <div class="row justify-end q-mt-sm">
+                <div class="q-gutter-sm">
+                    <q-btn color="grey-4" text-color="standard" label="Cancel" no-wrap unelevated @click="cancel" />
+                    <q-btn
+                        color="primary"
+                        label="Save"
+                        no-wrap
+                        unelevated
+                        :loading="form.processing"
+                        :disable="form.processing"
+                        @click="submit"
+                    />
                 </div>
-            </q-form>
-        </q-card-section>
-    </q-card>
+            </div>
+        </div>
+    </q-form>
 </template>

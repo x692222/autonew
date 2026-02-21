@@ -1,7 +1,8 @@
 <?php
 
 namespace App\Actions\Backoffice\GuardBackoffice\System\Locations;
-use App\Support\Locations\LocationTypeResolver;
+use App\Support\Options\LocationOptions;
+use App\Support\Resolvers\Locations\LocationTypeResolver;
 use Illuminate\Database\Eloquent\Model;
 
 class CreateLocationAction
@@ -10,7 +11,10 @@ class CreateLocationAction
     {
         $class = LocationTypeResolver::modelClass($type);
 
-        return $class::query()->create($this->payload($type, $data));
+        $location = $class::query()->create($this->payload($type, $data));
+        LocationOptions::bumpCacheVersion();
+
+        return $location;
     }
 
     private function payload(string $type, array $data): array

@@ -4,8 +4,9 @@ namespace App\Support\Invoices;
 
 use App\Models\Dealer\Dealer;
 use App\Models\Invoice\Invoice;
-use App\Support\Settings\DealerSettingsResolver;
-use App\Support\Settings\SystemSettingsResolver;
+use App\Support\Resolvers\Invoices\InvoiceVatSnapshotResolver;
+use App\Support\Resolvers\Settings\DealerSettingsResolver;
+use App\Support\Resolvers\Settings\SystemSettingsResolver;
 use App\Support\Payments\InvoicePaymentSummaryService;
 
 class InvoiceEditabilityService

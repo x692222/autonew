@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Backoffice\GuardBackoffice\System;
 
 use App\Actions\Backoffice\Shared\Quotations\UpsertQuotationAction;
 use App\Actions\Backoffice\Shared\Invoices\UpsertInvoiceAction;
-use App\Enums\QuotationCustomerTypeEnum;
+use App\Actions\Backoffice\Shared\Documents\DeleteQuotationAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\GuardBackoffice\System\Quotations\CreateSystemQuotationsRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\System\Quotations\ConvertSystemQuotationsToInvoiceRequest;
@@ -20,9 +20,10 @@ use App\Models\Quotation\Quotation;
 use App\Support\Quotations\QuotationEditabilityService;
 use App\Support\Quotations\QuotationIndexService;
 use App\Support\Quotations\QuotationSectionOptions;
-use App\Support\Quotations\QuotationVatSnapshotResolver;
+use App\Support\Resolvers\Quotations\QuotationVatSnapshotResolver;
+use App\Support\Options\GeneralOptions;
 use App\Support\Settings\DocumentSettingsPresenter;
-use Illuminate\Support\Str;
+use App\Support\Tables\DataTableColumnBuilder;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -66,22 +67,19 @@ class QuotationsController extends Controller
             )
         );
 
-        $columns = collect([
-            'quotation_date',
-            'quote_identifier',
-            'total_items_general_accessories',
-            'valid_until',
-            'customer_firstname',
-            'customer_lastname',
-            'total_amount',
-        ])->map(fn (string $key) => [
-            'name' => $key,
-            'label' => Str::headline($key),
-            'sortable' => true,
-            'align' => in_array($key, ['total_items_general_accessories', 'total_amount'], true) ? 'right' : 'left',
-            'field' => $key,
-            'numeric' => in_array($key, ['total_items_general_accessories', 'total_amount'], true),
-        ])->values()->all();
+        $columns = DataTableColumnBuilder::make(
+            keys: [
+                'quotation_date',
+                'quote_identifier',
+                'total_items_general_accessories',
+                'valid_until',
+                'customer_firstname',
+                'customer_lastname',
+                'total_amount',
+            ],
+            allSortable: true,
+            numericKeys: ['total_items_general_accessories', 'total_amount']
+        );
 
         return Inertia::render('Shared/Quotations/Index', [
             'publicTitle' => 'Quotations',
@@ -114,10 +112,7 @@ class QuotationsController extends Controller
                 'showDealerAssociatedStock' => false,
             ],
             'data' => null,
-            'customerTypeOptions' => collect(QuotationCustomerTypeEnum::cases())
-                ->map(fn (QuotationCustomerTypeEnum $enumCase) => ['label' => Str::headline($enumCase->value), 'value' => $enumCase->value])
-                ->values()
-                ->all(),
+            'customerTypeOptions' => GeneralOptions::quotationCustomerTypes()->resolve(),
             'sectionOptions' => QuotationSectionOptions::system(),
             'vat' => $vatSnapshot,
             'canEdit' => true,
@@ -189,10 +184,7 @@ class QuotationsController extends Controller
                 'showDealerAssociatedStock' => true,
             ],
             'data' => (new QuotationEditResource($quotation))->resolve(),
-            'customerTypeOptions' => collect(QuotationCustomerTypeEnum::cases())
-                ->map(fn (QuotationCustomerTypeEnum $enumCase) => ['label' => Str::headline($enumCase->value), 'value' => $enumCase->value])
-                ->values()
-                ->all(),
+            'customerTypeOptions' => GeneralOptions::quotationCustomerTypes()->resolve(),
             'sectionOptions' => QuotationSectionOptions::system(),
             'vat' => [
                 'vat_enabled' => (bool) $quotation->vat_enabled,
@@ -254,10 +246,10 @@ class QuotationsController extends Controller
         return back()->with('success', 'Quotation updated.');
     }
 
-    public function destroy(DestroySystemQuotationsRequest $request, Quotation $quotation): RedirectResponse
+    public function destroy(DestroySystemQuotationsRequest $request, Quotation $quotation, DeleteQuotationAction $action): RedirectResponse
     {
         // @todo Revisit destroy behavior and ensure dependent entities are handled per business rules.
-        $quotation->delete();
+        $action->execute($quotation);
 
         return back()->with('success', 'Quotation deleted.');
     }

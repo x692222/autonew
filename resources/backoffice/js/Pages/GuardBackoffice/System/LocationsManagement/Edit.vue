@@ -117,7 +117,7 @@ const cancel = () => {
                     <div v-if="needsState" class="col-12 col-md-6">
                         <q-select
                             v-model="form.state_id"
-                            label="State"
+                            label="Province"
                             :options="states"
                             filled
                             dense

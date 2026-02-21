@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration;
 
 use App\Actions\Backoffice\Shared\Payments\VerifyPaymentAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Backoffice\Shared\Payments\IndexPaymentVerificationsRequest;
 use App\Models\Payments\Payment;
-use App\Support\Payments\PaymentValidationRules;
 use App\Support\Payments\PaymentVerificationsIndexService;
 use App\Support\Settings\DocumentSettingsPresenter;
 use Illuminate\Http\Request;
@@ -17,20 +17,19 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 class PaymentVerificationsController extends Controller
 {
     public function __construct(
-        private readonly PaymentValidationRules $validationRules,
         private readonly PaymentVerificationsIndexService $indexService,
         private readonly VerifyPaymentAction $verifyPaymentAction,
         private readonly DocumentSettingsPresenter $documentSettings,
     ) {
     }
 
-    public function index(Request $request): Response
+    public function index(IndexPaymentVerificationsRequest $request): Response
     {
         $actor = $request->user('dealer');
         $dealer = $actor->dealer;
         Gate::forUser($actor)->authorize('dealerConfigurationIndexPaymentVerifications', $dealer);
 
-        $filters = $request->validate($this->validationRules->index());
+        $filters = $request->validated();
         $filters['verification_status'] = $filters['verification_status'] ?? 'pending';
         $records = $this->indexService->paginate($filters, $dealer->id);
 
@@ -55,8 +54,9 @@ class PaymentVerificationsController extends Controller
     public function verify(Request $request, Payment $payment): RedirectResponse
     {
         $actor = $request->user('dealer');
+        $dealer = $actor->dealer;
         Gate::forUser($actor)->authorize('dealerConfigurationVerifyPayment', $payment);
-        $this->verifyPaymentAction->execute($payment, $actor);
+        $this->verifyPaymentAction->execute($payment, $actor, $dealer);
 
         return back()->with('success', 'Payment verified.');
     }

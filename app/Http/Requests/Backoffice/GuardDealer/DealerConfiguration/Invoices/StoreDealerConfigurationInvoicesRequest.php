@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\Invoices;
 
-use App\Support\Invoices\InvoiceValidationRules;
+use App\Support\Validation\Invoices\InvoiceValidationRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 

@@ -1,44 +1,39 @@
 <?php
 
 namespace App\Http\Controllers\Backoffice\Shared;
+
+use App\Actions\Backoffice\Shared\Notes\CreateNoteAction;
+use App\Actions\Backoffice\Shared\Notes\DeleteNoteAction;
+use App\Actions\Backoffice\Shared\Notes\UpdateNoteAction;
 use App\Http\Controllers\Controller;
-use App\Models\Dealer\Dealer;
-use App\Models\Dealer\DealerBranch;
+use App\Http\Requests\Backoffice\Shared\Notes\IndexNotesRequest;
+use App\Http\Requests\Backoffice\Shared\Notes\UpsertNoteRequest;
 use App\Models\Dealer\DealerUser;
-use App\Models\Dealer\DealerSalePerson;
-use App\Models\Leads\Lead;
 use App\Models\Note;
-use App\Models\Invoice\Invoice;
-use App\Models\Quotation\Quotation;
-use App\Models\Stock\Stock;
 use App\Models\System\User;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Gate;
+use App\Support\Notes\NotesControllerService;
 use Symfony\Component\HttpFoundation\Response;
 
 class NotesController extends Controller
 {
-    public function index(Request $request, string $noteableType, string $noteableId): JsonResponse
+    public function __construct(
+        private readonly NotesControllerService $notesService,
+        private readonly CreateNoteAction $createNoteAction,
+        private readonly UpdateNoteAction $updateNoteAction,
+        private readonly DeleteNoteAction $deleteNoteAction,
+    ) {}
+
+    public function index(IndexNotesRequest $request, string $noteableType, string $noteableId): JsonResponse
     {
-        $guard = $this->resolveGuard();
+        $guard = $this->notesService->resolveGuard();
         $isDealerContext = $guard === 'dealer';
 
-        $filters = $request->validate([
-            'search' => ['nullable', 'string'],
-            'author_guard' => ['nullable', 'in:backoffice,dealer'],
-            'author_id' => ['nullable', 'uuid'],
-            'backoffice_only' => ['nullable', 'in:0,1'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'rowsPerPage' => ['nullable', 'integer', 'min:1', 'max:100'],
-            'sortBy' => ['nullable', 'in:created_at,updated_at'],
-            'descending' => ['nullable'],
-        ]);
+        $filters = $request->validated();
 
-        $noteable = $this->resolveNoteable($noteableType, $noteableId);
-        $this->authorizeNoteable($noteable, $isDealerContext);
+        $noteable = $this->notesService->resolveNoteable($noteableType, $noteableId);
+        $this->notesService->authorizeNoteable(noteable: $noteable, isDealerContext: $isDealerContext);
 
         $sortBy = $filters['sortBy'] ?? 'created_at';
         $direction = filter_var($filters['descending'] ?? true, FILTER_VALIDATE_BOOLEAN) ? 'desc' : 'asc';
@@ -76,7 +71,7 @@ class NotesController extends Controller
                     'note' => (string) $note->note,
                     'backoffice_only' => (bool) $note->backoffice_only,
                     'author_guard' => $note->author_type === User::class ? 'Backoffice' : 'Dealer',
-                    'author_name' => $this->authorLabel($note),
+                    'author_name' => $this->notesService->authorLabel($note),
                     'created_at' => optional($note->created_at)?->format('Y-m-d H:i'),
                     'can' => [
                         'edit' => $canModify,
@@ -90,7 +85,7 @@ class NotesController extends Controller
             'noteable' => [
                 'type' => $noteableType,
                 'id' => (string) $noteable->getKey(),
-                'label' => $this->noteableLabel($noteable),
+                'label' => $this->notesService->noteableLabel($noteable),
             ],
             'filters' => [
                 'search' => $filters['search'] ?? '',
@@ -100,9 +95,9 @@ class NotesController extends Controller
                     ? (string) $filters['backoffice_only']
                     : '',
             ],
-            'columns' => $this->columns($canManageBackofficeOnly),
+            'columns' => $this->notesService->columns(canManageBackofficeOnly: $canManageBackofficeOnly),
             'records' => $records,
-            'authorOptions' => $this->buildAuthorOptions($noteable, $isDealerContext),
+            'authorOptions' => $this->notesService->buildAuthorOptions(noteable: $noteable, isDealerContext: $isDealerContext),
             'context' => [
                 'guard' => $guard,
                 'can_manage_backoffice_only' => $canManageBackofficeOnly,
@@ -110,22 +105,19 @@ class NotesController extends Controller
         ]);
     }
 
-    public function store(Request $request, string $noteableType, string $noteableId): JsonResponse
+    public function store(UpsertNoteRequest $request, string $noteableType, string $noteableId): JsonResponse
     {
-        $guard = $this->resolveGuard();
+        $guard = $this->notesService->resolveGuard();
         $isDealerContext = $guard === 'dealer';
 
-        $data = $request->validate([
-            'note' => ['required', 'string'],
-            'backoffice_only' => ['nullable', 'boolean'],
-        ]);
+        $data = $request->validated();
 
-        $noteable = $this->resolveNoteable($noteableType, $noteableId);
+        $noteable = $this->notesService->resolveNoteable($noteableType, $noteableId);
         $actor = $isDealerContext ? $request->user('dealer') : $request->user('backoffice');
 
-        $this->authorizeNoteable($noteable, $isDealerContext);
+        $this->notesService->authorizeNoteable(noteable: $noteable, isDealerContext: $isDealerContext);
 
-        $note = $noteable->notes()->create([
+        $note = $this->createNoteAction->execute($noteable, [
             'note' => $data['note'],
             'backoffice_only' => $isDealerContext ? false : (bool) ($data['backoffice_only'] ?? false),
             'author_type' => $actor ? get_class($actor) : null,
@@ -135,25 +127,22 @@ class NotesController extends Controller
         return response()->json(['id' => $note->id], Response::HTTP_CREATED);
     }
 
-    public function update(Request $request, string $noteableType, string $noteableId, Note $note): JsonResponse
+    public function update(UpsertNoteRequest $request, string $noteableType, string $noteableId, Note $note): JsonResponse
     {
-        $guard = $this->resolveGuard();
+        $guard = $this->notesService->resolveGuard();
         $isDealerContext = $guard === 'dealer';
 
-        $data = $request->validate([
-            'note' => ['required', 'string'],
-            'backoffice_only' => ['nullable', 'boolean'],
-        ]);
+        $data = $request->validated();
 
-        $noteable = $this->resolveNoteable($noteableType, $noteableId);
-        $this->authorizeNoteable($noteable, $isDealerContext);
-        $this->ensureNoteBelongsToNoteable($note, $noteable);
+        $noteable = $this->notesService->resolveNoteable($noteableType, $noteableId);
+        $this->notesService->authorizeNoteable(noteable: $noteable, isDealerContext: $isDealerContext);
+        $this->notesService->ensureNoteBelongsToNoteable(note: $note, noteable: $noteable);
 
         if ($isDealerContext && $note->backoffice_only) {
             abort(Response::HTTP_NOT_FOUND);
         }
 
-        $note->update([
+        $this->updateNoteAction->execute($note, [
             'note' => $data['note'],
             'backoffice_only' => $isDealerContext ? false : (bool) ($data['backoffice_only'] ?? false),
         ]);
@@ -163,286 +152,19 @@ class NotesController extends Controller
 
     public function destroy(Request $request, string $noteableType, string $noteableId, Note $note): JsonResponse
     {
-        $guard = $this->resolveGuard();
+        $guard = $this->notesService->resolveGuard();
         $isDealerContext = $guard === 'dealer';
 
-        $noteable = $this->resolveNoteable($noteableType, $noteableId);
-        $this->authorizeNoteable($noteable, $isDealerContext);
-        $this->ensureNoteBelongsToNoteable($note, $noteable);
+        $noteable = $this->notesService->resolveNoteable($noteableType, $noteableId);
+        $this->notesService->authorizeNoteable(noteable: $noteable, isDealerContext: $isDealerContext);
+        $this->notesService->ensureNoteBelongsToNoteable(note: $note, noteable: $noteable);
 
         if ($isDealerContext && $note->backoffice_only) {
             abort(Response::HTTP_NOT_FOUND);
         }
 
-        $note->delete();
+        $this->deleteNoteAction->execute($note);
 
         return response()->json(status: Response::HTTP_NO_CONTENT);
-    }
-
-    private function resolveNoteable(string $noteableType, string $noteableId): Model
-    {
-        $class = config("notes.noteables.{$noteableType}");
-
-        if (! is_string($class) || ! class_exists($class) || ! is_subclass_of($class, Model::class)) {
-            abort(Response::HTTP_UNPROCESSABLE_ENTITY, 'Unsupported note target.');
-        }
-
-        /** @var Model|null $noteable */
-        $noteable = $class::query()->find($noteableId);
-
-        if (!$noteable) {
-            abort(Response::HTTP_NOT_FOUND);
-        }
-
-        return $noteable;
-    }
-
-    private function authorizeNoteable(Model $noteable, bool $isDealerContext): void
-    {
-        $dealer = $this->resolveDealerFromNoteable($noteable);
-
-        if ($dealer) {
-            if ($isDealerContext) {
-                $actor = auth('dealer')->user();
-                abort_if(!$actor, Response::HTTP_FORBIDDEN);
-                Gate::forUser($actor)->authorize('dealerConfigurationShowNotes', $dealer);
-            } else {
-                Gate::authorize('showNotes', $dealer);
-            }
-
-            return;
-        }
-
-        if ($noteable instanceof Dealer) {
-            Gate::authorize('showNotes', $noteable);
-            return;
-        }
-
-        if ($noteable instanceof DealerBranch) {
-            $noteable->loadMissing('dealer:id');
-            Gate::authorize('showNotes', $noteable->dealer);
-            return;
-        }
-
-        if ($noteable instanceof DealerSalePerson) {
-            $noteable->loadMissing('branch:id,dealer_id');
-            $dealer = Dealer::query()->find($noteable->branch?->dealer_id);
-            abort_if(!$dealer, Response::HTTP_FORBIDDEN);
-            Gate::authorize('showNotes', $dealer);
-            return;
-        }
-
-        if ($noteable instanceof DealerUser) {
-            $noteable->loadMissing('dealer:id');
-            Gate::authorize('showNotes', $noteable->dealer);
-            return;
-        }
-
-        if ($noteable instanceof Quotation) {
-            if ($isDealerContext) {
-                abort(Response::HTTP_FORBIDDEN);
-            }
-
-            Gate::authorize('viewAny', Quotation::class);
-            return;
-        }
-
-        if ($noteable instanceof Invoice) {
-            if ($isDealerContext) {
-                abort(Response::HTTP_FORBIDDEN);
-            }
-
-            Gate::authorize('viewAny', Invoice::class);
-            return;
-        }
-
-        abort(Response::HTTP_FORBIDDEN);
-    }
-
-    private function ensureNoteBelongsToNoteable(Note $note, Model $noteable): void
-    {
-        if ($note->noteable_type !== get_class($noteable) || (string) $note->noteable_id !== (string) $noteable->getKey()) {
-            abort(Response::HTTP_NOT_FOUND);
-        }
-    }
-
-    private function noteableLabel(Model $noteable): string
-    {
-        if ($noteable instanceof Dealer) {
-            return (string) $noteable->name;
-        }
-
-        if ($noteable instanceof DealerBranch) {
-            return (string) $noteable->name;
-        }
-
-        if ($noteable instanceof DealerSalePerson) {
-            return trim((string) $noteable->firstname . ' ' . (string) $noteable->lastname);
-        }
-
-        if ($noteable instanceof DealerUser) {
-            return trim((string) $noteable->firstname . ' ' . (string) $noteable->lastname);
-        }
-
-        if ($noteable instanceof Stock) {
-            return (string) ($noteable->name ?: $noteable->internal_reference ?: $noteable->getKey());
-        }
-
-        if ($noteable instanceof Lead) {
-            return (string) ($noteable->name ?: $noteable->internal_reference ?: $noteable->getKey());
-        }
-
-        if ($noteable instanceof Quotation) {
-            return (string) $noteable->quote_identifier;
-        }
-
-        if ($noteable instanceof Invoice) {
-            return (string) $noteable->invoice_identifier;
-        }
-
-        return (string) $noteable->getKey();
-    }
-
-    private function authorLabel(Note $note): string
-    {
-        $author = $note->author;
-        if (!$author) {
-            return '-';
-        }
-
-        $firstname = trim((string) ($author->firstname ?? ''));
-        $lastname = trim((string) ($author->lastname ?? ''));
-        $fullName = trim($firstname . ' ' . $lastname);
-
-        if ($fullName !== '') {
-            return $fullName;
-        }
-
-        return (string) ($author->email ?? '-');
-    }
-
-    private function buildAuthorOptions(Model $noteable): array
-    {
-        $isDealerContext = $this->resolveGuard() === 'dealer';
-
-        $authors = $noteable->notes()
-            ->newQuery()
-            ->select(['author_type', 'author_id'])
-            ->whereNotNull('author_type')
-            ->whereNotNull('author_id')
-            ->when($isDealerContext, fn ($builder) => $builder->where('backoffice_only', false))
-            ->distinct()
-            ->get();
-
-        $backofficeIds = $authors
-            ->where('author_type', User::class)
-            ->pluck('author_id')
-            ->unique()
-            ->values();
-
-        $dealerIds = $authors
-            ->where('author_type', DealerUser::class)
-            ->pluck('author_id')
-            ->unique()
-            ->values();
-
-        return [
-            'backoffice' => $this->authorOptionsForUsers(User::query()->whereIn('id', $backofficeIds)->get()),
-            'dealer' => $this->authorOptionsForUsers(DealerUser::query()->whereIn('id', $dealerIds)->get()),
-        ];
-    }
-
-    private function authorOptionsForUsers(Collection $users): array
-    {
-        return $users
-            ->map(function ($user): array {
-                $firstname = trim((string) ($user->firstname ?? ''));
-                $lastname = trim((string) ($user->lastname ?? ''));
-                $fullName = trim($firstname . ' ' . $lastname);
-
-                return [
-                    'value' => $user->id,
-                    'label' => $fullName !== '' ? $fullName : (string) ($user->email ?? $user->id),
-                ];
-            })
-            ->sortBy('label')
-            ->values()
-            ->all();
-    }
-
-    private function resolveGuard(): string
-    {
-        if (auth('dealer')->check()) {
-            return 'dealer';
-        }
-
-        return 'backoffice';
-    }
-
-    private function columns(bool $canManageBackofficeOnly): array
-    {
-        $columns = [
-            ['name' => 'created_at', 'label' => 'Created At', 'sortable' => true, 'align' => 'left', 'field' => 'created_at', 'numeric' => false],
-            ['name' => 'author_guard', 'label' => 'Posted By Guard', 'sortable' => false, 'align' => 'left', 'field' => 'author_guard', 'numeric' => false],
-            ['name' => 'author_name', 'label' => 'Posted By', 'sortable' => false, 'align' => 'left', 'field' => 'author_name', 'numeric' => false],
-            ['name' => 'note', 'label' => 'Note', 'sortable' => false, 'align' => 'left', 'field' => 'note', 'numeric' => false],
-        ];
-
-        if ($canManageBackofficeOnly) {
-            array_splice($columns, 3, 0, [[
-                'name' => 'backoffice_only',
-                'label' => 'Backoffice Only',
-                'sortable' => false,
-                'align' => 'center',
-                'field' => 'backoffice_only',
-                'numeric' => false,
-            ]]);
-        }
-
-        return $columns;
-    }
-
-    private function resolveDealerFromNoteable(Model $noteable): ?Dealer
-    {
-        if ($noteable instanceof Dealer) {
-            return $noteable;
-        }
-
-        if ($noteable instanceof DealerBranch) {
-            $noteable->loadMissing('dealer:id');
-            return $noteable->dealer;
-        }
-
-        if ($noteable instanceof DealerSalePerson) {
-            $noteable->loadMissing('branch:id,dealer_id', 'branch.dealer:id');
-            return $noteable->branch?->dealer;
-        }
-
-        if ($noteable instanceof DealerUser) {
-            $noteable->loadMissing('dealer:id');
-            return $noteable->dealer;
-        }
-
-        if ($noteable instanceof Stock) {
-            $noteable->loadMissing('branch:id,dealer_id', 'branch.dealer:id');
-            return $noteable->branch?->dealer;
-        }
-
-        if ($noteable instanceof Lead) {
-            $noteable->loadMissing('dealer:id');
-            return $noteable->dealer;
-        }
-
-        if ($noteable instanceof Quotation) {
-            $noteable->loadMissing('dealer:id');
-            return $noteable->dealer;
-        }
-
-        if ($noteable instanceof Invoice) {
-            $noteable->loadMissing('dealer:id');
-            return $noteable->dealer;
-        }
-
-        return null;
     }
 }

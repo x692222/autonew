@@ -1,10 +1,10 @@
 <?php
 
 namespace App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\SalesPeople;
-use App\Models\Dealer\DealerBranch;
+use App\Models\Dealer\Dealer;
 use App\Models\Dealer\DealerSalePerson;
+use App\Support\Validation\Dealers\DealerSalesPersonValidationRules;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdateDealerConfigurationSalesPeopleRequest extends FormRequest
 {
@@ -17,24 +17,11 @@ class UpdateDealerConfigurationSalesPeopleRequest extends FormRequest
     {
         /** @var DealerSalePerson $salesPerson */
         $salesPerson = $this->route('salesPerson');
+        /** @var Dealer $dealer */
+        $dealer = $this->user('dealer')->dealer;
 
-        return [
+        return array_merge([
             'return_to' => ['nullable', 'string'],
-            'branch_id' => ['required', 'string', Rule::exists(DealerBranch::class, 'id')],
-            'firstname' => ['required', 'string', 'max:255'],
-            'lastname' => ['required', 'string', 'max:255'],
-            'contact_no' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('dealer_sale_people', 'contact_no')->ignore($salesPerson->id)->whereNull('deleted_at'),
-            ],
-            'email' => [
-                'nullable',
-                'email',
-                'max:255',
-                Rule::unique('dealer_sale_people', 'email')->ignore($salesPerson->id)->whereNull('deleted_at'),
-            ],
-        ];
+        ], app(DealerSalesPersonValidationRules::class)->singleForDealer($dealer, $salesPerson));
     }
 }

@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\Stock;
 use App\Models\Dealer\Dealer;
 use App\Models\Stock\Stock;
-use App\Support\Stock\StockValidationRules;
+use App\Support\Validation\Stock\StockValidationRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;

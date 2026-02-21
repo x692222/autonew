@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration;
 use App\Http\Controllers\Controller;
+use App\Actions\Backoffice\Shared\DealerSalesPeople\CreateDealerSalesPersonRecordAction;
+use App\Actions\Backoffice\Shared\DealerSalesPeople\UpdateDealerSalesPersonRecordAction;
+use App\Actions\Backoffice\Shared\DealerSalesPeople\DeleteDealerSalesPersonRecordAction;
 use App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\SalesPeople\CreateDealerConfigurationSalesPeopleRequest;
 use App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\SalesPeople\DestroyDealerConfigurationSalesPeopleRequest;
 use App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\SalesPeople\EditDealerConfigurationSalesPeopleRequest;
@@ -10,6 +13,8 @@ use App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\SalesPeople\Sto
 use App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\SalesPeople\UpdateDealerConfigurationSalesPeopleRequest;
 use App\Models\Dealer\DealerBranch;
 use App\Models\Dealer\DealerSalePerson;
+use App\Support\Options\DealerOptions;
+use App\Support\Tables\DataTableColumnBuilder;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -68,15 +73,11 @@ class SalesPeopleController extends Controller
             ];
         }));
 
-        $columns = collect(['branch', 'firstname', 'lastname', 'contact_no', 'email'])
-            ->map(fn (string $key) => [
-                'name' => $key,
-                'label' => Str::headline($key),
-                'sortable' => in_array($key, ['branch', 'firstname', 'lastname'], true),
-                'align' => Str::endsWith($key, '_count') ? 'right' : 'left',
-                'field' => $key,
-                'numeric' => Str::endsWith($key, '_count'),
-            ])->values()->all();
+        $columns = DataTableColumnBuilder::make(
+            keys: ['branch', 'firstname', 'lastname', 'contact_no', 'email'],
+            sortableKeys: ['branch', 'firstname', 'lastname'],
+            numericCountSuffix: true
+        );
 
         return Inertia::render('GuardDealer/DealerConfiguration/SalesPeople/Index', [
             'publicTitle' => 'Configuration',
@@ -84,7 +85,7 @@ class SalesPeopleController extends Controller
             'filters' => $filters,
             'columns' => $columns,
             'records' => $records,
-            'branchOptions' => $dealer->branches()->select(['id as value', 'name as label'])->orderBy('name')->get()->toArray(),
+            'branchOptions' => DealerOptions::branchesSimpleList((string) $dealer->id)->resolve(),
         ]);
     }
 
@@ -105,7 +106,7 @@ class SalesPeopleController extends Controller
                 'contact_no' => $salesPerson->contact_no,
                 'email' => $salesPerson->email,
             ],
-            'branchOptions' => $actor->dealer->branches()->select(['id as value', 'name as label'])->orderBy('name')->get()->toArray(),
+            'branchOptions' => DealerOptions::branchesSimpleList((string) $actor->dealer->id)->resolve(),
         ]);
     }
 
@@ -119,52 +120,44 @@ class SalesPeopleController extends Controller
             'publicTitle' => 'Configuration',
             'dealer' => ['id' => $dealer->id, 'name' => $dealer->name],
             'returnTo' => $request->input('return_to', route('backoffice.dealer-configuration.sales-people.index')),
-            'branchOptions' => $dealer->branches()->select(['id as value', 'name as label'])->orderBy('name')->get()->toArray(),
+            'branchOptions' => DealerOptions::branchesSimpleList((string) $dealer->id)->resolve(),
         ]);
     }
 
-    public function store(StoreDealerConfigurationSalesPeopleRequest $request): RedirectResponse
+    public function store(StoreDealerConfigurationSalesPeopleRequest $request, CreateDealerSalesPersonRecordAction $action): RedirectResponse
     {
         $actor = $request->user('dealer');
         $dealer = $actor->dealer;
         Gate::forUser($actor)->authorize('dealerConfigurationCreateSalesPerson', $dealer);
 
         $data = $request->safe()->except(['return_to']);
-        $branchBelongsToDealer = $dealer->branches()->whereKey($data['branch_id'])->exists();
-        if (! $branchBelongsToDealer) {
-            return back()->withErrors(['branch_id' => 'Selected branch is invalid.'])->withInput();
-        }
-
-        DealerSalePerson::query()->create($data);
+        $action->execute($dealer, $data);
 
         return redirect($request->input('return_to', route('backoffice.dealer-configuration.sales-people.index')))
             ->with('success', 'Sales person created.');
     }
 
-    public function update(UpdateDealerConfigurationSalesPeopleRequest $request, DealerSalePerson $salesPerson): RedirectResponse
+    public function update(UpdateDealerConfigurationSalesPeopleRequest $request, DealerSalePerson $salesPerson, UpdateDealerSalesPersonRecordAction $action): RedirectResponse
     {
         $actor = $request->user('dealer');
+        $dealer = $actor->dealer;
         Gate::forUser($actor)->authorize('dealerConfigurationEditSalesPerson', $salesPerson);
 
         $data = $request->safe()->except(['return_to']);
-        $branchBelongsToDealer = $actor->dealer->branches()->whereKey($data['branch_id'])->exists();
-        if (! $branchBelongsToDealer) {
-            return back()->withErrors(['branch_id' => 'Selected branch is invalid.'])->withInput();
-        }
-
-        $salesPerson->update($data);
+        $action->execute($dealer, $salesPerson, $data);
 
         return redirect($request->input('return_to', route('backoffice.dealer-configuration.sales-people.index')))
             ->with('success', 'Sales person updated.');
     }
 
-    public function destroy(DestroyDealerConfigurationSalesPeopleRequest $request, DealerSalePerson $salesPerson): RedirectResponse
+    public function destroy(DestroyDealerConfigurationSalesPeopleRequest $request, DealerSalePerson $salesPerson, DeleteDealerSalesPersonRecordAction $action): RedirectResponse
     {
         $actor = $request->user('dealer');
+        $dealer = $actor->dealer;
         Gate::forUser($actor)->authorize('dealerConfigurationDeleteSalesPerson', $salesPerson);
 
         // @todo Revisit destroy behavior and ensure dependent entities are handled per business rules.
-        $salesPerson->delete();
+        $action->execute($dealer, $salesPerson);
 
         return back()->with('success', 'Sales person deleted.');
     }

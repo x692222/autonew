@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration;
 use App\Http\Controllers\Controller;
+use App\Actions\Backoffice\Shared\LeadStages\CreateLeadStageAction;
+use App\Actions\Backoffice\Shared\LeadStages\UpdateLeadStageAction;
+use App\Actions\Backoffice\Shared\LeadStages\DeleteLeadStageAction;
 use App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\LeadStages\CreateDealerConfigurationLeadStagesRequest;
 use App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\LeadStages\DestroyDealerConfigurationLeadStagesRequest;
 use App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\LeadStages\EditDealerConfigurationLeadStagesRequest;
@@ -11,6 +14,7 @@ use App\Http\Requests\Backoffice\GuardDealer\DealerConfiguration\LeadStages\Upda
 use App\Http\Resources\Backoffice\Shared\Leads\LeadStageIndexResource;
 use App\Models\Leads\LeadStage;
 use App\Support\Options\DealerOptions;
+use App\Support\Tables\DataTableColumnBuilder;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -57,23 +61,12 @@ class LeadStagesController extends Controller
             $records->getCollection()->map(fn (LeadStage $stage) => (new LeadStageIndexResource($stage))->toArray($request))
         );
 
-        $columns = collect([
-            'pipeline',
-            'name',
-            'sort_order',
-            'is_terminal',
-            'is_won',
-            'is_lost',
-        ])->map(fn (string $key) => [
-            'name' => $key,
-            'label' => Str::headline($key),
-            'sortable' => true,
-            'align' => in_array($key, ['is_terminal', 'is_won', 'is_lost'], true)
-                ? 'center'
-                : (Str::endsWith($key, '_count') || in_array($key, ['sort_order'], true) ? 'right' : 'left'),
-            'field' => $key,
-            'numeric' => in_array($key, ['sort_order'], true),
-        ])->values()->all();
+        $columns = DataTableColumnBuilder::make(
+            keys: ['pipeline', 'name', 'sort_order', 'is_terminal', 'is_won', 'is_lost'],
+            allSortable: true,
+            numericKeys: ['sort_order'],
+            alignOverrides: ['is_terminal' => 'center', 'is_won' => 'center', 'is_lost' => 'center']
+        );
 
         return Inertia::render('GuardDealer/DealerConfiguration/LeadStages/Index', [
             'publicTitle' => 'Configuration',
@@ -97,9 +90,10 @@ class LeadStagesController extends Controller
         ]);
     }
 
-    public function store(StoreDealerConfigurationLeadStagesRequest $request): RedirectResponse
+    public function store(StoreDealerConfigurationLeadStagesRequest $request, CreateLeadStageAction $action): RedirectResponse
     {
-        LeadStage::query()->create($request->safe()->except(['return_to']));
+        $dealer = $request->user('dealer')->dealer;
+        $action->execute($dealer, $request->safe()->except(['return_to']));
 
         return redirect($request->input('return_to', route('backoffice.dealer-configuration.lead-stages.index')))
             ->with('success', 'Lead stage created.');
@@ -126,18 +120,20 @@ class LeadStagesController extends Controller
         ]);
     }
 
-    public function update(UpdateDealerConfigurationLeadStagesRequest $request, LeadStage $leadStage): RedirectResponse
+    public function update(UpdateDealerConfigurationLeadStagesRequest $request, LeadStage $leadStage, UpdateLeadStageAction $action): RedirectResponse
     {
-        $leadStage->update($request->safe()->except(['return_to']));
+        $dealer = $request->user('dealer')->dealer;
+        $action->execute($dealer, $leadStage, $request->safe()->except(['return_to']));
 
         return redirect($request->input('return_to', route('backoffice.dealer-configuration.lead-stages.index')))
             ->with('success', 'Lead stage updated.');
     }
 
-    public function destroy(DestroyDealerConfigurationLeadStagesRequest $request, LeadStage $leadStage): RedirectResponse
+    public function destroy(DestroyDealerConfigurationLeadStagesRequest $request, LeadStage $leadStage, DeleteLeadStageAction $action): RedirectResponse
     {
+        $dealer = $request->user('dealer')->dealer;
         // @todo Revisit destroy behavior and ensure dependent entities are handled per business rules.
-        $leadStage->delete();
+        $action->execute($dealer, $leadStage);
 
         return back()->with('success', 'Lead stage deleted.');
     }

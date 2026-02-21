@@ -2,13 +2,14 @@
 
 namespace App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration;
 
+use App\Actions\Backoffice\Shared\Payments\DeletePaymentAction;
 use App\Actions\Backoffice\Shared\Payments\UpsertPaymentAction;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Backoffice\Shared\Payments\IndexPaymentsRequest;
+use App\Http\Requests\Backoffice\Shared\Payments\UpsertPaymentRequest;
 use App\Models\Invoice\Invoice;
 use App\Models\Payments\Payment;
-use App\Support\Payments\InvoicePaymentStateUpdater;
 use App\Support\Payments\InvoicePaymentSummaryService;
-use App\Support\Payments\PaymentValidationRules;
 use App\Support\Payments\PaymentsIndexService;
 use App\Support\Stock\AssociatedStockPresenter;
 use App\Support\Invoices\InvoiceAmountSummaryService;
@@ -22,22 +23,20 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 class PaymentsController extends Controller
 {
     public function __construct(
-        private readonly PaymentValidationRules $validationRules,
         private readonly PaymentsIndexService $indexService,
-        private readonly InvoicePaymentStateUpdater $paymentStateUpdater,
         private readonly InvoicePaymentSummaryService $paymentSummaryService,
         private readonly InvoiceAmountSummaryService $amountSummaryService,
         private readonly DocumentSettingsPresenter $documentSettings,
     ) {
     }
 
-    public function index(Request $request): Response
+    public function index(IndexPaymentsRequest $request): Response
     {
         $actor = $request->user('dealer');
         $dealer = $actor->dealer;
         Gate::forUser($actor)->authorize('dealerConfigurationIndexPayments', $dealer);
 
-        $filters = $request->validate($this->validationRules->index());
+        $filters = $request->validated();
 
         $records = $this->indexService->paginate($filters, $dealer->id);
 
@@ -140,37 +139,43 @@ class PaymentsController extends Controller
         ]);
     }
 
-    public function storeForInvoice(Request $request, Invoice $invoice, UpsertPaymentAction $upsertPaymentAction): RedirectResponse
+    public function storeForInvoice(
+        UpsertPaymentRequest $request,
+        Invoice $invoice,
+        UpsertPaymentAction $upsertPaymentAction
+    ): RedirectResponse
     {
         $actor = $request->user('dealer');
         Gate::forUser($actor)->authorize('dealerConfigurationEditInvoice', $invoice);
         if ($this->paymentSummaryService->isFullyPaid($invoice)) {
             return back()->with('error', 'This invoice is fully paid and cannot accept additional payments.');
         }
-        $data = $request->validate($this->validationRules->upsert($actor->dealer_id));
+        $data = $request->validated();
         $upsertPaymentAction->execute(null, $invoice, $data, $actor, $request->ip());
 
         return back()->with('success', 'Payment recorded.');
     }
 
-    public function update(Request $request, Payment $payment, UpsertPaymentAction $upsertPaymentAction): RedirectResponse
+    public function update(
+        UpsertPaymentRequest $request,
+        Payment $payment,
+        UpsertPaymentAction $upsertPaymentAction
+    ): RedirectResponse
     {
         $actor = $request->user('dealer');
         Gate::forUser($actor)->authorize('dealerConfigurationEditPayment', $payment);
-        $data = $request->validate($this->validationRules->upsert($actor->dealer_id));
+        $data = $request->validated();
         $upsertPaymentAction->execute($payment, $payment->invoice, $data, $actor, $request->ip());
 
         return back()->with('success', 'Payment updated.');
     }
 
-    public function destroy(Request $request, Payment $payment): RedirectResponse
+    public function destroy(Request $request, Payment $payment, DeletePaymentAction $deletePaymentAction): RedirectResponse
     {
         $actor = $request->user('dealer');
+        $dealer = $actor->dealer;
         Gate::forUser($actor)->authorize('dealerConfigurationDeletePayment', $payment);
-        $invoice = $payment->invoice()->first();
-        $wasFullyPaid = (bool) ($invoice?->is_fully_paid ?? false);
-        $payment->delete();
-        $this->paymentStateUpdater->handleDeletedPayment($invoice, $wasFullyPaid);
+        $deletePaymentAction->execute($payment, $dealer);
 
         return back()->with('success', 'Payment deleted.');
     }

@@ -5,6 +5,7 @@ namespace App\Support\Options;
 use App\Http\Resources\KeyValueOptions\GeneralCollection;
 use App\Http\Resources\KeyValueOptions\StockMakeIdCollection;
 use App\Models\Stock\Stock;
+use App\Models\Stock\StockFeatureTag;
 use App\Models\Stock\StockMake;
 use App\Models\Stock\StockModel;
 use App\Models\Stock\StockTypeCommercial;
@@ -282,6 +283,55 @@ final class StockOptions extends AbstractOptions
         }
 
         return new StockMakeIdCollection($options);
+    }
+
+    public static function featureTagsByType(?string $type, bool $withAll = false): GeneralCollection
+    {
+        $items = cache()->remember("stock:feature_tag_options:{$type}:{$withAll}:v1", now()->addHour(), function() use ($type) {
+            return StockFeatureTag::query()
+                ->select(['id as value', 'name as label', 'stock_type'])
+                ->when($type, fn ($q) => $q->where('stock_type', $type))
+                ->orderBy('name')
+                ->get()
+                ->map(fn ($m) => [
+                    'label' => $m->label,
+                    'value' => $m->value,
+                    'stock_type' => $m->stock_type,
+                ])
+                ->all();
+        });
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
+    }
+
+    public static function featureTagsSimpleByType(?string $type, bool $withAll = false): GeneralCollection
+    {
+        $items = collect(self::featureTagsByType(type: $type, withAll: $withAll)->resolve())
+            ->map(fn (array $item) => [
+                'label' => $item['label'],
+                'value' => $item['value'],
+            ])
+            ->values()
+            ->all();
+
+        return new GeneralCollection(collect($items));
+    }
+
+    public static function featureTagsGroupedByType(): array
+    {
+        return collect(self::featureTagsByType(type: null)->resolve())
+            ->groupBy('stock_type')
+            ->map(fn ($rows) => collect($rows)->map(fn ($item) => [
+                'label' => $item['label'],
+                'value' => $item['value'],
+            ])->values()->all())
+            ->all();
     }
 
 }

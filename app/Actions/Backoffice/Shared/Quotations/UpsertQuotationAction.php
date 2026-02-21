@@ -6,6 +6,7 @@ use App\Models\Dealer\Dealer;
 use App\Models\Quotation\Quotation;
 use App\Support\Quotations\QuotationIdentifierGenerator;
 use App\Support\Quotations\QuotationTotalsCalculator;
+use App\Support\Security\TenantScopeEnforcer;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,8 @@ class UpsertQuotationAction
 {
     public function __construct(
         private readonly QuotationIdentifierGenerator $identifierGenerator,
-        private readonly QuotationTotalsCalculator $totalsCalculator
+        private readonly QuotationTotalsCalculator $totalsCalculator,
+        private readonly TenantScopeEnforcer $tenantScopeEnforcer,
     ) {
     }
 
@@ -27,6 +29,15 @@ class UpsertQuotationAction
         array $vatSnapshot
     ): Quotation {
         return DB::transaction(function () use ($quotation, $data, $actor, $dealer, $vatSnapshot): Quotation {
+            if ($quotation) {
+                $this->tenantScopeEnforcer->assertQuotationInScope(quotation: $quotation, dealer: $dealer);
+            }
+
+            $this->tenantScopeEnforcer->assertCustomerInScope(
+                customerId: $data['customer_id'] ?? null,
+                dealer: $dealer
+            );
+
             $lineItems = collect((array) ($data['line_items'] ?? []))
                 ->map(function (array $lineItem): array {
                     $amount = round((float) ($lineItem['amount'] ?? 0), 2);
@@ -46,6 +57,11 @@ class UpsertQuotationAction
                 })
                 ->values()
                 ->all();
+
+            $this->tenantScopeEnforcer->assertStockIdsInScope(
+                stockIds: collect($lineItems)->pluck('stock_id')->all(),
+                dealer: $dealer
+            );
 
             $totals = $this->totalsCalculator->calculate(
                 lineItems: $lineItems,

@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Backoffice\GuardBackoffice\DealerManagement\Dealers;
 use App\Http\Controllers\Controller;
+use App\Actions\Backoffice\Shared\LeadPipelines\CreateLeadPipelineAction;
+use App\Actions\Backoffice\Shared\LeadPipelines\UpdateLeadPipelineAction;
+use App\Actions\Backoffice\Shared\LeadPipelines\DeleteLeadPipelineAction;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\LeadPipelines\CreateDealerLeadPipelinesRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\LeadPipelines\DestroyDealerLeadPipelinesRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\LeadPipelines\EditDealerLeadPipelinesRequest;
@@ -11,6 +14,7 @@ use App\Http\Requests\Backoffice\GuardBackoffice\DealerManagement\Dealers\LeadPi
 use App\Http\Resources\Backoffice\Shared\Leads\LeadPipelineIndexResource;
 use App\Models\Dealer\Dealer;
 use App\Models\Leads\LeadPipeline;
+use App\Support\Tables\DataTableColumnBuilder;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -47,15 +51,11 @@ class LeadPipelinesController extends Controller
             $records->getCollection()->map(fn (LeadPipeline $pipeline) => (new LeadPipelineIndexResource($pipeline))->toArray($request))
         );
 
-        $columns = collect(['name', 'stages_count'])
-            ->map(fn (string $key) => [
-                'name' => $key,
-                'label' => Str::headline($key),
-                'sortable' => true,
-                'align' => Str::endsWith($key, '_count') ? 'right' : 'left',
-                'field' => $key,
-                'numeric' => Str::endsWith($key, '_count'),
-            ])->values()->all();
+        $columns = DataTableColumnBuilder::make(
+            keys: ['name', 'stages_count'],
+            allSortable: true,
+            numericCountSuffix: true
+        );
 
         return Inertia::render('GuardBackoffice/DealerManagement/Dealers/Tabs/LeadPipelines', [
             'publicTitle' => 'Dealer Management',
@@ -76,15 +76,10 @@ class LeadPipelinesController extends Controller
         ]);
     }
 
-    public function store(StoreDealerLeadPipelinesRequest $request, Dealer $dealer): RedirectResponse
+    public function store(StoreDealerLeadPipelinesRequest $request, Dealer $dealer, CreateLeadPipelineAction $action): RedirectResponse
     {
         $data = $request->safe()->except(['return_to']);
-
-        if (($data['is_default'] ?? false) === true) {
-            $dealer->pipelines()->update(['is_default' => false]);
-        }
-
-        $dealer->pipelines()->create($data);
+        $action->execute($dealer, $data);
 
         return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.lead-pipelines.index', $dealer->id)))
             ->with('success', 'Lead pipeline created.');
@@ -104,24 +99,19 @@ class LeadPipelinesController extends Controller
         ]);
     }
 
-    public function update(UpdateDealerLeadPipelinesRequest $request, Dealer $dealer, LeadPipeline $leadPipeline): RedirectResponse
+    public function update(UpdateDealerLeadPipelinesRequest $request, Dealer $dealer, LeadPipeline $leadPipeline, UpdateLeadPipelineAction $action): RedirectResponse
     {
         $data = $request->safe()->except(['return_to']);
-
-        if (($data['is_default'] ?? false) === true) {
-            $dealer->pipelines()->update(['is_default' => false]);
-        }
-
-        $leadPipeline->update($data);
+        $action->execute($dealer, $leadPipeline, $data);
 
         return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.lead-pipelines.index', $dealer->id)))
             ->with('success', 'Lead pipeline updated.');
     }
 
-    public function destroy(DestroyDealerLeadPipelinesRequest $request, Dealer $dealer, LeadPipeline $leadPipeline): RedirectResponse
+    public function destroy(DestroyDealerLeadPipelinesRequest $request, Dealer $dealer, LeadPipeline $leadPipeline, DeleteLeadPipelineAction $action): RedirectResponse
     {
         // @todo Revisit destroy behavior and ensure dependent entities are handled per business rules.
-        $leadPipeline->delete();
+        $action->execute($dealer, $leadPipeline);
 
         return back()->with('success', 'Lead pipeline deleted.');
     }
