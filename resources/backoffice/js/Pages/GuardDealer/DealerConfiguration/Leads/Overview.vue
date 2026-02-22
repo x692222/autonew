@@ -28,7 +28,7 @@ const goBack = () => router.visit(props.returnTo || route('backoffice.dealer-con
   <div class="row nowrap justify-between items-center q-mb-md">
     <div><div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div><div class="text-caption text-grey-7">{{ dealer.name }}</div></div>
     <div class="q-gutter-sm">
-      <q-btn color="grey-4" text-color="standard" label="Back" no-wrap unelevated @click="goBack" />
+      <q-btn color="grey-4" text-color="standard" no-wrap unelevated label="Back" @click="goBack" />
       <q-btn v-if="lead.can?.show_notes" color="primary" icon="sticky_note_2" label="Notes" no-wrap unelevated @click="notesRef?.open(lead)" />
       <q-btn v-if="lead.can?.edit" color="primary" label="Edit" no-wrap unelevated @click="router.visit(withLead('backoffice.dealer-configuration.leads.edit'))" />
       <q-btn v-if="lead.can?.delete" color="negative" label="Delete" no-wrap unelevated :loading="loading" :disable="loading" @click="confirmAction({ title: 'Delete Lead', message: 'Are you sure you want to delete this lead?', okLabel: 'Delete', okColor: 'negative', cancelLabel: 'Cancel', method: 'delete', actionUrl: withLead('backoffice.dealer-configuration.leads.destroy') })" />

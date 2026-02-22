@@ -57,6 +57,8 @@ const submit = () => {
                     label="Email"
                     filled
                     dense
+                    maxlength="190"
+                    counter
                     :error="!!form.errors.email"
                     :error-message="form.errors.email"
                     :input-attrs="{ autocomplete: 'username' }"

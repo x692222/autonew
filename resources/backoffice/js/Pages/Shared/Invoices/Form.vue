@@ -23,6 +23,7 @@ const props = defineProps({
     sectionOptions: { type: Array, default: () => [] },
     vat: { type: Object, default: () => ({ vat_enabled: false, vat_percentage: null, vat_number: null }) },
     canEdit: { type: Boolean, default: true },
+    readOnlyReason: { type: String, default: null },
     canDelete: { type: Boolean, default: false },
     canExport: { type: Boolean, default: false },
     canShowNotes: { type: Boolean, default: false },
@@ -58,17 +59,28 @@ const editingPaymentId = ref(null)
 const lineItemTimeouts = new Map()
 const lineItemSuggestions = ref({})
 const skuSuggestionDebounceMs = 500
-const canSearchSkuSuggestions = computed(() => props.context?.mode !== 'system')
+const skuSuggestionBlurDelayMs = 150
+const canSearchSkuSuggestions = computed(() => !!props.lineItemSuggestionRoute)
 const canOpenLinkedStock = computed(() => ['dealer', 'dealer-backoffice'].includes(props.context?.mode))
 const skuInputRefs = new Map()
 const $q = useQuasar()
 
 const { confirmAction } = useConfirmAction(loading)
 
-const sanitizeContactNumber = (value) => String(value || '').replace(/\s+/g, '')
+const sanitizeContactNumber = (value, enforceLeadingPlus = false) => {
+    const raw = String(value || '').replace(/\s+/g, '').replace(/[^+\d]/g, '')
+    const unsigned = raw.replace(/\+/g, '')
+    if (!enforceLeadingPlus) return raw.slice(0, 25)
+    if (!unsigned) return '+'
+
+    return `+${unsigned}`.slice(0, 25)
+}
 const sanitizeVatNumber = (value) => String(value || '').replace(/\s+/g, '').replace(/[^A-Za-z0-9/-]/g, '').slice(0, 35)
 const sanitizeSku = (value) => String(value || '').replace(/\s+/g, '').slice(0, 35)
 const defaultContactNoPrefix = sanitizeContactNumber(props.contactNoPrefix || '')
+const customerContactHint = defaultContactNoPrefix
+    ? `Default prefix prefilled (${defaultContactNoPrefix}). Number must start with +, e.g. +264811234567`
+    : 'Number must start with +, e.g. +264811234567'
 
 const buildEmptyLineItem = (sectionValue, defaultVatExempt) => ({
     __key: `${Date.now()}-${Math.random()}`,
@@ -129,7 +141,6 @@ const form = useForm({
     invoice_date: props.data?.invoice_date || new Date().toISOString().slice(0, 10),
     payable_by: props.data?.payable_by || '',
     purchase_order_number: props.data?.purchase_order_number || '',
-    payment_method: props.data?.payment_method || '',
     payment_terms: props.data?.payment_terms || '',
     line_items: initialLineItems,
     return_to: props.returnTo,
@@ -274,6 +285,8 @@ const dateRules = [
     (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || '')) || 'Date format must be YYYY-MM-DD',
 ]
 
+const MAX_LINE_ITEMS = 150
+
 const formatDateInput = (value) => {
     const normalized = String(value || '')
         .replace(/[^\d]/g, '')
@@ -285,6 +298,14 @@ const formatDateInput = (value) => {
 }
 
 const addLineItem = (section) => {
+    if (form.line_items.length >= MAX_LINE_ITEMS) {
+        $q.notify({
+            type: 'negative',
+            message: `Maximum ${MAX_LINE_ITEMS} line items allowed.`,
+        })
+        return
+    }
+
     const newLineItem = buildEmptyLineItem(section.value, section.default_vat_exempt)
     form.line_items.push(newLineItem)
 
@@ -292,6 +313,10 @@ const addLineItem = (section) => {
 }
 
 const removeLineItem = (lineItem) => {
+    if (lineItemTimeouts.has(lineItem.__key)) {
+        clearTimeout(lineItemTimeouts.get(lineItem.__key))
+        lineItemTimeouts.delete(lineItem.__key)
+    }
     form.line_items = form.line_items.filter((item) => item.__key !== lineItem.__key)
     delete lineItemSuggestions.value[lineItem.__key]
 }
@@ -357,13 +382,43 @@ const queueLineItemSuggestionSearch = (lineItem) => {
     }, skuSuggestionDebounceMs))
 }
 
+const clearLineItemSuggestions = (lineItem, delayMs = 0) => {
+    const key = lineItem?.__key
+    if (!key) return
+
+    const clear = () => {
+        if (lineItemTimeouts.has(key)) {
+            clearTimeout(lineItemTimeouts.get(key))
+            lineItemTimeouts.delete(key)
+        }
+        lineItemSuggestions.value[key] = []
+    }
+
+    if (delayMs > 0) {
+        window.setTimeout(clear, delayMs)
+        return
+    }
+
+    clear()
+}
+
 const applySuggestion = (lineItem, suggestion) => {
     lineItem.stock_id = suggestion.stock_id || null
     lineItem.sku = sanitizeSku(suggestion.sku || '')
     lineItem.description = suggestion.description || ''
-    lineItem.amount = Number(suggestion.amount || 0)
-    lineItem.qty = Number(suggestion.qty || 1)
-    lineItem.total = Number(suggestion.total || lineItem.amount || 0)
+    const isDealerTradeIn = ['dealer', 'dealer-backoffice'].includes(props.context?.mode)
+        && lineItem.section === 'trade_in'
+
+    if (isDealerTradeIn) {
+        lineItem.amount = 0
+        lineItem.qty = 1
+        lineItem.total = 0
+    } else {
+        lineItem.amount = Number(suggestion.amount || 0)
+        lineItem.qty = Number(suggestion.qty || 1)
+        lineItem.total = Number(suggestion.total || lineItem.amount || 0)
+    }
+
     lineItemSuggestions.value[lineItem.__key] = []
 }
 
@@ -467,7 +522,7 @@ const formattedCustomerAddress = computed(() => {
 const submitAddCustomer = async () => {
     creatingCustomer.value = true
     customerForm.clearErrors()
-    customerForm.contact_number = sanitizeContactNumber(customerForm.contact_number)
+    customerForm.contact_number = sanitizeContactNumber(customerForm.contact_number, true)
     customerForm.vat_number = sanitizeVatNumber(customerForm.vat_number)
 
     try {
@@ -601,6 +656,10 @@ const openCreatePayment = () => {
 }
 
 const openEditPayment = (payment) => {
+    if (payment?.is_approved) {
+        return
+    }
+
     editingPaymentId.value = payment.id
     paymentForm.description = payment.description || ''
     paymentForm.amount = Number(payment.amount || 0)
@@ -673,6 +732,10 @@ const submitPayment = () => {
 }
 
 const confirmDeletePayment = (payment) => {
+    if (payment?.is_approved) {
+        return
+    }
+
     $q.dialog({
         title: 'Delete Payment',
         message: 'Are you sure you want to delete this payment?',
@@ -693,7 +756,37 @@ const confirmDeletePayment = (payment) => {
             <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
             <div v-if="dealer?.name" class="text-caption text-grey-7">{{ dealer.name }}</div>
         </div>
-        <q-btn color="grey-7" text-color="white" label="Back" no-wrap unelevated @click="router.visit(returnTo)" />
+        <div class="row q-gutter-sm">
+            <q-btn
+                v-if="canShowNotes && data?.id"
+                color="grey-8"
+                text-color="white"
+                icon="sticky_note_2"
+                label="Notes"
+                no-wrap
+                unelevated
+                @click="openNotes"
+            />
+            <q-btn
+                v-if="canExport && data?.id"
+                color="primary"
+                icon="picture_as_pdf"
+                label="Export"
+                no-wrap
+                unelevated
+                @click="confirmExport"
+            />
+            <q-btn
+                v-if="canDelete && data?.id"
+                color="negative"
+                icon="delete"
+                label="Delete"
+                no-wrap
+                unelevated
+                @click="confirmDelete"
+            />
+            <q-btn color="grey-4" text-color="standard" no-wrap unelevated label="Back" @click="router.visit(returnTo)" />
+        </div>
     </div>
 
     <DealerTabs
@@ -710,36 +803,6 @@ const confirmDeletePayment = (payment) => {
     <q-card flat bordered class="q-mb-md">
         <q-card-section class="row items-center justify-between">
             <div class="text-h6">{{ data?.id ? 'Edit Invoice' : 'Create Invoice' }}</div>
-            <div class="row q-gutter-sm">
-                <q-btn
-                    v-if="canShowNotes && data?.id"
-                    color="grey-8"
-                    text-color="white"
-                    icon="sticky_note_2"
-                    label="Notes"
-                    no-wrap
-                    unelevated
-                    @click="openNotes"
-                />
-                <q-btn
-                    v-if="canExport && data?.id"
-                    color="primary"
-                    icon="picture_as_pdf"
-                    label="Export"
-                    no-wrap
-                    unelevated
-                    @click="confirmExport"
-                />
-                <q-btn
-                    v-if="canDelete && data?.id"
-                    color="negative"
-                    icon="delete"
-                    label="Delete"
-                    no-wrap
-                    unelevated
-                    @click="confirmDelete"
-                />
-            </div>
         </q-card-section>
 
         <q-separator />
@@ -753,6 +816,9 @@ const confirmDeletePayment = (payment) => {
             </q-banner>
             <q-banner v-if="form.errors.line_items" dense rounded class="bg-red-1 text-negative q-mb-md">
                 {{ form.errors.line_items }}
+            </q-banner>
+            <q-banner v-if="isInvoiceReadOnly" dense rounded class="bg-blue-1 text-blue-10 q-mb-md">
+                {{ readOnlyReason || 'This invoice is read-only and cannot be edited.' }}
             </q-banner>
             <q-banner v-if="data?.is_fully_paid" dense rounded class="bg-positive text-white q-mb-md">
                 Invoice is fully paid.
@@ -858,6 +924,8 @@ const confirmDeletePayment = (payment) => {
                                 dense
                                 outlined
                                 :disable="isEditing || !form.has_custom_invoice_identifier"
+                                maxlength="15"
+                                counter
                                 :hint="isEditing ? 'Identifier cannot be changed after creation.' : (form.has_custom_invoice_identifier ? 'Max 15 chars. Allowed: A-Z, a-z, 0-9, /, -' : 'Automatic number will be used.')"
                                 label="Invoice Identifier"
                                 :error="!!form.errors.invoice_identifier"
@@ -914,6 +982,8 @@ const confirmDeletePayment = (payment) => {
                                 v-model="form.purchase_order_number"
                                 dense
                                 outlined
+                                maxlength="50"
+                                counter
                                 label="Purchase Order Number"
                                 :error="!!form.errors.purchase_order_number"
                                 :error-message="form.errors.purchase_order_number"
@@ -921,19 +991,11 @@ const confirmDeletePayment = (payment) => {
                         </div>
                         <div class="col-12">
                             <q-input
-                                v-model="form.payment_method"
-                                dense
-                                outlined
-                                label="Payment Method"
-                                :error="!!form.errors.payment_method"
-                                :error-message="form.errors.payment_method"
-                            />
-                        </div>
-                        <div class="col-12">
-                            <q-input
                                 v-model="form.payment_terms"
                                 dense
                                 outlined
+                                maxlength="50"
+                                counter
                                 label="Payment Terms"
                                 :error="!!form.errors.payment_terms"
                                 :error-message="form.errors.payment_terms"
@@ -985,11 +1047,14 @@ const confirmDeletePayment = (payment) => {
                             :ref="(el) => setSkuInputRef(lineItemRow.item.__key, el)"
                             dense
                             outlined
+                            maxlength="35"
+                            counter
                             hide-bottom-space
                             label="SKU"
                             :error="!!lineItemError(lineItemRow.index, 'sku')"
                             :error-message="lineItemError(lineItemRow.index, 'sku')"
                             @update:model-value="(value) => { lineItemRow.item.sku = sanitizeSku(value); queueLineItemSuggestionSearch(lineItemRow.item) }"
+                            @blur="clearLineItemSuggestions(lineItemRow.item, skuSuggestionBlurDelayMs)"
                         />
                         <div class="row items-center q-gutter-sm q-pt-xs">
                             <div v-if="canSearchSkuSuggestions" class="text-caption text-grey-6">Type at least 3 chars for suggestions.</div>
@@ -1010,6 +1075,8 @@ const confirmDeletePayment = (payment) => {
                             v-model="lineItemRow.item.description"
                             dense
                             outlined
+                            maxlength="150"
+                            counter
                             hide-bottom-space
                             label="Description"
                             :error="!!lineItemError(lineItemRow.index, 'description')"
@@ -1024,7 +1091,7 @@ const confirmDeletePayment = (payment) => {
                             hide-bottom-space
                             type="number"
                             min="0"
-                            max="999999999.99"
+                            max="999999999"
                             step="0.01"
                             :prefix="currencySymbol"
                             label="Amount"
@@ -1041,7 +1108,7 @@ const confirmDeletePayment = (payment) => {
                             hide-bottom-space
                             type="number"
                             min="0"
-                            max="999999999.99"
+                            max="1000000"
                             step="0.01"
                             label="Qty"
                             :error="!!lineItemError(lineItemRow.index, 'qty')"
@@ -1057,7 +1124,7 @@ const confirmDeletePayment = (payment) => {
                             hide-bottom-space
                             type="number"
                             min="0"
-                            max="999999999.99"
+                            max="999999999"
                             step="0.01"
                             readonly
                             :prefix="currencySymbol"
@@ -1209,8 +1276,8 @@ const confirmDeletePayment = (payment) => {
                             icon="visibility"
                             @click="router.visit(paymentShowUrl(row.id))"
                         />
-                        <q-btn v-if="canRecordPayment" round dense flat icon="edit" @click="openEditPayment(row)" />
-                        <q-btn v-if="canRecordPayment" round dense flat icon="delete" color="negative" @click="confirmDeletePayment(row)" />
+                        <q-btn v-if="canRecordPayment && !row?.is_approved" round dense flat icon="edit" @click="openEditPayment(row)" />
+                        <q-btn v-if="canRecordPayment && !row?.is_approved" round dense flat icon="delete" color="negative" @click="confirmDeletePayment(row)" />
                     </div>
                 </template>
             </SimpleTable>
@@ -1279,6 +1346,8 @@ const confirmDeletePayment = (payment) => {
                             v-model="customerForm.title"
                             dense
                             outlined
+                            maxlength="15"
+                            counter
                             label="Title"
                             :error="!!customerForm.errors.title"
                             :error-message="customerForm.errors.title"
@@ -1289,6 +1358,8 @@ const confirmDeletePayment = (payment) => {
                             v-model="customerForm.firstname"
                             dense
                             outlined
+                            maxlength="50"
+                            counter
                             label="Firstname"
                             :error="!!customerForm.errors.firstname"
                             :error-message="customerForm.errors.firstname"
@@ -1299,6 +1370,8 @@ const confirmDeletePayment = (payment) => {
                             v-model="customerForm.lastname"
                             dense
                             outlined
+                            maxlength="50"
+                            counter
                             label="Lastname"
                             :error="!!customerForm.errors.lastname"
                             :error-message="customerForm.errors.lastname"
@@ -1309,6 +1382,8 @@ const confirmDeletePayment = (payment) => {
                             v-model="customerForm.id_number"
                             dense
                             outlined
+                            maxlength="20"
+                            counter
                             label="ID Number"
                             :error="!!customerForm.errors.id_number"
                             :error-message="customerForm.errors.id_number"
@@ -1319,6 +1394,8 @@ const confirmDeletePayment = (payment) => {
                             v-model="customerForm.email"
                             dense
                             outlined
+                            maxlength="150"
+                            counter
                             label="Email"
                             :error="!!customerForm.errors.email"
                             :error-message="customerForm.errors.email"
@@ -1329,10 +1406,13 @@ const confirmDeletePayment = (payment) => {
                             v-model="customerForm.contact_number"
                             dense
                             outlined
+                            maxlength="25"
+                            counter
                             label="Contact Number (E.164)"
+                            :hint="customerContactHint"
                             :error="!!customerForm.errors.contact_number"
                             :error-message="customerForm.errors.contact_number"
-                            @update:model-value="(value) => (customerForm.contact_number = sanitizeContactNumber(value))"
+                            @update:model-value="(value) => (customerForm.contact_number = sanitizeContactNumber(value, true))"
                         />
                     </div>
                     <div class="col-12">
@@ -1342,7 +1422,7 @@ const confirmDeletePayment = (payment) => {
                             outlined
                             type="textarea"
                             rows="5"
-                            maxlength="150"
+                            maxlength="200"
                             counter
                             label="Address"
                             :error="!!customerForm.errors.address"
@@ -1355,6 +1435,7 @@ const confirmDeletePayment = (payment) => {
                             dense
                             outlined
                             maxlength="35"
+                            counter
                             hint="Allowed: A-Z, a-z, 0-9, /, -"
                             label="VAT Number"
                             :error="!!customerForm.errors.vat_number"

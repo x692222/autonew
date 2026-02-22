@@ -333,7 +333,7 @@ function normalizeTyped(type, typed) {
         </div>
 
         <div class="q-gutter-sm">
-            <q-btn color="grey-7" text-color="white" label="Back" no-caps unelevated @click="router.visit(returnTo)" />
+            <q-btn color="grey-4" text-color="standard" no-wrap unelevated label="Back" @click="router.visit(returnTo)" />
             <q-btn v-if="!props.stock.is_sold" color="red" text-color="white" label="Mark as sold" icon="sell" no-wrap unelevated :disable="soldForm.processing" @click="confirmMarkSold(true)" />
             <q-btn v-if="props.stock.is_sold" color="green" text-color="white" label="Set as For Sale" icon="undo" no-wrap unelevated :disable="soldForm.processing" @click="confirmMarkSold(false)" />
             <q-btn color="grey-8" text-color="white" label="Images" icon="image" no-wrap unelevated @click="imagesOpen = true" />
@@ -362,8 +362,8 @@ function normalizeTyped(type, typed) {
                     </q-banner>
 
                     <div class="row q-col-gutter-md">
-                        <div class="col-md-6 col-sm-12"><q-input dense outlined v-model="form.name" :disable="!canEditReference" :label="!canEditReference ? 'Title (locked)' : 'Title'" :error="!!form.errors.name" :error-message="form.errors.name" /></div>
-                        <div class="col-md-6 col-sm-12"><q-input dense outlined v-model="form.internal_reference" :disable="!canEditReference" :label="!canEditReference ? 'Reference (locked)' : 'Reference'" :error="!!form.errors.internal_reference" :error-message="form.errors.internal_reference" /></div>
+                        <div class="col-md-6 col-sm-12"><q-input dense outlined v-model="form.name" :disable="!canEditReference" :label="!canEditReference ? 'Title (locked)' : 'Title'" maxlength="75" counter :error="!!form.errors.name" :error-message="form.errors.name" /></div>
+                        <div class="col-md-6 col-sm-12"><q-input dense outlined v-model="form.internal_reference" :disable="!canEditReference" :label="!canEditReference ? 'Reference (locked)' : 'Reference'" maxlength="50" counter :error="!!form.errors.internal_reference" :error-message="form.errors.internal_reference" /></div>
                         <div class="col-md-6 col-sm-12">
                             <q-input dense outlined v-model="form.published_at" label="Published Date" :error="!!form.errors.published_at" :error-message="form.errors.published_at">
                                 <template #append>

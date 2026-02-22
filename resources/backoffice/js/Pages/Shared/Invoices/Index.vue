@@ -36,11 +36,127 @@ const notesRef = ref(null)
 const { confirmAction } = useConfirmAction(loading)
 
 const search = ref(props.filters?.search ?? '')
-const customer = ref(props.filters?.customer ?? '')
 const invoiceDateFrom = ref(props.filters?.invoice_date_from ?? '')
 const invoiceDateTo = ref(props.filters?.invoice_date_to ?? '')
 const payableByFrom = ref(props.filters?.payable_by_from ?? '')
 const payableByTo = ref(props.filters?.payable_by_to ?? '')
+
+const parseYmd = (value) => {
+    if (!value) {
+        return null
+    }
+
+    const parts = String(value).split(/[^0-9]/).filter(Boolean)
+    const [year, month, day] = parts.map(Number)
+    if (!year || !month || !day) {
+        return null
+    }
+
+    return new Date(year, month - 1, day)
+}
+
+const formatYmd = (date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+}
+
+const addDays = (value, days) => {
+    const date = parseYmd(value)
+    if (!date) {
+        return ''
+    }
+
+    date.setDate(date.getDate() + days)
+    return formatYmd(date)
+}
+
+const toEpoch = (value) => {
+    const parsed = parseYmd(value)
+    return parsed ? parsed.getTime() : null
+}
+
+const isBefore = (left, right) => {
+    const leftEpoch = toEpoch(left)
+    const rightEpoch = toEpoch(right)
+    return leftEpoch !== null && rightEpoch !== null && leftEpoch < rightEpoch
+}
+
+const isAfter = (left, right) => {
+    const leftEpoch = toEpoch(left)
+    const rightEpoch = toEpoch(right)
+    return leftEpoch !== null && rightEpoch !== null && leftEpoch > rightEpoch
+}
+
+const isInvoiceDateFromAllowed = (date) => !invoiceDateTo.value || isBefore(date, invoiceDateTo.value)
+const isInvoiceDateToAllowed = (date) => !invoiceDateFrom.value || isAfter(date, invoiceDateFrom.value)
+const isPayableByFromAllowed = (date) => !payableByTo.value || isBefore(date, payableByTo.value)
+const isPayableByToAllowed = (date) => !payableByFrom.value || isAfter(date, payableByFrom.value)
+
+const onInvoiceDateFromChange = (value) => {
+    invoiceDateFrom.value = value || ''
+
+    if (!invoiceDateFrom.value) {
+        invoiceDateTo.value = ''
+        goFirst()
+        return
+    }
+
+    if (!invoiceDateTo.value) {
+        invoiceDateTo.value = addDays(invoiceDateFrom.value, 1)
+    }
+
+    goFirst()
+}
+
+const onInvoiceDateToChange = (value) => {
+    invoiceDateTo.value = value || ''
+
+    if (!invoiceDateTo.value) {
+        invoiceDateFrom.value = ''
+        goFirst()
+        return
+    }
+
+    if (!invoiceDateFrom.value) {
+        invoiceDateFrom.value = addDays(invoiceDateTo.value, -1)
+    }
+
+    goFirst()
+}
+
+const onPayableByFromChange = (value) => {
+    payableByFrom.value = value || ''
+
+    if (!payableByFrom.value) {
+        payableByTo.value = ''
+        goFirst()
+        return
+    }
+
+    if (!payableByTo.value) {
+        payableByTo.value = addDays(payableByFrom.value, 1)
+    }
+
+    goFirst()
+}
+
+const onPayableByToChange = (value) => {
+    payableByTo.value = value || ''
+
+    if (!payableByTo.value) {
+        payableByFrom.value = ''
+        goFirst()
+        return
+    }
+
+    if (!payableByFrom.value) {
+        payableByFrom.value = addDays(payableByTo.value, -1)
+    }
+
+    goFirst()
+}
 
 const tableColumns = computed(() => ([
     ...(props.columns || []),
@@ -58,7 +174,6 @@ const queryPayload = (pagination = null) => ({
     sortBy: pagination?.sortBy,
     descending: pagination?.descending,
     search: search.value || '',
-    customer: customer.value || '',
     invoice_date_from: invoiceDateFrom.value || '',
     invoice_date_to: invoiceDateTo.value || '',
     payable_by_from: payableByFrom.value || '',
@@ -180,61 +295,125 @@ const confirmExport = (row) => {
                         @update:model-value="goFirst"
                     />
                 </div>
-                <div class="col-auto" style="min-width: 240px;">
+                <div class="col-auto" style="min-width: 190px;">
                     <q-input
-                        v-model="customer"
+                        :model-value="invoiceDateFrom"
                         dense
                         outlined
                         clearable
-                        debounce="700"
-                        placeholder="Filter by customer..."
-                        :input-attrs="{ autocomplete: 'off' }"
-                        @update:model-value="goFirst"
-                    />
-                </div>
-                <div class="col-auto" style="min-width: 170px;">
-                    <q-input
-                        v-model="invoiceDateFrom"
-                        dense
-                        outlined
-                        clearable
+                        readonly
                         label="Invoice Date From"
-                        placeholder="YYYY-MM-DD"
-                        @update:model-value="goFirst"
-                    />
+                        @update:model-value="onInvoiceDateFromChange"
+                    >
+                        <template #append>
+                            <q-icon
+                                v-if="invoiceDateFrom"
+                                name="close"
+                                class="cursor-pointer q-mr-xs"
+                                @click.stop="onInvoiceDateFromChange('')"
+                            />
+                            <q-icon name="event" class="cursor-pointer">
+                                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                    <q-date
+                                        :model-value="invoiceDateFrom"
+                                        mask="YYYY-MM-DD"
+                                        :options="isInvoiceDateFromAllowed"
+                                        @update:model-value="onInvoiceDateFromChange"
+                                    />
+                                </q-popup-proxy>
+                            </q-icon>
+                        </template>
+                    </q-input>
                 </div>
-                <div class="col-auto" style="min-width: 170px;">
+                <div class="col-auto" style="min-width: 190px;">
                     <q-input
-                        v-model="invoiceDateTo"
+                        :model-value="invoiceDateTo"
                         dense
                         outlined
                         clearable
+                        readonly
                         label="Invoice Date To"
-                        placeholder="YYYY-MM-DD"
-                        @update:model-value="goFirst"
-                    />
+                        @update:model-value="onInvoiceDateToChange"
+                    >
+                        <template #append>
+                            <q-icon
+                                v-if="invoiceDateTo"
+                                name="close"
+                                class="cursor-pointer q-mr-xs"
+                                @click.stop="onInvoiceDateToChange('')"
+                            />
+                            <q-icon name="event" class="cursor-pointer">
+                                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                    <q-date
+                                        :model-value="invoiceDateTo"
+                                        mask="YYYY-MM-DD"
+                                        :options="isInvoiceDateToAllowed"
+                                        @update:model-value="onInvoiceDateToChange"
+                                    />
+                                </q-popup-proxy>
+                            </q-icon>
+                        </template>
+                    </q-input>
                 </div>
-                <div class="col-auto" style="min-width: 170px;">
+                <div class="col-auto" style="min-width: 190px;">
                     <q-input
-                        v-model="payableByFrom"
+                        :model-value="payableByFrom"
                         dense
                         outlined
                         clearable
+                        readonly
                         label="Payable By From"
-                        placeholder="YYYY-MM-DD"
-                        @update:model-value="goFirst"
-                    />
+                        @update:model-value="onPayableByFromChange"
+                    >
+                        <template #append>
+                            <q-icon
+                                v-if="payableByFrom"
+                                name="close"
+                                class="cursor-pointer q-mr-xs"
+                                @click.stop="onPayableByFromChange('')"
+                            />
+                            <q-icon name="event" class="cursor-pointer">
+                                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                    <q-date
+                                        :model-value="payableByFrom"
+                                        mask="YYYY-MM-DD"
+                                        :options="isPayableByFromAllowed"
+                                        @update:model-value="onPayableByFromChange"
+                                    />
+                                </q-popup-proxy>
+                            </q-icon>
+                        </template>
+                    </q-input>
                 </div>
-                <div class="col-auto" style="min-width: 170px;">
+                <div class="col-auto" style="min-width: 190px;">
                     <q-input
-                        v-model="payableByTo"
+                        :model-value="payableByTo"
                         dense
                         outlined
                         clearable
+                        readonly
                         label="Payable By To"
-                        placeholder="YYYY-MM-DD"
-                        @update:model-value="goFirst"
-                    />
+                        @update:model-value="onPayableByToChange"
+                    >
+                        <template #append>
+                            <q-icon
+                                v-if="payableByTo"
+                                name="close"
+                                class="cursor-pointer q-mr-xs"
+                                @click.stop="onPayableByToChange('')"
+                            />
+                            <q-icon name="event" class="cursor-pointer">
+                                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                    <q-date
+                                        :model-value="payableByTo"
+                                        mask="YYYY-MM-DD"
+                                        :options="isPayableByToAllowed"
+                                        @update:model-value="onPayableByToChange"
+                                    />
+                                </q-popup-proxy>
+                            </q-icon>
+                        </template>
+                    </q-input>
                 </div>
             </div>
         </template>

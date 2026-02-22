@@ -7,6 +7,7 @@ import DealerTabs from 'bo@/Pages/GuardBackoffice/DealerManagement/Dealers/_Tabs
 import DealerConfigurationNav from 'bo@/Pages/GuardDealer/DealerConfiguration/_Nav.vue'
 import { formatCurrency } from 'bo@/Composables/currencyFormatterService'
 import { useConfirmAction } from 'bo@/Composables/useConfirmAction'
+import PaymentEditAction from 'bo@/Components/Shared/PaymentEditAction.vue'
 import { useForm } from '@inertiajs/vue3'
 
 defineOptions({ layout: Layout })
@@ -20,6 +21,8 @@ const props = defineProps({
     records: { type: Object, required: true },
     filters: { type: Object, default: () => ({}) },
     canCreate: { type: Boolean, default: false },
+    bankingDetailOptions: { type: Array, default: () => [] },
+    verificationStatusOptions: { type: Array, default: () => [] },
 })
 
 const tableRef = ref(null)
@@ -28,10 +31,93 @@ const dialog = ref(false)
 const editingId = ref(null)
 const { confirmAction } = useConfirmAction(loading)
 const search = ref(props.filters?.search ?? '')
-const invoiceIdentifier = ref(props.filters?.invoice_identifier ?? '')
 const paymentMethod = ref(props.filters?.payment_method ?? '')
+const verificationStatus = ref(props.filters?.verification_status ?? 'all')
 const paymentDateFrom = ref(props.filters?.payment_date_from ?? '')
 const paymentDateTo = ref(props.filters?.payment_date_to ?? '')
+
+const parseYmd = (value) => {
+    if (!value) {
+        return null
+    }
+
+    const parts = String(value).split(/[^0-9]/).filter(Boolean)
+    const [year, month, day] = parts.map(Number)
+    if (!year || !month || !day) {
+        return null
+    }
+
+    return new Date(year, month - 1, day)
+}
+
+const formatYmd = (date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+}
+
+const addDays = (value, days) => {
+    const date = parseYmd(value)
+    if (!date) {
+        return ''
+    }
+
+    date.setDate(date.getDate() + days)
+    return formatYmd(date)
+}
+
+const toEpoch = (value) => {
+    const parsed = parseYmd(value)
+    return parsed ? parsed.getTime() : null
+}
+
+const isBefore = (left, right) => {
+    const leftEpoch = toEpoch(left)
+    const rightEpoch = toEpoch(right)
+    return leftEpoch !== null && rightEpoch !== null && leftEpoch < rightEpoch
+}
+
+const isAfter = (left, right) => {
+    const leftEpoch = toEpoch(left)
+    const rightEpoch = toEpoch(right)
+    return leftEpoch !== null && rightEpoch !== null && leftEpoch > rightEpoch
+}
+
+const isPaymentDateFromAllowed = (date) => !paymentDateTo.value || isBefore(date, paymentDateTo.value)
+const isPaymentDateToAllowed = (date) => !paymentDateFrom.value || isAfter(date, paymentDateFrom.value)
+
+const onPaymentDateFromChange = (value) => {
+    paymentDateFrom.value = value || ''
+
+    if (!paymentDateFrom.value) {
+        paymentDateTo.value = ''
+        goFirst()
+        return
+    }
+
+    if (!paymentDateTo.value) {
+        paymentDateTo.value = addDays(paymentDateFrom.value, 1)
+    }
+
+    goFirst()
+}
+
+const onPaymentDateToChange = (value) => {
+    paymentDateTo.value = value || ''
+
+    if (!paymentDateTo.value) {
+        paymentDateFrom.value = ''
+        goFirst()
+        return
+    }
+
+    if (!paymentDateFrom.value) {
+        paymentDateFrom.value = addDays(paymentDateTo.value, -1)
+    }
+
+    goFirst()
+}
 
 const paymentMethodOptions = [
     { label: 'All', value: '' },
@@ -48,12 +134,15 @@ const form = useForm({
     amount: null,
     payment_date: '',
     payment_method: 'cash',
+    banking_detail_id: null,
 })
 
 const columns = [
     { name: 'payment_date', label: 'Payment Date', sortable: true, align: 'left', field: 'payment_date' },
     { name: 'invoice_identifier', label: 'Invoice', sortable: true, align: 'left', field: 'invoice_identifier' },
     { name: 'payment_method', label: 'Method', sortable: true, align: 'left', field: 'payment_method' },
+    { name: 'verification_status', label: 'Verified', sortable: false, align: 'center', field: 'verification_status' },
+    { name: 'last_verified_at', label: 'Verified Date', sortable: false, align: 'left', field: 'last_verified_at' },
     { name: 'description', label: 'Description', sortable: false, align: 'left', field: 'description' },
     { name: 'linked_stock_items_count', label: 'Stock Linked', sortable: false, align: 'right', field: 'linked_stock_items_count', numeric: true },
     { name: 'recorded_by', label: 'Recorded By', sortable: false, align: 'left', field: 'recorded_by' },
@@ -61,6 +150,14 @@ const columns = [
     { name: 'amount', label: 'Amount', sortable: true, align: 'right', field: 'amount', numeric: true },
     { name: 'actions', label: '', sortable: false, align: 'right', field: 'actions' },
 ]
+
+const visibleColumns = computed(() => {
+    if (props.context?.mode === 'system') {
+        return columns.filter((column) => column.name !== 'linked_stock_items_count')
+    }
+
+    return columns
+})
 
 const indexRoute = computed(() => {
     if (props.context?.mode === 'dealer-backoffice') {
@@ -81,8 +178,8 @@ const fetchRecords = (pagination, helpers) => {
         sortBy: pagination?.sortBy,
         descending: pagination?.descending,
         search: search.value || '',
-        invoice_identifier: invoiceIdentifier.value || '',
         payment_method: paymentMethod.value || '',
+        verification_status: verificationStatus.value || 'all',
         payment_date_from: paymentDateFrom.value || '',
         payment_date_to: paymentDateTo.value || '',
     }, {
@@ -127,11 +224,16 @@ const deleteUrl = (paymentId) => {
 }
 
 const openEdit = (row) => {
+    if (row?.is_approved) {
+        return
+    }
+
     editingId.value = row.id
     form.description = row.description || ''
     form.amount = Number(row.amount || 0)
     form.payment_date = row.payment_date || ''
-    form.payment_method = row.payment_method || 'cash'
+    form.payment_method = String(row.payment_method_value || row.payment_method || 'cash').toLowerCase()
+    form.banking_detail_id = row.banking_detail_id || null
     form.clearErrors()
     dialog.value = true
 }
@@ -144,6 +246,10 @@ const submit = () => {
 }
 
 const confirmDelete = (row) => {
+    if (row?.is_approved) {
+        return
+    }
+
     confirmAction({
         title: 'Delete Payment',
         message: 'Are you sure you want to delete this payment?',
@@ -215,7 +321,7 @@ const truncateText = (value, limit = 50) => {
         title="Payments"
         row-key="id"
         :records="records"
-        :columns="columns"
+        :columns="visibleColumns"
         :fetch="fetchRecords"
         initial-sort-by="payment_date"
         :initial-descending="true"
@@ -223,10 +329,15 @@ const truncateText = (value, limit = 50) => {
         <template #top-right>
             <div class="row q-col-gutter-sm items-center">
                 <div class="col-auto" style="min-width: 240px;">
-                    <q-input v-model="search" dense outlined clearable debounce="700" placeholder="Search..." @update:model-value="goFirst" />
-                </div>
-                <div class="col-auto" style="min-width: 200px;">
-                    <q-input v-model="invoiceIdentifier" dense outlined clearable debounce="700" placeholder="Invoice..." @update:model-value="goFirst" />
+                    <q-input
+                        v-model="search"
+                        dense
+                        outlined
+                        clearable
+                        debounce="700"
+                        placeholder="Search invoice ref, description, method, amount, IP"
+                        @update:model-value="goFirst"
+                    />
                 </div>
                 <div class="col-auto" style="min-width: 180px;">
                     <q-select
@@ -241,11 +352,78 @@ const truncateText = (value, limit = 50) => {
                         @update:model-value="goFirst"
                     />
                 </div>
-                <div class="col-auto" style="min-width: 170px;">
-                    <q-input v-model="paymentDateFrom" dense outlined clearable label="Date From" placeholder="YYYY-MM-DD" @update:model-value="goFirst" />
+                <div class="col-auto" style="min-width: 180px;">
+                    <q-select
+                        v-model="verificationStatus"
+                        dense
+                        outlined
+                        emit-value
+                        map-options
+                        :options="verificationStatusOptions"
+                        option-label="label"
+                        option-value="value"
+                        @update:model-value="goFirst"
+                    />
                 </div>
                 <div class="col-auto" style="min-width: 170px;">
-                    <q-input v-model="paymentDateTo" dense outlined clearable label="Date To" placeholder="YYYY-MM-DD" @update:model-value="goFirst" />
+                    <q-input
+                        :model-value="paymentDateFrom"
+                        dense
+                        outlined
+                        clearable
+                        readonly
+                        label="Date From"
+                        @update:model-value="onPaymentDateFromChange"
+                    >
+                        <template #append>
+                            <q-icon
+                                v-if="paymentDateFrom"
+                                name="close"
+                                class="cursor-pointer q-mr-xs"
+                                @click.stop="onPaymentDateFromChange('')"
+                            />
+                            <q-icon name="event" class="cursor-pointer">
+                                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                    <q-date
+                                        :model-value="paymentDateFrom"
+                                        mask="YYYY-MM-DD"
+                                        :options="isPaymentDateFromAllowed"
+                                        @update:model-value="onPaymentDateFromChange"
+                                    />
+                                </q-popup-proxy>
+                            </q-icon>
+                        </template>
+                    </q-input>
+                </div>
+                <div class="col-auto" style="min-width: 170px;">
+                    <q-input
+                        :model-value="paymentDateTo"
+                        dense
+                        outlined
+                        clearable
+                        readonly
+                        label="Date To"
+                        @update:model-value="onPaymentDateToChange"
+                    >
+                        <template #append>
+                            <q-icon
+                                v-if="paymentDateTo"
+                                name="close"
+                                class="cursor-pointer q-mr-xs"
+                                @click.stop="onPaymentDateToChange('')"
+                            />
+                            <q-icon name="event" class="cursor-pointer">
+                                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                    <q-date
+                                        :model-value="paymentDateTo"
+                                        mask="YYYY-MM-DD"
+                                        :options="isPaymentDateToAllowed"
+                                        @update:model-value="onPaymentDateToChange"
+                                    />
+                                </q-popup-proxy>
+                            </q-icon>
+                        </template>
+                    </q-input>
                 </div>
             </div>
         </template>
@@ -272,10 +450,30 @@ const truncateText = (value, limit = 50) => {
             <span>{{ truncateText(row.description, 50) }}</span>
         </template>
 
+        <template #cell-verification_status="{ row }">
+            <q-chip
+                square
+                dense
+                size="sm"
+                :color="row.is_approved ? 'positive' : 'negative'"
+                text-color="white"
+            >
+                {{ row.is_approved ? 'VERIFIED' : 'UNVERIFIED' }}
+            </q-chip>
+        </template>
+
+        <template #cell-last_verified_at="{ row }">
+            <span>{{ row.last_verified_at || '-' }}</span>
+        </template>
+
         <template #actions="{ row }">
             <q-btn v-if="row.can?.view" round dense flat icon="visibility" @click="goShow(row)" />
-            <q-btn v-if="row.can?.edit" round dense flat icon="edit" @click="openEdit(row)" />
-            <q-btn v-if="row.can?.delete" round dense flat icon="delete" color="negative" @click.stop="confirmDelete(row)" />
+            <PaymentEditAction
+                :can-edit="!!row.can?.edit"
+                :is-approved="!!row.is_approved"
+                @click="openEdit(row)"
+            />
+            <q-btn v-if="row.can?.delete && !row.is_approved" round dense flat icon="delete" color="negative" @click.stop="confirmDelete(row)" />
         </template>
     </PaginatedTable>
 
@@ -303,11 +501,26 @@ const truncateText = (value, limit = 50) => {
                             :error-message="form.errors.payment_method"
                         />
                     </div>
+                    <div class="col-12" v-if="form.payment_method === 'eft'">
+                        <q-select
+                            v-model="form.banking_detail_id"
+                            dense
+                            outlined
+                            emit-value
+                            map-options
+                            :options="bankingDetailOptions"
+                            option-label="label"
+                            option-value="value"
+                            label="Banking Detail"
+                            :error="!!form.errors.banking_detail_id"
+                            :error-message="form.errors.banking_detail_id"
+                        />
+                    </div>
                     <div class="col-12">
                         <q-input v-model.number="form.amount" dense outlined type="number" min="0" max="999999999.99" step="0.01" label="Amount" :error="!!form.errors.amount" :error-message="form.errors.amount" />
                     </div>
                     <div class="col-12">
-                        <q-input v-model="form.description" dense outlined label="Description" maxlength="255" :error="!!form.errors.description" :error-message="form.errors.description" />
+                        <q-input v-model="form.description" dense outlined label="Description" maxlength="100" counter :error="!!form.errors.description" :error-message="form.errors.description" />
                     </div>
                 </div>
             </q-card-section>

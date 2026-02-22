@@ -88,8 +88,8 @@ const cancel = () => {
             <div class="text-h6 q-pb-lg">Create Branch</div>
             <q-form @submit.prevent="submit">
                 <div class="row q-col-gutter-md">
-                    <div class="col-12 col-md-6"><q-input v-model="form.name" label="Branch name" filled dense :error="!!form.errors.name" :error-message="form.errors.name" /></div>
-                    <div class="col-12"><q-input v-model="form.display_address" label="Display address" filled dense :error="!!form.errors.display_address" :error-message="form.errors.display_address" /></div>
+                    <div class="col-12 col-md-6"><q-input v-model="form.name" label="Branch name" filled dense maxlength="255" counter :error="!!form.errors.name" :error-message="form.errors.name" /></div>
+                    <div class="col-12"><q-input v-model="form.display_address" label="Display address" filled dense maxlength="500" counter :error="!!form.errors.display_address" :error-message="form.errors.display_address" /></div>
                     <div class="col-12 col-md-6"><q-select v-model="form.country_id" filled dense emit-value map-options :options="countriesAll" label="Country" @update:model-value="onCountryChanged" /></div>
                     <div class="col-12 col-md-6"><q-select v-model="form.state_id" filled dense emit-value map-options :options="stateOptions" label="Province" @update:model-value="onStateChanged" /></div>
                     <div class="col-12 col-md-6"><q-select v-model="form.city_id" filled dense emit-value map-options :options="cityOptions" label="City" @update:model-value="onCityChanged" /></div>

@@ -50,13 +50,13 @@ const cancel = () => {
             <q-form @submit.prevent="submit">
                 <div class="row q-col-gutter-md">
                     <div class="col-12 col-md-6">
-                        <q-input v-model="form.firstname" filled dense label="First name" :error="!!form.errors.firstname" :error-message="form.errors.firstname" />
+                        <q-input v-model="form.firstname" filled dense label="First name" maxlength="50" counter :error="!!form.errors.firstname" :error-message="form.errors.firstname" />
                     </div>
                     <div class="col-12 col-md-6">
-                        <q-input v-model="form.lastname" filled dense label="Last name" :error="!!form.errors.lastname" :error-message="form.errors.lastname" />
+                        <q-input v-model="form.lastname" filled dense label="Last name" maxlength="50" counter :error="!!form.errors.lastname" :error-message="form.errors.lastname" />
                     </div>
                     <div class="col-12 col-md-6">
-                        <q-input v-model="form.email" filled dense label="Email" :error="!!form.errors.email" :error-message="form.errors.email" />
+                        <q-input v-model="form.email" filled dense label="Email" maxlength="150" counter :error="!!form.errors.email" :error-message="form.errors.email" />
                     </div>
                 </div>
 

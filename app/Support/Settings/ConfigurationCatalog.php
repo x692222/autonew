@@ -49,6 +49,15 @@ class ConfigurationCatalog
                 'default' => 'US',
                 'description' => 'Default ISO country code used for country-specific defaults and formatting.',
             ],
+            'verify_payments_auto_refresh_seconds' => [
+                'label' => 'Verify Payments Auto Refresh Interval (Seconds)',
+                'category' => ConfigurationCategoryEnum::GENERAL,
+                'type' => ConfigurationValueTypeEnum::NUMBER,
+                'default' => 30,
+                'min' => 30,
+                'max' => 7200,
+                'description' => 'Auto-refresh interval for Verify Payments records. Minimum 30 seconds, maximum 2 hours.',
+            ],
             'system_is_vat_registered' => [
                 'label' => 'System VAT Registered',
                 'category' => ConfigurationCategoryEnum::BILLING,
@@ -61,6 +70,8 @@ class ConfigurationCatalog
                 'category' => ConfigurationCategoryEnum::BILLING,
                 'type' => ConfigurationValueTypeEnum::FLOAT,
                 'default' => null,
+                'min' => 0,
+                'max' => 500,
                 'description' => 'VAT rate percentage used for system quotations when VAT is enabled.',
             ],
             'system_vat_number' => [
@@ -75,14 +86,14 @@ class ConfigurationCatalog
                 'category' => ConfigurationCategoryEnum::BILLING,
                 'type' => ConfigurationValueTypeEnum::BOOLEAN,
                 'default' => false,
-                'description' => 'When enabled, system invoices become read-only after partial payment has been captured.',
+                'description' => 'When disabled, system invoices become read-only after partial payment has been captured.',
             ],
             'can_edit_invoice_after_full_payment' => [
                 'label' => 'Allow Invoice Edit After Full Payment',
                 'category' => ConfigurationCategoryEnum::BILLING,
                 'type' => ConfigurationValueTypeEnum::BOOLEAN,
                 'default' => false,
-                'description' => 'When enabled, fully paid system invoices become read-only.',
+                'description' => 'When disabled, fully paid system invoices become read-only.',
             ],
         ];
     }
@@ -119,6 +130,8 @@ class ConfigurationCatalog
                 'category' => ConfigurationCategoryEnum::GENERAL,
                 'type' => ConfigurationValueTypeEnum::FLOAT,
                 'default' => null,
+                'min' => 0,
+                'max' => 500,
                 'description' => 'VAT rate percentage used for dealer quotations when VAT is enabled.',
                 'backoffice_only' => false,
             ],
@@ -231,7 +244,7 @@ class ConfigurationCatalog
                 'category' => ConfigurationCategoryEnum::BILLING,
                 'type' => ConfigurationValueTypeEnum::BOOLEAN,
                 'default' => false,
-                'description' => 'When enabled, dealer invoices become read-only after partial payment has been captured.',
+                'description' => 'When disabled, dealer invoices become read-only after partial payment has been captured.',
                 'backoffice_only' => false,
             ],
             'can_edit_invoice_after_full_payment' => [
@@ -239,7 +252,7 @@ class ConfigurationCatalog
                 'category' => ConfigurationCategoryEnum::BILLING,
                 'type' => ConfigurationValueTypeEnum::BOOLEAN,
                 'default' => false,
-                'description' => 'When enabled, fully paid dealer invoices become read-only.',
+                'description' => 'When disabled, fully paid dealer invoices become read-only.',
                 'backoffice_only' => false,
             ],
             'max_concurrent_published_stock_items' => [
@@ -389,11 +402,6 @@ class ConfigurationCatalog
                 continue;
             }
 
-            if (in_array($key, ['system_vat_percentage', 'dealer_vat_percentage'], true)) {
-                $rules["settings.{$key}"] = ['nullable', 'numeric', 'gt:0', 'lt:100'];
-                continue;
-            }
-
             if (in_array($key, ['system_vat_number', 'dealer_vat_number'], true)) {
                 $rules["settings.{$key}"] = ['nullable', 'string', 'max:255'];
                 continue;
@@ -406,8 +414,8 @@ class ConfigurationCatalog
 
             $rules["settings.{$key}"] = match ($type) {
                 ConfigurationValueTypeEnum::BOOLEAN => ['nullable', 'boolean'],
-                ConfigurationValueTypeEnum::NUMBER => ['nullable', 'integer', 'min:0', 'max:100000000'],
-                ConfigurationValueTypeEnum::FLOAT => ['nullable', 'numeric', 'min:0', 'max:100000000'],
+                ConfigurationValueTypeEnum::NUMBER => ['nullable', 'integer', 'min:' . ($definition['min'] ?? 0), 'max:' . ($definition['max'] ?? 100000000)],
+                ConfigurationValueTypeEnum::FLOAT => ['nullable', 'numeric', 'min:' . ($definition['min'] ?? 0), 'max:' . ($definition['max'] ?? 100000000)],
                 ConfigurationValueTypeEnum::TIMEZONE => ['nullable', Rule::in(DateTimeZone::listIdentifiers())],
                 default => ['nullable', 'string', 'max:255'],
             };

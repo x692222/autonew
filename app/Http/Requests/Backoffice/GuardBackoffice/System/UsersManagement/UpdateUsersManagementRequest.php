@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Backoffice\GuardBackoffice\System\UsersManagement;
 use App\Models\System\User;
+use App\Support\Validation\Users\SystemUserValidationRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 
 class UpdateUsersManagementRequest extends FormRequest
 {
@@ -21,11 +21,6 @@ class UpdateUsersManagementRequest extends FormRequest
         /** @var User $user */
         $user = $this->route('user');
 
-        return [
-            'firstname' => ['required', 'string', 'max:75'],
-            'lastname' => ['required', 'string', 'max:75'],
-            'email' => ['required', 'email', 'max:150', Rule::unique('users', 'email')->ignore($user->getKey())],
-            'role' => ['required', 'string', Rule::exists('roles', 'name')->where('guard_name', 'backoffice')],
-        ];
+        return app(SystemUserValidationRules::class)->update($user);
     }
 }

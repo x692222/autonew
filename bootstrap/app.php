@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureAjaxRequestMiddleware;
 use App\Http\Middleware\BlockBackofficeWhileImpersonatingMiddleware;
+use App\Http\Middleware\BlockBlockedIpMiddleware;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -25,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->web(append: [
+            BlockBlockedIpMiddleware::class,
             HandleInertiaRequests::class,
         ])
             ->validateCsrfTokens(except: [

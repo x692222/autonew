@@ -19,7 +19,6 @@ class InvoiceIndexService
         int $rowsPerPage = 25
     ): LengthAwarePaginator {
         $search = trim((string) ($filters['search'] ?? ''));
-        $customer = trim((string) ($filters['customer'] ?? ''));
 
         $query
             ->select('invoices.*')
@@ -42,13 +41,6 @@ class InvoiceIndexService
                                 ->orWhere('email', 'like', '%' . $search . '%')
                                 ->orWhere('contact_number', 'like', '%' . $search . '%');
                         });
-                });
-            })
-            ->when($customer !== '', function (Builder $builder) use ($customer): void {
-                $builder->whereHas('customer', function (Builder $customerQuery) use ($customer): void {
-                    $customerQuery
-                        ->where('firstname', 'like', '%' . $customer . '%')
-                        ->orWhere('lastname', 'like', '%' . $customer . '%');
                 });
             })
             ->when(($filters['invoice_date_from'] ?? null), fn (Builder $builder, string $date) => $builder->whereDate('invoice_date', '>=', $date))

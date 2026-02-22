@@ -1,10 +1,11 @@
 <?php
 
 namespace App\Http\Controllers\Backoffice\GuardBackoffice\Auth;
+
 use App\Http\Controllers\Controller;
+use App\Http\Requests\BackofficeLoginRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 
 class LoginController extends Controller
@@ -14,42 +15,40 @@ class LoginController extends Controller
         return Inertia::render('GuardBackoffice/Auth/Login');
     }
 
-    public function store(Request $request)
+    public function store(BackofficeLoginRequest $request)
     {
-        $validator = Validator::make($request->all(), [
-            'email' => ['required', 'email', 'max:190'],
-            'password' => ['required', 'string', 'max:190'],
-            'remember' => ['nullable', 'boolean'],
-        ]);
-
-        if ($validator->fails()) {
-            return back()->withErrors($validator)->withInput();
-        }
-
-        $data = $validator->validated();
-
-        $remember = (bool)($data['remember'] ?? false);
-
-        if (!Auth::guard('backoffice')->attempt(
-            ['email' => $data['email'], 'password' => $data['password'], 'is_active' => true],
-            $remember
-        )) {
-            return back()->withErrors([
-                'email' => 'These credentials do not match our records.',
-            ])->withInput();
-        }
+        $request->authenticate();
 
         $request->session()->regenerate();
 
-        return redirect()->route('backoffice.index');
+        return $this->redirectAfterLogin($request);
     }
 
     public function destroy(Request $request)
     {
-        Auth::guard('backoffice')->logout();
+        if (Auth::guard('backoffice')->check()) {
+            Auth::guard('backoffice')->logout();
+        }
+
+        if (Auth::guard('dealer')->check()) {
+            Auth::guard('dealer')->logout();
+        }
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        return redirect()->route('backoffice.auth.login.show');
+    }
+
+    private function redirectAfterLogin(Request $request)
+    {
+        if (Auth::guard('backoffice')->check()) {
+            return redirect()->intended(route('backoffice.index'));
+        }
+
+        if (Auth::guard('dealer')->check()) {
+            return redirect()->intended(route('backoffice.dealer-configuration.stock.index'));
+        }
 
         return redirect()->route('backoffice.auth.login.show');
     }

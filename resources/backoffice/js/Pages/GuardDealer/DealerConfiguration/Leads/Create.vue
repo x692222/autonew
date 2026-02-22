@@ -53,7 +53,7 @@ const goBack = () => router.visit(props.returnTo || route('backoffice.dealer-con
       <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
       <div class="text-caption text-grey-7">{{ dealer.name }}</div>
     </div>
-    <q-btn color="grey-4" text-color="standard" label="Back" no-wrap unelevated @click="goBack" />
+    <q-btn color="grey-4" text-color="standard" no-wrap unelevated label="Back" @click="goBack" />
   </div>
 
   <DealerConfigurationNav tab="leads" />
@@ -63,10 +63,10 @@ const goBack = () => router.visit(props.returnTo || route('backoffice.dealer-con
       <div class="text-h6 q-pb-lg">Create Lead</div>
       <q-form @submit.prevent="submit">
         <div class="row q-col-gutter-md">
-          <div class="col-12 col-md-6"><q-input v-model="form.firstname" filled dense label="First name" :error="!!form.errors.firstname" :error-message="form.errors.firstname" /></div>
-          <div class="col-12 col-md-6"><q-input v-model="form.lastname" filled dense label="Last name" :error="!!form.errors.lastname" :error-message="form.errors.lastname" /></div>
-          <div class="col-12 col-md-6"><q-input v-model="form.email" filled dense label="Email" :error="!!form.errors.email" :error-message="form.errors.email" /></div>
-          <div class="col-12 col-md-6"><q-input v-model="form.contact_no" filled dense label="Contact number" :error="!!form.errors.contact_no" :error-message="form.errors.contact_no" /></div>
+          <div class="col-12 col-md-6"><q-input v-model="form.firstname" filled dense label="First name" maxlength="255" counter :error="!!form.errors.firstname" :error-message="form.errors.firstname" /></div>
+          <div class="col-12 col-md-6"><q-input v-model="form.lastname" filled dense label="Last name" maxlength="255" counter :error="!!form.errors.lastname" :error-message="form.errors.lastname" /></div>
+          <div class="col-12 col-md-6"><q-input v-model="form.email" filled dense label="Email" maxlength="255" counter :error="!!form.errors.email" :error-message="form.errors.email" /></div>
+          <div class="col-12 col-md-6"><q-input v-model="form.contact_no" filled dense label="Contact number" maxlength="50" counter :error="!!form.errors.contact_no" :error-message="form.errors.contact_no" /></div>
           <div class="col-12 col-md-6"><q-select v-model="form.branch_id" filled dense emit-value map-options clearable label="Branch" :options="options.branches || []" :error="!!form.errors.branch_id" :error-message="form.errors.branch_id" /></div>
           <div class="col-12 col-md-6"><q-select v-model="form.assigned_to_dealer_user_id" filled dense emit-value map-options clearable label="Assigned to" :options="options.dealer_users || []" :error="!!form.errors.assigned_to_dealer_user_id" :error-message="form.errors.assigned_to_dealer_user_id" /></div>
           <div class="col-12 col-md-6"><q-select v-model="form.pipeline_id" filled dense emit-value map-options clearable label="Pipeline" :options="options.pipelines || []" :error="!!form.errors.pipeline_id" :error-message="form.errors.pipeline_id" @update:model-value="onPipelineChange" /></div>

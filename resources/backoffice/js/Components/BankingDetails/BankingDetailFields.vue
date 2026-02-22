@@ -27,7 +27,8 @@ const fieldError = (key) => {
                 :outlined="variant === 'outlined'"
                 :filled="variant === 'filled'"
                 maxlength="50"
-                label="Bank *"
+                counter
+                label="Bank"
                 :error="!!fieldError('bank')"
                 :error-message="fieldError('bank')"
                 @update:model-value="(value) => setFieldValue('bank', value)"
@@ -41,7 +42,8 @@ const fieldError = (key) => {
                 :outlined="variant === 'outlined'"
                 :filled="variant === 'filled'"
                 maxlength="75"
-                label="Account Holder *"
+                counter
+                label="Account Holder"
                 :error="!!fieldError('account_holder')"
                 :error-message="fieldError('account_holder')"
                 @update:model-value="(value) => setFieldValue('account_holder', value)"
@@ -54,8 +56,9 @@ const fieldError = (key) => {
                 :dense="dense"
                 :outlined="variant === 'outlined'"
                 :filled="variant === 'filled'"
-                maxlength="25"
-                label="Account Number *"
+                maxlength="20"
+                counter
+                label="Account Number"
                 :error="!!fieldError('account_number')"
                 :error-message="fieldError('account_number')"
                 @update:model-value="(value) => setFieldValue('account_number', value)"
@@ -69,6 +72,7 @@ const fieldError = (key) => {
                 :outlined="variant === 'outlined'"
                 :filled="variant === 'filled'"
                 maxlength="50"
+                counter
                 label="Branch Name"
                 :error="!!fieldError('branch_name')"
                 :error-message="fieldError('branch_name')"
@@ -82,7 +86,8 @@ const fieldError = (key) => {
                 :dense="dense"
                 :outlined="variant === 'outlined'"
                 :filled="variant === 'filled'"
-                maxlength="50"
+                maxlength="15"
+                counter
                 label="Branch Code"
                 :error="!!fieldError('branch_code')"
                 :error-message="fieldError('branch_code')"
@@ -97,6 +102,7 @@ const fieldError = (key) => {
                 :outlined="variant === 'outlined'"
                 :filled="variant === 'filled'"
                 maxlength="20"
+                counter
                 label="Swift Code"
                 :error="!!fieldError('swift_code')"
                 :error-message="fieldError('swift_code')"

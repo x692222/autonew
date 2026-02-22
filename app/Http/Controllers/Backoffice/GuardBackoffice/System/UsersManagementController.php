@@ -15,7 +15,6 @@ use App\Http\Requests\Backoffice\GuardBackoffice\System\UsersManagement\StoreUse
 use App\Http\Requests\Backoffice\GuardBackoffice\System\UsersManagement\ToggleUserStatusUsersManagementRequest;
 use App\Http\Requests\Backoffice\GuardBackoffice\System\UsersManagement\UpdateUsersManagementRequest;
 use App\Http\Resources\Backoffice\GuardBackoffice\System\UsersManagement\UserManagementIndexResource;
-use App\Models\System\Role;
 use App\Models\System\User;
 use App\Support\Tables\DataTableColumnBuilder;
 use Illuminate\Support\Facades\Password;
@@ -34,7 +33,6 @@ class UsersManagementController extends Controller
 
         $query = User::query()
             ->select(['id', 'firstname', 'lastname', 'email', 'is_active'])
-            ->with(['roles:id,name'])
             ->filterSearch($filters['search'] ?? null, ['firstname', 'lastname', 'email']);
 
         $sortBy = $filters['sortBy'] ?? 'name';
@@ -65,7 +63,7 @@ class UsersManagementController extends Controller
         );
 
         $columns = DataTableColumnBuilder::make(
-            keys: ['name', 'email', 'status', 'roles'],
+            keys: ['name', 'email', 'status'],
             sortableKeys: ['name', 'email', 'status']
         );
 
@@ -79,16 +77,8 @@ class UsersManagementController extends Controller
 
     public function create(CreateUsersManagementRequest $request): Response
     {
-        $roles = Role::query()
-            ->where('guard_name', 'backoffice')
-            ->orderBy('name')
-            ->pluck('name')
-            ->values()
-            ->all();
-
         return Inertia::render('GuardBackoffice/System/UserManagement/Create', [
             'publicTitle' => $this->publicTitle,
-            'roles' => $roles,
         ]);
     }
 
@@ -103,24 +93,13 @@ class UsersManagementController extends Controller
 
     public function edit(EditUsersManagementRequest $request, User $user): Response
     {
-        $roles = Role::query()
-            ->where('guard_name', 'backoffice')
-            ->orderBy('name')
-            ->pluck('name')
-            ->values()
-            ->all();
-
-        $user->load('roles:id,name');
-
         return Inertia::render('GuardBackoffice/System/UserManagement/Edit', [
             'publicTitle' => $this->publicTitle,
-            'roles' => $roles,
             'data' => [
                 'id' => $user->id,
                 'firstname' => $user->firstname,
                 'lastname' => $user->lastname,
                 'email' => $user->email,
-                'role' => $user->roles->pluck('name')->first(),
             ],
         ]);
     }

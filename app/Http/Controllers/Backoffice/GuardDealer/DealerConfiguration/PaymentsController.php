@@ -13,6 +13,8 @@ use App\Support\Payments\InvoicePaymentSummaryService;
 use App\Support\Payments\PaymentsIndexService;
 use App\Support\Stock\AssociatedStockPresenter;
 use App\Support\Invoices\InvoiceAmountSummaryService;
+use App\Support\Options\BankingDetailOptions;
+use App\Support\Options\GeneralOptions;
 use App\Support\Settings\DocumentSettingsPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -42,8 +44,8 @@ class PaymentsController extends Controller
 
         $records->through(fn (Payment $payment) => $this->indexService->toArray($payment, fn (Payment $record) => [
                 'view' => Gate::forUser($actor)->inspect('dealerConfigurationViewPayment', $record)->allowed(),
-                'edit' => Gate::forUser($actor)->inspect('dealerConfigurationEditPayment', $record)->allowed(),
-                'delete' => Gate::forUser($actor)->inspect('dealerConfigurationDeletePayment', $record)->allowed(),
+                'edit' => ! (bool) $record->is_approved && Gate::forUser($actor)->inspect('dealerConfigurationEditPayment', $record)->allowed(),
+                'delete' => ! (bool) $record->is_approved && Gate::forUser($actor)->inspect('dealerConfigurationDeletePayment', $record)->allowed(),
             ]));
 
         return Inertia::render('Shared/Payments/Index', [
@@ -53,6 +55,8 @@ class PaymentsController extends Controller
             'records' => $records,
             'filters' => $filters,
             'canCreate' => false,
+            'bankingDetailOptions' => BankingDetailOptions::forDealer((string) $dealer->id)->resolve(),
+            'verificationStatusOptions' => GeneralOptions::paymentVerificationStatuses()->resolve(),
         ]);
     }
 
@@ -88,6 +92,9 @@ class PaymentsController extends Controller
 
         $invoiceTotalPaid = $payment->invoice ? $this->paymentSummaryService->totalPaid($payment->invoice) : 0;
         $invoiceIsFullyPaid = $payment->invoice ? $this->paymentSummaryService->isFullyPaid($payment->invoice) : false;
+        $invoiceTotalPayments = $payment->invoice ? (int) $payment->invoice->payments()->count() : 0;
+        $invoiceVerifiedPayments = $payment->invoice ? (int) $payment->invoice->payments()->where('is_approved', true)->count() : 0;
+        $invoiceIsFullyVerified = $invoiceTotalPayments > 0 && $invoiceTotalPayments === $invoiceVerifiedPayments;
         $invoiceTotalAmount = $payment->invoice ? $this->amountSummaryService->totalForInvoice($payment->invoice) : null;
 
         $associatedInvoices = $payment->invoice ? [[
@@ -96,6 +103,8 @@ class PaymentsController extends Controller
             'invoice_date' => optional($payment->invoice->invoice_date)?->format('Y-m-d'),
             'total_amount' => $invoiceTotalAmount !== null ? (float) $invoiceTotalAmount : null,
             'paid_amount' => $invoiceTotalPaid,
+            'is_fully_paid' => $invoiceIsFullyPaid,
+            'is_fully_verified' => $invoiceIsFullyVerified,
             'status' => $invoiceIsFullyPaid
                 ? 'FULLY PAID'
                 : ($invoiceTotalPaid > 0 ? 'PARTIAL PAYMENT' : 'NOT PAID'),
@@ -115,6 +124,7 @@ class PaymentsController extends Controller
                 'amount' => $payment->amount !== null ? (float) $payment->amount : null,
                 'payment_date' => optional($payment->payment_date)?->format('Y-m-d'),
                 'payment_method' => $payment->payment_method?->value ?? (string) $payment->payment_method,
+                'banking_detail_id' => $payment->banking_detail_id,
                 'banking_detail_bank_account' => trim((string) (($payment->bankingDetail?->bank ?? '') . ' ' . ($payment->bankingDetail?->account_number ?? ''))),
                 'recorded_by' => $payment->recordedByLabel(),
                 'recorded_ip' => $payment->created_from_ip,
@@ -133,6 +143,9 @@ class PaymentsController extends Controller
             'associatedInvoices' => $associatedInvoices,
             'canViewAssociatedInvoices' => $canViewAssociatedInvoices,
             'currencySymbol' => $settings['currencySymbol'],
+            'bankingDetailOptions' => BankingDetailOptions::forDealer((string) $dealer->id)->resolve(),
+            'canEdit' => Gate::forUser($actor)->inspect('dealerConfigurationEditPayment', $payment)->allowed() && ! (bool) $payment->is_approved,
+            'updateRoute' => route('backoffice.dealer-configuration.payments.update', ['payment' => $payment->id]),
             'canVerify' => Gate::forUser($actor)->inspect('dealerConfigurationVerifyPayment', $payment)->allowed() && ! (bool) $payment->is_approved,
             'verifyUrl' => route('backoffice.dealer-configuration.verify-payments.verify', ['payment' => $payment->id]),
             'returnTo' => $request->input('return_to', route('backoffice.dealer-configuration.payments.index')),
@@ -163,6 +176,9 @@ class PaymentsController extends Controller
     ): RedirectResponse
     {
         $actor = $request->user('dealer');
+        if ((bool) $payment->is_approved) {
+            return back()->with('error', 'Verified payments cannot be edited.');
+        }
         Gate::forUser($actor)->authorize('dealerConfigurationEditPayment', $payment);
         $data = $request->validated();
         $upsertPaymentAction->execute($payment, $payment->invoice, $data, $actor, $request->ip());
@@ -174,6 +190,9 @@ class PaymentsController extends Controller
     {
         $actor = $request->user('dealer');
         $dealer = $actor->dealer;
+        if ((bool) $payment->is_approved) {
+            return back()->with('error', 'Verified payments cannot be deleted.');
+        }
         Gate::forUser($actor)->authorize('dealerConfigurationDeletePayment', $payment);
         $deletePaymentAction->execute($payment, $dealer);
 

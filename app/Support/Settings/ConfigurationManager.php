@@ -118,6 +118,8 @@ class ConfigurationManager
                     'description' => $definition['description'] ?? null,
                     'value' => $this->catalog->castValue($definition['type'], $normalized),
                     'backoffice_only' => (bool) ($definition['backoffice_only'] ?? false),
+                    'min' => $definition['min'] ?? null,
+                    'max' => $definition['max'] ?? null,
                 ];
             })
             ->sortBy([

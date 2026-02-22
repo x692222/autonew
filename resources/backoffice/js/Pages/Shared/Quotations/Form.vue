@@ -22,6 +22,7 @@ const props = defineProps({
     sectionOptions: { type: Array, default: () => [] },
     vat: { type: Object, default: () => ({ vat_enabled: false, vat_percentage: null, vat_number: null }) },
     canEdit: { type: Boolean, default: true },
+    readOnlyReason: { type: String, default: null },
     canDelete: { type: Boolean, default: false },
     canExport: { type: Boolean, default: false },
     canShowNotes: { type: Boolean, default: false },
@@ -59,7 +60,8 @@ const convertForm = ref({
 const lineItemTimeouts = new Map()
 const lineItemSuggestions = ref({})
 const skuSuggestionDebounceMs = 500
-const canSearchSkuSuggestions = computed(() => props.context?.mode !== 'system')
+const skuSuggestionBlurDelayMs = 150
+const canSearchSkuSuggestions = computed(() => !!props.lineItemSuggestionRoute)
 const canOpenLinkedStock = computed(() => ['dealer', 'dealer-backoffice'].includes(props.context?.mode))
 const skuInputRefs = new Map()
 const $q = useQuasar()
@@ -67,10 +69,20 @@ const $q = useQuasar()
 const { confirmAction } = useConfirmAction(loading)
 const currentUrl = computed(() => page.url || props.returnTo)
 
-const sanitizeContactNumber = (value) => String(value || '').replace(/\s+/g, '')
+const sanitizeContactNumber = (value, enforceLeadingPlus = false) => {
+    const raw = String(value || '').replace(/\s+/g, '').replace(/[^+\d]/g, '')
+    const unsigned = raw.replace(/\+/g, '')
+    if (!enforceLeadingPlus) return raw.slice(0, 25)
+    if (!unsigned) return '+'
+
+    return `+${unsigned}`.slice(0, 25)
+}
 const sanitizeVatNumber = (value) => String(value || '').replace(/\s+/g, '').replace(/[^A-Za-z0-9/-]/g, '').slice(0, 35)
 const sanitizeSku = (value) => String(value || '').replace(/\s+/g, '').slice(0, 35)
 const defaultContactNoPrefix = sanitizeContactNumber(props.contactNoPrefix || '')
+const customerContactHint = defaultContactNoPrefix
+    ? `Default prefix prefilled (${defaultContactNoPrefix}). Number must start with +, e.g. +264811234567`
+    : 'Number must start with +, e.g. +264811234567'
 
 const buildEmptyLineItem = (sectionValue, defaultVatExempt) => ({
     __key: `${Date.now()}-${Math.random()}`,
@@ -240,6 +252,8 @@ const dateRules = [
     (value) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || '')) || 'Date format must be YYYY-MM-DD',
 ]
 
+const MAX_LINE_ITEMS = 150
+
 const formatDateInput = (value) => {
     const normalized = String(value || '')
         .replace(/[^\d]/g, '')
@@ -251,6 +265,18 @@ const formatDateInput = (value) => {
 }
 
 const addLineItem = (section) => {
+    if (isQuotationReadOnly.value) {
+        return
+    }
+
+    if (form.line_items.length >= MAX_LINE_ITEMS) {
+        $q.notify({
+            type: 'negative',
+            message: `Maximum ${MAX_LINE_ITEMS} line items allowed.`,
+        })
+        return
+    }
+
     const newLineItem = buildEmptyLineItem(section.value, section.default_vat_exempt)
     form.line_items.push(newLineItem)
 
@@ -258,11 +284,19 @@ const addLineItem = (section) => {
 }
 
 const removeLineItem = (lineItem) => {
+    if (lineItemTimeouts.has(lineItem.__key)) {
+        clearTimeout(lineItemTimeouts.get(lineItem.__key))
+        lineItemTimeouts.delete(lineItem.__key)
+    }
     form.line_items = form.line_items.filter((item) => item.__key !== lineItem.__key)
     delete lineItemSuggestions.value[lineItem.__key]
 }
 
 const confirmRemoveLineItem = (lineItem) => {
+    if (isQuotationReadOnly.value) {
+        return
+    }
+
     $q.dialog({
         title: 'Remove Line Item',
         message: 'Are you sure you want to remove this line item?',
@@ -323,13 +357,43 @@ const queueLineItemSuggestionSearch = (lineItem) => {
     }, skuSuggestionDebounceMs))
 }
 
+const clearLineItemSuggestions = (lineItem, delayMs = 0) => {
+    const key = lineItem?.__key
+    if (!key) return
+
+    const clear = () => {
+        if (lineItemTimeouts.has(key)) {
+            clearTimeout(lineItemTimeouts.get(key))
+            lineItemTimeouts.delete(key)
+        }
+        lineItemSuggestions.value[key] = []
+    }
+
+    if (delayMs > 0) {
+        window.setTimeout(clear, delayMs)
+        return
+    }
+
+    clear()
+}
+
 const applySuggestion = (lineItem, suggestion) => {
     lineItem.stock_id = suggestion.stock_id || null
     lineItem.sku = sanitizeSku(suggestion.sku || '')
     lineItem.description = suggestion.description || ''
-    lineItem.amount = Number(suggestion.amount || 0)
-    lineItem.qty = Number(suggestion.qty || 1)
-    lineItem.total = Number(suggestion.total || lineItem.amount || 0)
+    const isDealerTradeIn = ['dealer', 'dealer-backoffice'].includes(props.context?.mode)
+        && lineItem.section === 'trade_in'
+
+    if (isDealerTradeIn) {
+        lineItem.amount = 0
+        lineItem.qty = 1
+        lineItem.total = 0
+    } else {
+        lineItem.amount = Number(suggestion.amount || 0)
+        lineItem.qty = Number(suggestion.qty || 1)
+        lineItem.total = Number(suggestion.total || lineItem.amount || 0)
+    }
+
     lineItemSuggestions.value[lineItem.__key] = []
 }
 
@@ -433,7 +497,7 @@ const formattedCustomerAddress = computed(() => {
 const submitAddCustomer = async () => {
     creatingCustomer.value = true
     customerForm.clearErrors()
-    customerForm.contact_number = sanitizeContactNumber(customerForm.contact_number)
+    customerForm.contact_number = sanitizeContactNumber(customerForm.contact_number, true)
     customerForm.vat_number = sanitizeVatNumber(customerForm.vat_number)
 
     try {
@@ -465,6 +529,10 @@ const submitAddCustomer = async () => {
 }
 
 const submit = () => {
+    if (isQuotationReadOnly.value) {
+        return
+    }
+
     form.line_items.forEach((lineItem) => recalculateLineItem(lineItem))
 
     const basePayload = {
@@ -510,6 +578,7 @@ const submit = () => {
 const hasFormErrors = computed(() => Object.keys(form.errors || {}).length > 0)
 const showUnsavedChanges = computed(() => !!props.data?.id && form.isDirty)
 const isEditing = computed(() => !!props.data?.id)
+const isQuotationReadOnly = computed(() => !!props.data?.id && !props.canEdit)
 const lineItemError = (index, field) => form.errors?.[`line_items.${index}.${field}`] || null
 const openNotes = () => {
     if (!props.data?.id) return
@@ -547,6 +616,10 @@ const confirmExport = () => {
 }
 
 const openConvertToInvoiceDialog = () => {
+    if (isQuotationReadOnly.value) {
+        return
+    }
+
     convertForm.value = {
         has_custom_invoice_identifier: false,
         invoice_identifier: '',
@@ -555,6 +628,10 @@ const openConvertToInvoiceDialog = () => {
 }
 
 const confirmConvertToInvoice = () => {
+    if (isQuotationReadOnly.value) {
+        return
+    }
+
     const hasCustom = !!convertForm.value.has_custom_invoice_identifier
     const invoiceIdentifier = String(convertForm.value.invoice_identifier || '').trim()
 
@@ -596,7 +673,37 @@ const confirmConvertToInvoice = () => {
             <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
             <div v-if="dealer?.name" class="text-caption text-grey-7">{{ dealer.name }}</div>
         </div>
-        <q-btn color="grey-7" text-color="white" label="Back" no-wrap unelevated @click="router.visit(returnTo)" />
+        <div class="row q-gutter-sm">
+            <q-btn
+                v-if="canShowNotes && data?.id"
+                color="grey-8"
+                text-color="white"
+                icon="sticky_note_2"
+                label="Notes"
+                no-wrap
+                unelevated
+                @click="openNotes"
+            />
+            <q-btn
+                v-if="canExport && data?.id"
+                color="primary"
+                icon="picture_as_pdf"
+                label="Export"
+                no-wrap
+                unelevated
+                @click="confirmExport"
+            />
+            <q-btn
+                v-if="canDelete && data?.id"
+                color="negative"
+                icon="delete"
+                label="Delete"
+                no-wrap
+                unelevated
+                @click="confirmDelete"
+            />
+            <q-btn color="grey-4" text-color="standard" no-wrap unelevated label="Back" @click="router.visit(returnTo)" />
+        </div>
     </div>
 
     <DealerTabs
@@ -609,39 +716,10 @@ const confirmConvertToInvoice = () => {
         tab="quotations"
     />
 
+    <div :class="{ 'bo-readonly-block': isQuotationReadOnly }">
     <q-card flat bordered class="q-mb-md">
         <q-card-section class="row items-center justify-between">
             <div class="text-h6">{{ data?.id ? 'Edit Quotation' : 'Create Quotation' }}</div>
-            <div class="row q-gutter-sm">
-                <q-btn
-                    v-if="canShowNotes && data?.id"
-                    color="grey-8"
-                    text-color="white"
-                    icon="sticky_note_2"
-                    label="Notes"
-                    no-wrap
-                    unelevated
-                    @click="openNotes"
-                />
-                <q-btn
-                    v-if="canExport && data?.id"
-                    color="primary"
-                    icon="picture_as_pdf"
-                    label="Export"
-                    no-wrap
-                    unelevated
-                    @click="confirmExport"
-                />
-                <q-btn
-                    v-if="canDelete && data?.id"
-                    color="negative"
-                    icon="delete"
-                    label="Delete"
-                    no-wrap
-                    unelevated
-                    @click="confirmDelete"
-                />
-            </div>
         </q-card-section>
 
         <q-separator />
@@ -655,6 +733,9 @@ const confirmConvertToInvoice = () => {
             </q-banner>
             <q-banner v-if="form.errors.line_items" dense rounded class="bg-red-1 text-negative q-mb-md">
                 {{ form.errors.line_items }}
+            </q-banner>
+            <q-banner v-if="isQuotationReadOnly" dense rounded class="bg-blue-1 text-blue-10 q-mb-md">
+                {{ readOnlyReason || 'This quotation is read-only and cannot be edited.' }}
             </q-banner>
 
             <div class="row q-col-gutter-md">
@@ -744,6 +825,8 @@ const confirmConvertToInvoice = () => {
                                 dense
                                 outlined
                                 :disable="isEditing || !form.has_custom_quote_identifier"
+                                maxlength="15"
+                                counter
                                 :hint="isEditing ? 'Identifier cannot be changed after creation.' : (form.has_custom_quote_identifier ? 'Max 15 chars. Allowed: A-Z, a-z, 0-9, /, -' : 'Automatic number will be used.')"
                                 label="Quote Identifier"
                                 :error="!!form.errors.quote_identifier"
@@ -785,7 +868,7 @@ const confirmConvertToInvoice = () => {
                                 :error-message="form.errors.valid_for_days"
                             />
                         </div>
-                        <div v-if="data?.id && canConvertToInvoice && convertToInvoiceRoute" class="col-12">
+                        <div v-if="data?.id && canConvertToInvoice && convertToInvoiceRoute && !isQuotationReadOnly" class="col-12">
                             <q-btn
                                 color="primary"
                                 outline
@@ -857,11 +940,14 @@ const confirmConvertToInvoice = () => {
                             :ref="(el) => setSkuInputRef(lineItemRow.item.__key, el)"
                             dense
                             outlined
+                            maxlength="35"
+                            counter
                             hide-bottom-space
                             label="SKU"
                             :error="!!lineItemError(lineItemRow.index, 'sku')"
                             :error-message="lineItemError(lineItemRow.index, 'sku')"
                             @update:model-value="(value) => { lineItemRow.item.sku = sanitizeSku(value); queueLineItemSuggestionSearch(lineItemRow.item) }"
+                            @blur="clearLineItemSuggestions(lineItemRow.item, skuSuggestionBlurDelayMs)"
                         />
                         <div class="row items-center q-gutter-sm q-pt-xs">
                             <div v-if="canSearchSkuSuggestions" class="text-caption text-grey-6">Type at least 3 chars for suggestions.</div>
@@ -882,6 +968,8 @@ const confirmConvertToInvoice = () => {
                             v-model="lineItemRow.item.description"
                             dense
                             outlined
+                            maxlength="150"
+                            counter
                             hide-bottom-space
                             label="Description"
                             :error="!!lineItemError(lineItemRow.index, 'description')"
@@ -896,7 +984,7 @@ const confirmConvertToInvoice = () => {
                             hide-bottom-space
                             type="number"
                             min="0"
-                            max="999999999.99"
+                            max="999999999"
                             step="0.01"
                             :prefix="currencySymbol"
                             label="Amount"
@@ -913,7 +1001,7 @@ const confirmConvertToInvoice = () => {
                             hide-bottom-space
                             type="number"
                             min="0"
-                            max="999999999.99"
+                            max="1000000"
                             step="0.01"
                             label="Qty"
                             :error="!!lineItemError(lineItemRow.index, 'qty')"
@@ -929,7 +1017,7 @@ const confirmConvertToInvoice = () => {
                             hide-bottom-space
                             type="number"
                             min="0"
-                            max="999999999.99"
+                            max="999999999"
                             step="0.01"
                             readonly
                             :prefix="currencySymbol"
@@ -1026,8 +1114,9 @@ const confirmConvertToInvoice = () => {
             </div>
         </q-card-section>
     </q-card>
+    </div>
 
-    <div class="row justify-end q-gutter-sm">
+    <div v-if="!isQuotationReadOnly" class="row justify-end q-gutter-sm">
         <q-btn
             color="primary"
             label="Save Quotation"
@@ -1069,6 +1158,8 @@ const confirmConvertToInvoice = () => {
                             v-model="customerForm.title"
                             dense
                             outlined
+                            maxlength="15"
+                            counter
                             label="Title"
                             :error="!!customerForm.errors.title"
                             :error-message="customerForm.errors.title"
@@ -1079,6 +1170,8 @@ const confirmConvertToInvoice = () => {
                             v-model="customerForm.firstname"
                             dense
                             outlined
+                            maxlength="50"
+                            counter
                             label="Firstname"
                             :error="!!customerForm.errors.firstname"
                             :error-message="customerForm.errors.firstname"
@@ -1089,6 +1182,8 @@ const confirmConvertToInvoice = () => {
                             v-model="customerForm.lastname"
                             dense
                             outlined
+                            maxlength="50"
+                            counter
                             label="Lastname"
                             :error="!!customerForm.errors.lastname"
                             :error-message="customerForm.errors.lastname"
@@ -1099,6 +1194,8 @@ const confirmConvertToInvoice = () => {
                             v-model="customerForm.id_number"
                             dense
                             outlined
+                            maxlength="20"
+                            counter
                             label="ID Number"
                             :error="!!customerForm.errors.id_number"
                             :error-message="customerForm.errors.id_number"
@@ -1109,6 +1206,8 @@ const confirmConvertToInvoice = () => {
                             v-model="customerForm.email"
                             dense
                             outlined
+                            maxlength="150"
+                            counter
                             label="Email"
                             :error="!!customerForm.errors.email"
                             :error-message="customerForm.errors.email"
@@ -1119,10 +1218,13 @@ const confirmConvertToInvoice = () => {
                             v-model="customerForm.contact_number"
                             dense
                             outlined
+                            maxlength="25"
+                            counter
                             label="Contact Number (E.164)"
+                            :hint="customerContactHint"
                             :error="!!customerForm.errors.contact_number"
                             :error-message="customerForm.errors.contact_number"
-                            @update:model-value="(value) => (customerForm.contact_number = sanitizeContactNumber(value))"
+                            @update:model-value="(value) => (customerForm.contact_number = sanitizeContactNumber(value, true))"
                         />
                     </div>
                     <div class="col-12">
@@ -1132,7 +1234,7 @@ const confirmConvertToInvoice = () => {
                             outlined
                             type="textarea"
                             rows="5"
-                            maxlength="150"
+                            maxlength="200"
                             counter
                             label="Address"
                             :error="!!customerForm.errors.address"
@@ -1145,6 +1247,7 @@ const confirmConvertToInvoice = () => {
                             dense
                             outlined
                             maxlength="35"
+                            counter
                             hint="Allowed: A-Z, a-z, 0-9, /, -"
                             label="VAT Number"
                             :error="!!customerForm.errors.vat_number"
@@ -1180,11 +1283,16 @@ const confirmConvertToInvoice = () => {
                     label="Use Custom Invoice Identifier"
                     class="q-mb-sm"
                 />
+                <div class="text-caption text-grey-7 q-mb-sm">
+                    Only check this if the invoice identifier should not be auto generated.
+                </div>
                 <q-input
                     v-model="convertForm.invoice_identifier"
                     dense
                     outlined
                     :disable="!convertForm.has_custom_invoice_identifier"
+                    maxlength="15"
+                    counter
                     label="Invoice Identifier"
                     hint="Max 15 chars. Allowed: A-Z, a-z, 0-9, /, -"
                 />
@@ -1197,3 +1305,10 @@ const confirmConvertToInvoice = () => {
         </q-card>
     </q-dialog>
 </template>
+
+<style scoped>
+.bo-readonly-block {
+    pointer-events: none;
+    opacity: 0.85;
+}
+</style>

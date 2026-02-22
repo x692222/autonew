@@ -18,6 +18,7 @@ class InvoiceIndexResource extends JsonResource
         $totalPayments = (int) ($this->total_payments_count ?? 0);
         $verifiedPayments = (int) ($this->verified_payments_count ?? 0);
         $isFullyVerified = $totalPayments > 0 && $totalPayments === $verifiedPayments;
+        $canDelete = (bool) ($context['can_delete'] ?? false) && $totalPayments === 0;
 
         return [
             'id' => $this->id,
@@ -37,7 +38,7 @@ class InvoiceIndexResource extends JsonResource
             'notes_count' => (int) ($this->notes_count ?? 0),
             'can' => [
                 'edit' => (bool) ($context['can_edit'] ?? false),
-                'delete' => (bool) ($context['can_delete'] ?? false),
+                'delete' => $canDelete,
                 'export' => (bool) ($context['can_export'] ?? false),
                 'show_notes' => (bool) ($context['can_show_notes'] ?? false),
             ],

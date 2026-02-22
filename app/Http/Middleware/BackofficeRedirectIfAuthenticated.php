@@ -18,17 +18,20 @@ class BackofficeRedirectIfAuthenticated extends RedirectIfAuthenticated
    */
     public function handle(Request $request, Closure $next, ...$guards): Response
     {
-        $guards = empty($guards) ? [null] : $guards;
-
-      if (Auth::guard('backoffice')->check()) {
-        return redirect(route('backoffice.auth.login.show'));
-      }
-
-      foreach ($guards as $guard) {
-        if (Auth::guard($guard)->check()) {
-          return redirect($this->redirectTo($request));
+        if (Auth::guard('backoffice')->check()) {
+            return redirect()->route('backoffice.index');
         }
-      }
+
+        if (Auth::guard('dealer')->check()) {
+            return redirect()->route('backoffice.dealer-configuration.stock.index');
+        }
+
+        $guards = empty($guards) ? [null] : $guards;
+        foreach ($guards as $guard) {
+            if ($guard !== null && Auth::guard($guard)->check()) {
+                return redirect($this->redirectTo($request));
+            }
+        }
 
         return $next($request);
     }

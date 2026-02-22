@@ -376,6 +376,8 @@ const cancel = () => {
                                 label="Dealer name"
                                 filled
                                 dense
+                                maxlength="255"
+                                counter
                                 :error="!!err('name')"
                                 :error-message="err('name')"
                                 autocomplete="off"
@@ -430,9 +432,11 @@ const cancel = () => {
                                     <div class="col-12 col-md-6">
                                         <q-input
                                             v-model="branch.name"
-                                            label="Branch name *"
+                                            label="Branch name"
                                             filled
                                             dense
+                                            maxlength="255"
+                                            counter
                                             :error="!!err(`branches.${bIndex}.name`)"
                                             :error-message="err(`branches.${bIndex}.name`)"
                                         />
@@ -440,9 +444,11 @@ const cancel = () => {
                                     <div class="col-12">
                                         <q-input
                                             v-model="branch.display_address"
-                                            label="Display address *"
+                                            label="Display address"
                                             filled
                                             dense
+                                            maxlength="255"
+                                            counter
                                             :error="!!err(`branches.${bIndex}.display_address`)"
                                             :error-message="err(`branches.${bIndex}.display_address`)"
                                         />
@@ -575,9 +581,11 @@ const cancel = () => {
                                     <div class="col-12 col-md-4">
                                         <q-input
                                             v-model="user.firstname"
-                                            label="First name *"
+                                            label="First name"
                                             filled
                                             dense
+                                            maxlength="50"
+                                            counter
                                             :error="!!err(`dealer_users.${uIndex}.firstname`)"
                                             :error-message="err(`dealer_users.${uIndex}.firstname`)"
                                         />
@@ -585,9 +593,11 @@ const cancel = () => {
                                     <div class="col-12 col-md-4">
                                         <q-input
                                             v-model="user.lastname"
-                                            label="Last name *"
+                                            label="Last name"
                                             filled
                                             dense
+                                            maxlength="50"
+                                            counter
                                             :error="!!err(`dealer_users.${uIndex}.lastname`)"
                                             :error-message="err(`dealer_users.${uIndex}.lastname`)"
                                         />
@@ -595,10 +605,12 @@ const cancel = () => {
                                     <div class="col-12 col-md-4">
                                         <q-input
                                             v-model="user.email"
-                                            label="Email *"
+                                            label="Email"
                                             type="email"
                                             filled
                                             dense
+                                            maxlength="150"
+                                            counter
                                             :error="!!err(`dealer_users.${uIndex}.email`)"
                                             :error-message="err(`dealer_users.${uIndex}.email`)"
                                         />
@@ -640,7 +652,7 @@ const cancel = () => {
                                     <div class="col-12 col-md-4">
                                         <q-select
                                             v-model="salesPerson.branch_client_key"
-                                            label="Branch *"
+                                            label="Branch"
                                             dense
                                             filled
                                             emit-value
@@ -653,9 +665,11 @@ const cancel = () => {
                                     <div class="col-12 col-md-4">
                                         <q-input
                                             v-model="salesPerson.firstname"
-                                            label="First name *"
+                                            label="First name"
                                             filled
                                             dense
+                                            maxlength="255"
+                                            counter
                                             :error="!!err(`sales_people.${sIndex}.firstname`)"
                                             :error-message="err(`sales_people.${sIndex}.firstname`)"
                                         />
@@ -663,9 +677,11 @@ const cancel = () => {
                                     <div class="col-12 col-md-4">
                                         <q-input
                                             v-model="salesPerson.lastname"
-                                            label="Last name *"
+                                            label="Last name"
                                             filled
                                             dense
+                                            maxlength="255"
+                                            counter
                                             :error="!!err(`sales_people.${sIndex}.lastname`)"
                                             :error-message="err(`sales_people.${sIndex}.lastname`)"
                                         />
@@ -673,9 +689,11 @@ const cancel = () => {
                                     <div class="col-12 col-md-6">
                                         <q-input
                                             v-model="salesPerson.contact_no"
-                                            label="Contact number *"
+                                            label="Contact number"
                                             filled
                                             dense
+                                            maxlength="255"
+                                            counter
                                             :error="!!err(`sales_people.${sIndex}.contact_no`)"
                                             :error-message="err(`sales_people.${sIndex}.contact_no`)"
                                         />
@@ -687,6 +705,8 @@ const cancel = () => {
                                             type="email"
                                             filled
                                             dense
+                                            maxlength="255"
+                                            counter
                                             :error="!!err(`sales_people.${sIndex}.email`)"
                                             :error-message="err(`sales_people.${sIndex}.email`)"
                                         />
@@ -741,8 +761,6 @@ const cancel = () => {
             <q-card flat bordered>
                 <q-card-section>
                     <div class="text-h6 q-mb-md">Dealer Settings</div>
-                    <div class="text-caption text-grey-7 q-mb-md">Fields marked with * are required.</div>
-
                     <SettingsFields
                         v-model="form.settings"
                         :settings="dealerSettings"

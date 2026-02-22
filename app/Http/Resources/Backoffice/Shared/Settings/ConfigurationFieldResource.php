@@ -10,6 +10,11 @@ class ConfigurationFieldResource extends JsonResource
     public function toArray(Request $request): array
     {
         $catalog = app(ConfigurationCatalog::class);
+        $definitions = [
+            ...$catalog->systemDefinitions(),
+            ...$catalog->dealerDefinitions(),
+        ];
+        $definition = $definitions[$this->key] ?? [];
 
         return [
             'id' => $this->id,
@@ -20,6 +25,8 @@ class ConfigurationFieldResource extends JsonResource
             'description' => $this->description,
             'value' => $catalog->castValue($this->type, $this->value),
             'backoffice_only' => (bool) ($this->backoffice_only ?? false),
+            'min' => $definition['min'] ?? null,
+            'max' => $definition['max'] ?? null,
         ];
     }
 }

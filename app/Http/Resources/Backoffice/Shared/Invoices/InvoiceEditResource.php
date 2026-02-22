@@ -36,7 +36,6 @@ class InvoiceEditResource extends JsonResource
             'invoice_date' => optional($this->invoice_date)?->format('Y-m-d'),
             'payable_by' => optional($this->payable_by)?->format('Y-m-d'),
             'purchase_order_number' => $this->purchase_order_number,
-            'payment_method' => $this->payment_method,
             'payment_terms' => $this->payment_terms,
             'total_paid_amount' => (float) (
                 $this->relationLoaded('payments')

@@ -11,6 +11,7 @@ class QuotationIdentifierGenerator
     {
         return (string) DB::transaction(function () use ($dealerId): int {
             $latest = Quotation::query()
+                ->withTrashed()
                 ->when($dealerId, fn ($query) => $query->where('dealer_id', $dealerId))
                 ->when(!$dealerId, fn ($query) => $query->whereNull('dealer_id'))
                 ->where('has_custom_quote_identifier', false)
@@ -23,4 +24,3 @@ class QuotationIdentifierGenerator
         });
     }
 }
-

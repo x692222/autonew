@@ -35,12 +35,12 @@ const cancel = () => {
     <div class="row nowrap justify-between items-center">
         <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
 
-        <q-btn
-            color="grey-4"
-            text-color="standard"
+        <q-btn color="grey-4" text-color="standard" no-wrap unelevated
+           
+           
             label="Go Back"
-            no-wrap
-            unelevated
+           
+           
             @click="cancel"
         />
     </div>
@@ -57,6 +57,8 @@ const cancel = () => {
                             label="Dealer name"
                             filled
                             dense
+                            maxlength="255"
+                            counter
                             :error="!!form.errors.name"
                             :error-message="form.errors.name"
                             autocomplete="off"

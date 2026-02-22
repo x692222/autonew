@@ -314,6 +314,10 @@ class DealersManagementPolicy
             return Response::deny('This payment does not belong to the selected dealer.');
         }
 
+        if ((bool) $payment->is_approved) {
+            return Response::deny('Verified payments cannot be edited.');
+        }
+
         return $user->hasPermissionTo('editDealershipPayments', 'backoffice')
             ? Response::allow()
             : Response::deny('You do not have permission to edit dealer payments.');
@@ -323,6 +327,10 @@ class DealersManagementPolicy
     {
         if ((string) $payment->dealer_id !== (string) $dealer->id) {
             return Response::deny('This payment does not belong to the selected dealer.');
+        }
+
+        if ((bool) $payment->is_approved) {
+            return Response::deny('Verified payments cannot be deleted.');
         }
 
         return $user->hasPermissionTo('deleteDealershipPayments', 'backoffice')
@@ -378,6 +386,10 @@ class DealersManagementPolicy
     {
         if ((string) $invoice->dealer_id !== (string) $dealer->id) {
             return Response::deny('This invoice does not belong to the selected dealer.');
+        }
+
+        if ($invoice->payments()->exists()) {
+            return Response::deny('Invoices with recorded payments cannot be deleted.');
         }
 
         return $user->hasPermissionTo('deleteDealershipInvoices', 'backoffice')

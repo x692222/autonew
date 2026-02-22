@@ -6,6 +6,8 @@ use App\Actions\Backoffice\Shared\Payments\VerifyPaymentAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Backoffice\Shared\Payments\IndexPaymentVerificationsRequest;
 use App\Models\Payments\Payment;
+use App\Support\Options\BankingDetailOptions;
+use App\Support\Payments\PaymentVerificationAutoRefreshIntervalResolver;
 use App\Support\Payments\PaymentVerificationsIndexService;
 use App\Support\Settings\DocumentSettingsPresenter;
 use Illuminate\Http\Request;
@@ -20,6 +22,7 @@ class PaymentVerificationsController extends Controller
         private readonly PaymentVerificationsIndexService $indexService,
         private readonly VerifyPaymentAction $verifyPaymentAction,
         private readonly DocumentSettingsPresenter $documentSettings,
+        private readonly PaymentVerificationAutoRefreshIntervalResolver $autoRefreshIntervalResolver,
     ) {
     }
 
@@ -41,6 +44,8 @@ class PaymentVerificationsController extends Controller
             'records' => $records,
             'filters' => $filters,
             'currencySymbol' => $this->documentSettings->system()['currencySymbol'],
+            'bankingDetailOptions' => BankingDetailOptions::system()->resolve(),
+            'autoRefreshSeconds' => $this->autoRefreshIntervalResolver->resolve(),
             'verifyRouteName' => 'backoffice.system.verify-payments.verify',
             'paymentShowRouteName' => 'backoffice.system.payments.show',
             'invoiceEditRouteName' => 'backoffice.system.invoices.edit',

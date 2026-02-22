@@ -51,6 +51,8 @@ const submit = () => {
                     label="Email"
                     filled
                     dense
+                    maxlength="190"
+                    counter
                     :error="!!form.errors.email"
                     :error-message="form.errors.email"
                     :input-attrs="{ autocomplete: 'username' }"
@@ -63,6 +65,8 @@ const submit = () => {
                     label="Password"
                     filled
                     dense
+                    maxlength="190"
+                    counter
                     :error="!!form.errors.password"
                     :error-message="form.errors.password"
                     :input-attrs="{ autocomplete: 'current-password' }"

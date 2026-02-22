@@ -22,8 +22,10 @@ class AccessManagementController extends Controller
         $user->load('permissions:id,name');
 
         $permissions = Permission::query()
-            ->select(['id', 'name'])
+            ->select(['id', 'name', 'group'])
             ->where('guard_name', 'backoffice')
+            ->orderByRaw('CASE WHEN `group` IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('group')
             ->orderBy('name')
             ->get()
             ->map(fn (Permission $permission) => (new AccessManagementPermissionResource($permission))->toArray($request))

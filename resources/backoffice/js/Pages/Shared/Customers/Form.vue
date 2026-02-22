@@ -1,10 +1,9 @@
 <script setup>
 import { Head, router, useForm } from '@inertiajs/vue3'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import Layout from 'bo@/Layouts/Layout.vue'
 import DealerTabs from 'bo@/Pages/GuardBackoffice/DealerManagement/Dealers/_Tabs.vue'
 import DealerConfigurationNav from 'bo@/Pages/GuardDealer/DealerConfiguration/_Nav.vue'
-import { useConfirmAction } from 'bo@/Composables/useConfirmAction'
 
 defineOptions({ layout: Layout })
 
@@ -27,27 +26,37 @@ const props = defineProps({
 })
 
 const isEdit = computed(() => !!props.data?.id)
-const loading = ref(false)
-const { confirmAction } = useConfirmAction(loading)
 
-const sanitizeContactNumber = (value) => String(value || '').replace(/\s+/g, '')
+const contactPrefix = String(props.contactNoPrefix || '').replace(/\s+/g, '')
+const contactNumberHint = contactPrefix
+    ? `Default prefix prefilled (${contactPrefix}). Number must start with +, e.g. +264811234567`
+    : 'Number must start with +, e.g. +264811234567'
+const sanitizeContactNumber = (value, enforceLeadingPlus = false) => {
+    const raw = String(value || '').replace(/\s+/g, '').replace(/[^+\d]/g, '')
+    const unsigned = raw.replace(/\+/g, '')
+    if (!enforceLeadingPlus) return raw.slice(0, 25)
+    if (!unsigned) return '+'
+
+    return `+${unsigned}`.slice(0, 25)
+}
 const sanitizeVatNumber = (value) => String(value || '').replace(/\s+/g, '')
 
 const form = useForm({
+    return_to: props.returnTo || '',
     type: props.data?.type || 'individual',
     title: props.data?.title || '',
     firstname: props.data?.firstname || '',
     lastname: props.data?.lastname || '',
     id_number: props.data?.id_number || '',
     email: props.data?.email || '',
-    contact_number: props.data?.contact_number || props.contactNoPrefix,
+    contact_number: sanitizeContactNumber(props.data?.contact_number || props.contactNoPrefix, true),
     address: props.data?.address || '',
     vat_number: props.data?.vat_number || '',
 })
 
 const submit = () => {
     form.clearErrors()
-    form.contact_number = sanitizeContactNumber(form.contact_number)
+    form.contact_number = sanitizeContactNumber(form.contact_number, true)
     form.vat_number = sanitizeVatNumber(form.vat_number)
 
     const options = {
@@ -63,20 +72,6 @@ const submit = () => {
     form.post(props.storeRoute, options)
 }
 
-const confirmDelete = () => {
-    if (!props.destroyRoute) return
-
-    confirmAction({
-        title: 'Delete Customer',
-        message: 'Are you sure you want to delete this customer?',
-        okLabel: 'Delete',
-        okColor: 'negative',
-        cancelLabel: 'Cancel',
-        method: 'delete',
-        actionUrl: props.destroyRoute,
-        inertia: { preserveState: false },
-    })
-}
 </script>
 
 <template>
@@ -86,10 +81,6 @@ const confirmDelete = () => {
         <div>
             <div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div>
             <div v-if="dealer?.name" class="text-caption text-grey-7">{{ dealer.name }}</div>
-        </div>
-        <div class="q-gutter-sm">
-            <q-btn v-if="isEdit && showRoute" color="grey-7" outline label="View" @click="router.visit(showRoute)" />
-            <q-btn color="grey-7" outline label="Back" @click="router.visit(returnTo)" />
         </div>
     </div>
 
@@ -135,6 +126,8 @@ const confirmDelete = () => {
                         v-model="form.title"
                         dense
                         outlined
+                        maxlength="15"
+                        counter
                         label="Title"
                         :error="!!form.errors.title"
                         :error-message="form.errors.title"
@@ -146,6 +139,8 @@ const confirmDelete = () => {
                         v-model="form.firstname"
                         dense
                         outlined
+                        maxlength="50"
+                        counter
                         label="Firstname"
                         :error="!!form.errors.firstname"
                         :error-message="form.errors.firstname"
@@ -156,6 +151,8 @@ const confirmDelete = () => {
                         v-model="form.lastname"
                         dense
                         outlined
+                        maxlength="50"
+                        counter
                         label="Lastname"
                         :error="!!form.errors.lastname"
                         :error-message="form.errors.lastname"
@@ -167,6 +164,8 @@ const confirmDelete = () => {
                         v-model="form.id_number"
                         dense
                         outlined
+                        maxlength="20"
+                        counter
                         label="ID Number"
                         :error="!!form.errors.id_number"
                         :error-message="form.errors.id_number"
@@ -179,6 +178,8 @@ const confirmDelete = () => {
                         dense
                         outlined
                         type="email"
+                        maxlength="150"
+                        counter
                         label="Email"
                         :error="!!form.errors.email"
                         :error-message="form.errors.email"
@@ -189,10 +190,13 @@ const confirmDelete = () => {
                         v-model="form.contact_number"
                         dense
                         outlined
+                        maxlength="25"
+                        counter
                         label="Contact Number"
+                        :hint="contactNumberHint"
                         :error="!!form.errors.contact_number"
                         :error-message="form.errors.contact_number"
-                        @update:model-value="(value) => (form.contact_number = sanitizeContactNumber(value))"
+                        @update:model-value="(value) => (form.contact_number = sanitizeContactNumber(value, true))"
                     />
                 </div>
 
@@ -201,9 +205,10 @@ const confirmDelete = () => {
                         v-model="form.address"
                         dense
                         outlined
-                        autogrow
                         type="textarea"
-                        :rows="5"
+                        rows="5"
+                        maxlength="200"
+                        counter
                         label="Address"
                         :error="!!form.errors.address"
                         :error-message="form.errors.address"
@@ -215,6 +220,8 @@ const confirmDelete = () => {
                         v-model="form.vat_number"
                         dense
                         outlined
+                        maxlength="35"
+                        counter
                         label="VAT Number"
                         :error="!!form.errors.vat_number"
                         :error-message="form.errors.vat_number"
@@ -222,28 +229,28 @@ const confirmDelete = () => {
                     />
                 </div>
             </div>
+
+            <div class="row justify-end items-center q-mt-lg">
+                <div class="q-gutter-sm q-ml-auto">
+                    <q-btn
+                        color="grey-4"
+                        text-color="standard"
+                        label="Cancel"
+                        no-wrap
+                        unelevated
+                        @click="router.visit(returnTo)"
+                    />
+                    <q-btn
+                        v-if="canEdit"
+                        color="primary"
+                        label="Save"
+                        no-wrap
+                        unelevated
+                        :loading="form.processing"
+                        @click="submit"
+                    />
+                </div>
+            </div>
         </q-card-section>
     </q-card>
-
-    <div class="row justify-between items-center">
-        <q-btn
-            v-if="isEdit && canDelete"
-            color="negative"
-            flat
-            label="Delete Customer"
-            :disable="loading || form.processing"
-            @click="confirmDelete"
-        />
-        <div class="q-ml-auto">
-            <q-btn
-                v-if="canEdit"
-                color="primary"
-                label="Save Customer"
-                no-wrap
-                unelevated
-                :loading="form.processing"
-                @click="submit"
-            />
-        </div>
-    </div>
 </template>

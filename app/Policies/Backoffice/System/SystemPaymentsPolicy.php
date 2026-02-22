@@ -46,6 +46,10 @@ class SystemPaymentsPolicy
             return Response::deny('This is not a system payment.');
         }
 
+        if ((bool) $payment->is_approved) {
+            return Response::deny('Verified payments cannot be edited.');
+        }
+
         return $user->hasPermissionTo('editSystemPayments', 'backoffice')
             ? Response::allow()
             : Response::deny('You do not have permission to edit system payments.');
@@ -55,6 +59,10 @@ class SystemPaymentsPolicy
     {
         if ($payment->dealer_id !== null) {
             return Response::deny('This is not a system payment.');
+        }
+
+        if ((bool) $payment->is_approved) {
+            return Response::deny('Verified payments cannot be deleted.');
         }
 
         return $user->hasPermissionTo('deleteSystemPayments', 'backoffice')

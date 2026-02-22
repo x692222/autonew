@@ -22,13 +22,13 @@ const goBack = () => router.visit(props.returnTo || route('backoffice.dealer-man
 
 <template>
   <Head><title>{{ $page.props.appName }}</title></Head>
-  <div class="row nowrap justify-between items-center q-mb-md"><div><div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div><div class="text-caption text-grey-7">{{ dealer.name }}</div></div><q-btn color="grey-4" text-color="standard" label="Back" no-wrap unelevated @click="goBack" /></div>
+  <div class="row nowrap justify-between items-center q-mb-md"><div><div class="text-h5 text-weight-regular text-grey-9">{{ publicTitle }}</div><div class="text-caption text-grey-7">{{ dealer.name }}</div></div><q-btn color="grey-4" text-color="standard" no-wrap unelevated label="Back" @click="goBack" /></div>
   <q-card flat bordered><q-card-section>
     <div class="text-h6 q-pb-lg">Create Lead Stage</div>
     <q-form @submit.prevent="submit">
       <div class="row q-col-gutter-md">
         <div class="col-12 col-md-6"><q-select v-model="form.pipeline_id" filled dense emit-value map-options label="Pipeline" :options="pipelines || []" :error="!!form.errors.pipeline_id" :error-message="form.errors.pipeline_id" /></div>
-        <div class="col-12 col-md-6"><q-input v-model="form.name" filled dense label="Stage name" :error="!!form.errors.name" :error-message="form.errors.name" /></div>
+        <div class="col-12 col-md-6"><q-input v-model="form.name" filled dense label="Stage name" maxlength="255" counter :error="!!form.errors.name" :error-message="form.errors.name" /></div>
         <div class="col-12 col-md-6"><q-input v-model.number="form.sort_order" type="number" filled dense label="Sort order" :error="!!form.errors.sort_order" :error-message="form.errors.sort_order" /></div>
       </div>
       <div class="q-gutter-md q-mt-sm">

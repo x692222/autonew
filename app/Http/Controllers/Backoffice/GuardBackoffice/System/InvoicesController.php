@@ -158,6 +158,15 @@ class InvoicesController extends Controller
         $allowedSections = InvoiceSectionOptions::valuesForSystem();
         $canEditInvoice = $this->editabilityService->systemCanEdit($invoice);
         $canRecordPayment = $this->editabilityService->canRecordPayment($invoice);
+        $currentVatSnapshot = $this->vatSnapshotResolver->forSystem();
+        $invoiceVatSnapshot = [
+            'vat_enabled' => (bool) $invoice->vat_enabled,
+            'vat_percentage' => $invoice->vat_percentage !== null ? (float) $invoice->vat_percentage : null,
+        ];
+        $isVatSnapshotMismatch = ! $this->vatSnapshotResolver->hasMatchingVatSnapshot($currentVatSnapshot, $invoiceVatSnapshot);
+        $readOnlyReason = ! $canEditInvoice && $isVatSnapshotMismatch
+            ? 'This invoice is read-only because VAT settings changed since it was created.'
+            : null;
 
         $invoice->load([
             'customer',
@@ -191,7 +200,8 @@ class InvoicesController extends Controller
                 'vat_number' => $invoice->vat_number,
             ],
             'canEdit' => $canEditInvoice,
-            'canDelete' => true,
+            'readOnlyReason' => $readOnlyReason,
+            'canDelete' => $request->user('backoffice') ?->can('delete', $invoice) ?? false,
             'canExport' => true,
             'canShowNotes' => true,
             'canCreateCustomer' => $request->user('backoffice')?->hasPermissionTo('createSystemCustomers', 'backoffice') ?? false,

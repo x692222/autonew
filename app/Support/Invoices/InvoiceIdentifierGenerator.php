@@ -11,6 +11,7 @@ class InvoiceIdentifierGenerator
     {
         return (string) DB::transaction(function () use ($dealerId): int {
             $latest = Invoice::query()
+                ->withTrashed()
                 ->when($dealerId, fn ($query) => $query->where('dealer_id', $dealerId))
                 ->when(!$dealerId, fn ($query) => $query->whereNull('dealer_id'))
                 ->where('has_custom_invoice_identifier', false)
@@ -23,4 +24,3 @@ class InvoiceIdentifierGenerator
         });
     }
 }
-

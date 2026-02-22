@@ -38,9 +38,9 @@ const cancel = () => {
             <div class="text-h6 q-pb-lg">Edit Dealer User</div>
             <q-form @submit.prevent="submit">
                 <div class="row q-col-gutter-md">
-                    <div class="col-12 col-md-6"><q-input v-model="form.firstname" filled dense label="First name" :error="!!form.errors.firstname" :error-message="form.errors.firstname" /></div>
-                    <div class="col-12 col-md-6"><q-input v-model="form.lastname" filled dense label="Last name" :error="!!form.errors.lastname" :error-message="form.errors.lastname" /></div>
-                    <div class="col-12 col-md-6"><q-input v-model="form.email" filled dense label="Email" :error="!!form.errors.email" :error-message="form.errors.email" /></div>
+                    <div class="col-12 col-md-6"><q-input v-model="form.firstname" filled dense label="First name" maxlength="50" counter :error="!!form.errors.firstname" :error-message="form.errors.firstname" /></div>
+                    <div class="col-12 col-md-6"><q-input v-model="form.lastname" filled dense label="Last name" maxlength="50" counter :error="!!form.errors.lastname" :error-message="form.errors.lastname" /></div>
+                    <div class="col-12 col-md-6"><q-input v-model="form.email" filled dense label="Email" maxlength="150" counter :error="!!form.errors.email" :error-message="form.errors.email" /></div>
                 </div>
                 <div class="row justify-end q-mt-lg"><div class="q-gutter-sm"><q-btn color="grey-4" text-color="standard" label="Cancel" no-wrap unelevated @click="cancel" /><q-btn color="primary" label="Save" no-wrap unelevated :loading="form.processing" :disable="form.processing" @click="submit" /></div></div>
             </q-form>

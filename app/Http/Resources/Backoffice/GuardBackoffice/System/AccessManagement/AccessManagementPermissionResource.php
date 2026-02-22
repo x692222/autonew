@@ -13,6 +13,7 @@ class AccessManagementPermissionResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'group' => $this->group,
         ];
     }
 }

@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Backoffice\GuardBackoffice\System\UsersManagement;
 use App\Models\System\User;
+use App\Support\Validation\Users\SystemUserValidationRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 
 class StoreUsersManagementRequest extends FormRequest
 {
@@ -15,12 +15,6 @@ class StoreUsersManagementRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
-            'firstname' => ['required', 'string', 'max:75'],
-            'lastname' => ['required', 'string', 'max:75'],
-            'email' => ['required', 'email', 'max:150', 'unique:users,email'],
-            'role' => ['required', 'string', Rule::exists('roles', 'name')->where('guard_name', 'backoffice')],
-            'password' => ['nullable', 'string', 'min:8'],
-        ];
+        return app(SystemUserValidationRules::class)->store();
     }
 }

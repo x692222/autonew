@@ -1,5 +1,5 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3'
+import { Head, router, useForm } from '@inertiajs/vue3'
 import { ref } from 'vue'
 import Layout from 'bo@/Layouts/Layout.vue'
 import DealerTabs from 'bo@/Pages/GuardBackoffice/DealerManagement/Dealers/_Tabs.vue'
@@ -7,6 +7,7 @@ import DealerConfigurationNav from 'bo@/Pages/GuardDealer/DealerConfiguration/_N
 import AssociatedStockList from 'bo@/Components/Stock/AssociatedStockList.vue'
 import AssociatedInvoicesTable from 'bo@/Components/Shared/AssociatedInvoicesTable.vue'
 import SimpleTable from 'bo@/Components/Shared/SimpleTable.vue'
+import PaymentEditAction from 'bo@/Components/Shared/PaymentEditAction.vue'
 import { formatCurrency } from 'bo@/Composables/currencyFormatterService'
 import { useConfirmAction } from 'bo@/Composables/useConfirmAction'
 
@@ -22,6 +23,9 @@ const props = defineProps({
     associatedInvoices: { type: Array, default: () => [] },
     verifications: { type: Array, default: () => [] },
     canViewAssociatedInvoices: { type: Boolean, default: false },
+    bankingDetailOptions: { type: Array, default: () => [] },
+    canEdit: { type: Boolean, default: false },
+    updateRoute: { type: String, default: '' },
     canVerify: { type: Boolean, default: false },
     verifyUrl: { type: String, default: '' },
     currencySymbol: { type: String, default: 'N$' },
@@ -29,7 +33,23 @@ const props = defineProps({
 })
 
 const loading = ref(false)
+const editDialog = ref(false)
 const { confirmAction } = useConfirmAction(loading)
+
+const editPaymentMethodOptions = [
+    { label: 'CASH', value: 'cash' },
+    { label: 'EFT', value: 'eft' },
+    { label: 'FINANCE HOUSE', value: 'finance_house' },
+    { label: 'CARD', value: 'card' },
+]
+
+const form = useForm({
+    payment_date: '',
+    payment_method: 'cash',
+    banking_detail_id: null,
+    amount: null,
+    description: '',
+})
 
 const confirmVerify = () => {
     if (!props.verifyUrl) return
@@ -55,6 +75,33 @@ const verificationColumns = [
     { name: 'verified_by_guard', label: 'Verified Guard', field: 'verified_by_guard', align: 'left' },
     { name: 'amount_verified', label: 'Amount Verified', field: 'amount_verified', align: 'right' },
 ]
+
+const openEdit = () => {
+    if (!props.canEdit || props.payment?.is_approved) {
+        return
+    }
+
+    form.payment_date = props.payment?.payment_date || ''
+    form.payment_method = String(props.payment?.payment_method || 'cash').toLowerCase()
+    form.banking_detail_id = props.payment?.banking_detail_id || null
+    form.amount = Number(props.payment?.amount || 0)
+    form.description = props.payment?.description || ''
+    form.clearErrors()
+    editDialog.value = true
+}
+
+const submitEdit = () => {
+    if (!props.updateRoute || props.payment?.is_approved) {
+        return
+    }
+
+    form.patch(props.updateRoute, {
+        preserveScroll: true,
+        onSuccess: () => {
+            editDialog.value = false
+        },
+    })
+}
 </script>
 
 <template>
@@ -66,15 +113,22 @@ const verificationColumns = [
             <div v-if="dealer?.name" class="text-caption text-grey-7">{{ dealer.name }}</div>
         </div>
         <div class="row items-center q-gutter-sm">
+            <PaymentEditAction
+                :can-edit="canEdit"
+                :is-approved="!!payment?.is_approved"
+                :icon-mode="false"
+                label="Edit Payment"
+                @click="openEdit"
+            />
             <q-btn
                 v-if="canVerify && !payment?.is_approved"
                 color="positive"
                 unelevated
-                no-caps
+                no-wrap
                 label="Verify"
                 @click="confirmVerify"
             />
-            <q-btn color="grey-7" outline label="Back" @click="router.visit(returnTo)" />
+            <q-btn color="grey-4" text-color="standard" no-wrap unelevated label="Back" @click="router.visit(returnTo)" />
         </div>
     </div>
 
@@ -122,20 +176,13 @@ const verificationColumns = [
         </q-card-section>
     </q-card>
 
-    <AssociatedInvoicesTable
-        v-if="canViewAssociatedInvoices"
-        title="Associated Invoice"
-        :rows="associatedInvoices"
-        :currency-symbol="currencySymbol"
-    />
-
     <q-card flat bordered class="q-mb-md">
         <q-card-section>
-            <div class="text-h6">Payment Verifications</div>
+            <div class="text-h6">Payment Verification</div>
         </q-card-section>
         <q-separator />
         <q-card-section>
-            <div v-if="!verifications?.length" class="text-caption text-grey-7">No verifications recorded yet.</div>
+            <div v-if="!verifications?.length" class="text-caption text-grey-7">No verification recorded yet.</div>
             <SimpleTable
                 v-else
                 :rows="verifications"
@@ -152,5 +199,98 @@ const verificationColumns = [
         </q-card-section>
     </q-card>
 
+    <AssociatedInvoicesTable
+        v-if="canViewAssociatedInvoices"
+        title="Associated Invoice"
+        :rows="associatedInvoices"
+        :currency-symbol="currencySymbol"
+    />
+
     <AssociatedStockList :items="associatedStock" title="Associated Stock Items" />
+
+    <q-dialog v-model="editDialog" persistent>
+        <q-card style="min-width: 560px; max-width: 90vw;">
+            <q-card-section>
+                <div class="text-h6">Edit Payment</div>
+            </q-card-section>
+            <q-separator />
+            <q-card-section>
+                <div class="row q-col-gutter-md">
+                    <div class="col-12 col-md-6">
+                        <q-input
+                            v-model="form.payment_date"
+                            dense
+                            outlined
+                            label="Payment Date"
+                            mask="####-##-##"
+                            fill-mask
+                            :error="!!form.errors.payment_date"
+                            :error-message="form.errors.payment_date"
+                        />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <q-select
+                            v-model="form.payment_method"
+                            dense
+                            outlined
+                            emit-value
+                            map-options
+                            :options="editPaymentMethodOptions"
+                            option-label="label"
+                            option-value="value"
+                            label="Payment Method"
+                            :error="!!form.errors.payment_method"
+                            :error-message="form.errors.payment_method"
+                        />
+                    </div>
+                    <div class="col-12" v-if="form.payment_method === 'eft'">
+                        <q-select
+                            v-model="form.banking_detail_id"
+                            dense
+                            outlined
+                            emit-value
+                            map-options
+                            :options="bankingDetailOptions"
+                            option-label="label"
+                            option-value="value"
+                            label="Banking Detail"
+                            :error="!!form.errors.banking_detail_id"
+                            :error-message="form.errors.banking_detail_id"
+                        />
+                    </div>
+                    <div class="col-12">
+                        <q-input
+                            v-model.number="form.amount"
+                            dense
+                            outlined
+                            type="number"
+                            min="0"
+                            max="999999999.99"
+                            step="0.01"
+                            label="Amount"
+                            :error="!!form.errors.amount"
+                            :error-message="form.errors.amount"
+                        />
+                    </div>
+                    <div class="col-12">
+                        <q-input
+                            v-model="form.description"
+                            dense
+                            outlined
+                            label="Description"
+                            maxlength="100"
+                            counter
+                            :error="!!form.errors.description"
+                            :error-message="form.errors.description"
+                        />
+                    </div>
+                </div>
+            </q-card-section>
+            <q-separator />
+            <q-card-actions align="right">
+                <q-btn flat label="Cancel" @click="editDialog = false" />
+                <q-btn color="primary" unelevated :loading="form.processing" label="Save" @click="submitEdit" />
+            </q-card-actions>
+        </q-card>
+    </q-dialog>
 </template>

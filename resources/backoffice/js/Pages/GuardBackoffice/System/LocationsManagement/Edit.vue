@@ -95,6 +95,8 @@ const cancel = () => {
                             label="Name"
                             filled
                             dense
+                            maxlength="120"
+                            counter
                             :error="!!form.errors.name"
                             :error-message="form.errors.name"
                         />
@@ -144,7 +146,7 @@ const cancel = () => {
                 </div>
             </q-form>
 
-            <div class="row justify-end">
+            <div class="row justify-end q-mt-lg">
                 <div class="q-gutter-sm">
                     <q-btn color="grey-4" text-color="standard" label="Cancel" no-wrap unelevated @click="cancel" />
                     <q-btn color="primary" label="Save" no-wrap unelevated :loading="form.processing" :disable="form.processing" @click="submit" />

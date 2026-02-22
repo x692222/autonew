@@ -20,7 +20,6 @@ class UserManagementIndexResource extends JsonResource
             'lastname' => $this->lastname,
             'email' => $this->email,
             'is_active' => (bool) $this->is_active,
-            'roles' => $this->roles->pluck('name')->values()->all(),
             'can' => [
                 'update' => $actor?->can('update', $this->resource) ?? false,
                 'delete' => $actor?->can('delete', $this->resource) ?? false,

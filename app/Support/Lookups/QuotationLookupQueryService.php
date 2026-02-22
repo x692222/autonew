@@ -3,9 +3,8 @@
 namespace App\Support\Lookups;
 
 use App\Models\Dealer\Dealer;
-use App\Models\Invoice\InvoiceLineItem;
+use App\Models\LineItem\StoredLineItem;
 use App\Models\Quotation\Customer;
-use App\Models\Quotation\QuotationLineItem;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -33,44 +32,42 @@ class QuotationLookupQueryService
 
     public function quotationHistoryLineItems(?Dealer $dealer, string $section, string $query): Collection
     {
-        $builder = QuotationLineItem::query()
+        $builder = StoredLineItem::query()
             ->when(
                 $dealer,
                 fn ($b) => $b->where('dealer_id', $dealer->id),
                 fn ($b) => $b->whereNull('dealer_id')
             )
             ->where('section', $section)
-            ->whereNotNull('sku')
             ->where('sku', 'like', '%' . $query . '%');
 
         if ($dealer && $section === 'general') {
-            $this->excludeDealerStockLinkedSkus($builder, $dealer, 'quotation_line_items');
+            $this->excludeDealerStockLinkedSkus($builder, $dealer, 'stored_line_items');
         }
 
         return $builder
-            ->latest('created_at')
+            ->latest('updated_at')
             ->limit(5)
             ->get();
     }
 
     public function invoiceHistoryLineItems(?Dealer $dealer, string $section, string $query): Collection
     {
-        $builder = InvoiceLineItem::query()
+        $builder = StoredLineItem::query()
             ->when(
                 $dealer,
                 fn ($b) => $b->where('dealer_id', $dealer->id),
                 fn ($b) => $b->whereNull('dealer_id')
             )
             ->where('section', $section)
-            ->whereNotNull('sku')
             ->where('sku', 'like', '%' . $query . '%');
 
         if ($dealer && $section === 'general') {
-            $this->excludeDealerStockLinkedSkus($builder, $dealer, 'invoice_line_items');
+            $this->excludeDealerStockLinkedSkus($builder, $dealer, 'stored_line_items');
         }
 
         return $builder
-            ->latest('created_at')
+            ->latest('updated_at')
             ->limit(5)
             ->get();
     }

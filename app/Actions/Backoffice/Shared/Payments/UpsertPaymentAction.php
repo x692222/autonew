@@ -25,6 +25,12 @@ class UpsertPaymentAction
         return DB::transaction(function () use ($payment, $invoice, $data, $actor, $ipAddress): Payment {
             if ($payment) {
                 $this->tenantScopeEnforcer->assertPaymentMatchesInvoiceScope($payment, $invoice);
+
+                if ((bool) $payment->is_approved) {
+                    throw ValidationException::withMessages([
+                        'payment' => ['Verified payments cannot be edited.'],
+                    ]);
+                }
             }
 
             $this->tenantScopeEnforcer->assertBankingDetailInScope(

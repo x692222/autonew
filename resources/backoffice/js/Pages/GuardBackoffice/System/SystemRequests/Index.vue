@@ -187,6 +187,8 @@ const confirmDelete = (row) => {
                     dense
                     outlined
                     label="Response"
+                    maxlength="10000"
+                    counter
                 />
             </q-card-section>
 
@@ -197,4 +199,3 @@ const confirmDelete = (row) => {
         </q-card>
     </q-dialog>
 </template>
-

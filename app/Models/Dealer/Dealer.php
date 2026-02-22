@@ -11,6 +11,7 @@ use App\Models\Leads\LeadConversation;
 use App\Models\Leads\LeadMessage;
 use App\Models\Leads\LeadPipeline;
 use App\Models\Leads\LeadStage;
+use App\Models\LineItem\StoredLineItem;
 use App\Models\Messaging\WhatsappTemplate;
 use App\Models\Quotation\Customer;
 use App\Models\Quotation\Quotation;
@@ -192,6 +193,11 @@ class Dealer extends Model
     public function invoiceLineItems(): HasMany
     {
         return $this->hasMany(InvoiceLineItem::class, 'dealer_id');
+    }
+
+    public function storedLineItems(): HasMany
+    {
+        return $this->hasMany(StoredLineItem::class, 'dealer_id');
     }
 
 

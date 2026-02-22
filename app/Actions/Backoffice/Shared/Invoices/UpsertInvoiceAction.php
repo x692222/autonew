@@ -7,9 +7,11 @@ use App\Models\Invoice\Invoice;
 use App\Models\Quotation\Quotation;
 use App\Support\Invoices\InvoiceIdentifierGenerator;
 use App\Support\Invoices\InvoiceTotalsCalculator;
+use App\Support\LineItems\StoredLineItemUpsertService;
 use App\Support\Security\TenantScopeEnforcer;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -19,6 +21,7 @@ class UpsertInvoiceAction
         private readonly InvoiceIdentifierGenerator $identifierGenerator,
         private readonly InvoiceTotalsCalculator $totalsCalculator,
         private readonly TenantScopeEnforcer $tenantScopeEnforcer,
+        private readonly StoredLineItemUpsertService $storedLineItemUpsertService,
     ) {
     }
 
@@ -30,7 +33,8 @@ class UpsertInvoiceAction
         array $vatSnapshot,
         ?Quotation $quotation = null
     ): Invoice {
-        return DB::transaction(function () use ($invoice, $data, $actor, $dealer, $vatSnapshot, $quotation): Invoice {
+        try {
+            return DB::transaction(function () use ($invoice, $data, $actor, $dealer, $vatSnapshot, $quotation): Invoice {
             if ($invoice) {
                 $this->tenantScopeEnforcer->assertInvoiceInScope(invoice: $invoice, dealer: $dealer);
             }
@@ -69,6 +73,20 @@ class UpsertInvoiceAction
                 dealer: $dealer
             );
 
+            $lineItems = collect($lineItems)
+                ->map(function (array $lineItem) use ($dealer): array {
+                    $storedLineItem = $this->storedLineItemUpsertService->upsert(
+                        dealer: $dealer,
+                        lineItem: $lineItem
+                    );
+
+                    return [
+                        ...$lineItem,
+                        'stored_line_item_id' => $storedLineItem?->id,
+                    ];
+                })
+                ->all();
+
             $totals = $this->totalsCalculator->calculate(
                 lineItems: $lineItems,
                 vatEnabled: (bool) ($vatSnapshot['vat_enabled'] ?? false),
@@ -86,13 +104,13 @@ class UpsertInvoiceAction
                 : (string) $invoice->invoice_identifier;
 
             $duplicateExists = Invoice::query()
+                ->withTrashed()
                 ->where('invoice_identifier', $invoiceIdentifier)
                 ->when(
                     $dealer,
                     fn ($query) => $query->where('dealer_id', $dealer->id),
                     fn ($query) => $query->whereNull('dealer_id')
                 )
-                ->whereNull('deleted_at')
                 ->when($invoice, fn ($query) => $query->where('id', '!=', $invoice->id))
                 ->exists();
 
@@ -127,7 +145,6 @@ class UpsertInvoiceAction
                 'invoice_date' => $invoiceDate->toDateString(),
                 'payable_by' => $payableBy,
                 'purchase_order_number' => $data['purchase_order_number'] ?: null,
-                'payment_method' => $data['payment_method'] ?: null,
                 'payment_terms' => $data['payment_terms'] ?: null,
                 'vat_enabled' => (bool) ($vatSnapshot['vat_enabled'] ?? false),
                 'vat_percentage' => $vatSnapshot['vat_percentage'],
@@ -161,6 +178,23 @@ class UpsertInvoiceAction
             }
 
             return $invoice->fresh(['customer', 'lineItems']);
-        });
+            });
+        } catch (QueryException $exception) {
+            if ($this->isDuplicateScopeIdentifierError($exception)) {
+                throw ValidationException::withMessages([
+                    'invoice_identifier' => ['Invoice reference must be unique in this scope.'],
+                ]);
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function isDuplicateScopeIdentifierError(QueryException $exception): bool
+    {
+        $message = strtolower((string) $exception->getMessage());
+
+        return str_contains($message, 'duplicate entry')
+            && str_contains($message, 'invoices_scope_identifier_unique');
     }
 }

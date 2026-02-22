@@ -3,36 +3,32 @@
 namespace App\Support\Validation\Dealers;
 
 use App\Models\Dealer\DealerUser;
-use Illuminate\Validation\Rule;
+use App\Support\Validation\Users\AuthEmailUniquenessRules;
+use App\Support\Validation\Users\UserIdentityValidationRules;
 
 class DealerUserValidationRules
 {
+    public function __construct(
+        private readonly UserIdentityValidationRules $identityRules,
+        private readonly AuthEmailUniquenessRules $authEmailUniquenessRules,
+    )
+    {
+    }
+
     public function single(?DealerUser $dealerUser = null): array
     {
-        $emailRule = Rule::unique('dealer_users', 'email')->whereNull('deleted_at');
-        if ($dealerUser !== null) {
-            $emailRule = $emailRule->ignore($dealerUser->id);
-        }
-
-        return [
-            'firstname' => ['required', 'string', 'max:255'],
-            'lastname' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', $emailRule],
-        ];
+        return $this->identityRules->single(
+            $this->authEmailUniquenessRules->forDealerUsers($dealerUser)
+        );
     }
 
     public function many(string $root = 'dealer_users'): array
     {
-        return [
-            $root => ['required', 'array', 'min:1'],
-            "{$root}.*.firstname" => ['required', 'string', 'max:255'],
-            "{$root}.*.lastname" => ['required', 'string', 'max:255'],
-            "{$root}.*.email" => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('dealer_users', 'email')->whereNull('deleted_at'),
+        return array_merge(
+            [
+                $root => ['required', 'array', 'min:1'],
             ],
-        ];
+            $this->identityRules->many($root, $this->authEmailUniquenessRules->forDealerUsers())
+        );
     }
 }

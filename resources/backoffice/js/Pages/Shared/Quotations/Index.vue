@@ -36,11 +36,127 @@ const notesRef = ref(null)
 const { confirmAction } = useConfirmAction(loading)
 
 const search = ref(props.filters?.search ?? '')
-const customer = ref(props.filters?.customer ?? '')
 const quotationDateFrom = ref(props.filters?.quotation_date_from ?? '')
 const quotationDateTo = ref(props.filters?.quotation_date_to ?? '')
 const validUntilFrom = ref(props.filters?.valid_until_from ?? '')
 const validUntilTo = ref(props.filters?.valid_until_to ?? '')
+
+const parseYmd = (value) => {
+    if (!value) {
+        return null
+    }
+
+    const parts = String(value).split(/[^0-9]/).filter(Boolean)
+    const [year, month, day] = parts.map(Number)
+    if (!year || !month || !day) {
+        return null
+    }
+
+    return new Date(year, month - 1, day)
+}
+
+const formatYmd = (date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+}
+
+const addDays = (value, days) => {
+    const date = parseYmd(value)
+    if (!date) {
+        return ''
+    }
+
+    date.setDate(date.getDate() + days)
+    return formatYmd(date)
+}
+
+const toEpoch = (value) => {
+    const parsed = parseYmd(value)
+    return parsed ? parsed.getTime() : null
+}
+
+const isBefore = (left, right) => {
+    const leftEpoch = toEpoch(left)
+    const rightEpoch = toEpoch(right)
+    return leftEpoch !== null && rightEpoch !== null && leftEpoch < rightEpoch
+}
+
+const isAfter = (left, right) => {
+    const leftEpoch = toEpoch(left)
+    const rightEpoch = toEpoch(right)
+    return leftEpoch !== null && rightEpoch !== null && leftEpoch > rightEpoch
+}
+
+const isQuotationDateFromAllowed = (date) => !quotationDateTo.value || isBefore(date, quotationDateTo.value)
+const isQuotationDateToAllowed = (date) => !quotationDateFrom.value || isAfter(date, quotationDateFrom.value)
+const isValidUntilFromAllowed = (date) => !validUntilTo.value || isBefore(date, validUntilTo.value)
+const isValidUntilToAllowed = (date) => !validUntilFrom.value || isAfter(date, validUntilFrom.value)
+
+const onQuotationDateFromChange = (value) => {
+    quotationDateFrom.value = value || ''
+
+    if (!quotationDateFrom.value) {
+        quotationDateTo.value = ''
+        goFirst()
+        return
+    }
+
+    if (!quotationDateTo.value) {
+        quotationDateTo.value = addDays(quotationDateFrom.value, 1)
+    }
+
+    goFirst()
+}
+
+const onQuotationDateToChange = (value) => {
+    quotationDateTo.value = value || ''
+
+    if (!quotationDateTo.value) {
+        quotationDateFrom.value = ''
+        goFirst()
+        return
+    }
+
+    if (!quotationDateFrom.value) {
+        quotationDateFrom.value = addDays(quotationDateTo.value, -1)
+    }
+
+    goFirst()
+}
+
+const onValidUntilFromChange = (value) => {
+    validUntilFrom.value = value || ''
+
+    if (!validUntilFrom.value) {
+        validUntilTo.value = ''
+        goFirst()
+        return
+    }
+
+    if (!validUntilTo.value) {
+        validUntilTo.value = addDays(validUntilFrom.value, 1)
+    }
+
+    goFirst()
+}
+
+const onValidUntilToChange = (value) => {
+    validUntilTo.value = value || ''
+
+    if (!validUntilTo.value) {
+        validUntilFrom.value = ''
+        goFirst()
+        return
+    }
+
+    if (!validUntilFrom.value) {
+        validUntilFrom.value = addDays(validUntilTo.value, -1)
+    }
+
+    goFirst()
+}
 
 const tableColumns = computed(() => ([
     ...(props.columns || []),
@@ -58,7 +174,6 @@ const queryPayload = (pagination = null) => ({
     sortBy: pagination?.sortBy,
     descending: pagination?.descending,
     search: search.value || '',
-    customer: customer.value || '',
     quotation_date_from: quotationDateFrom.value || '',
     quotation_date_to: quotationDateTo.value || '',
     valid_until_from: validUntilFrom.value || '',
@@ -180,61 +295,125 @@ const confirmExport = (row) => {
                         @update:model-value="goFirst"
                     />
                 </div>
-                <div class="col-auto" style="min-width: 240px;">
+                <div class="col-auto" style="min-width: 190px;">
                     <q-input
-                        v-model="customer"
+                        :model-value="quotationDateFrom"
                         dense
                         outlined
                         clearable
-                        debounce="700"
-                        placeholder="Filter by customer..."
-                        :input-attrs="{ autocomplete: 'off' }"
-                        @update:model-value="goFirst"
-                    />
-                </div>
-                <div class="col-auto" style="min-width: 170px;">
-                    <q-input
-                        v-model="quotationDateFrom"
-                        dense
-                        outlined
-                        clearable
+                        readonly
                         label="Quote Date From"
-                        placeholder="YYYY-MM-DD"
-                        @update:model-value="goFirst"
-                    />
+                        @update:model-value="onQuotationDateFromChange"
+                    >
+                        <template #append>
+                            <q-icon
+                                v-if="quotationDateFrom"
+                                name="close"
+                                class="cursor-pointer q-mr-xs"
+                                @click.stop="onQuotationDateFromChange('')"
+                            />
+                            <q-icon name="event" class="cursor-pointer">
+                                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                    <q-date
+                                        :model-value="quotationDateFrom"
+                                        mask="YYYY-MM-DD"
+                                        :options="isQuotationDateFromAllowed"
+                                        @update:model-value="onQuotationDateFromChange"
+                                    />
+                                </q-popup-proxy>
+                            </q-icon>
+                        </template>
+                    </q-input>
                 </div>
-                <div class="col-auto" style="min-width: 170px;">
+                <div class="col-auto" style="min-width: 190px;">
                     <q-input
-                        v-model="quotationDateTo"
+                        :model-value="quotationDateTo"
                         dense
                         outlined
                         clearable
+                        readonly
                         label="Quote Date To"
-                        placeholder="YYYY-MM-DD"
-                        @update:model-value="goFirst"
-                    />
+                        @update:model-value="onQuotationDateToChange"
+                    >
+                        <template #append>
+                            <q-icon
+                                v-if="quotationDateTo"
+                                name="close"
+                                class="cursor-pointer q-mr-xs"
+                                @click.stop="onQuotationDateToChange('')"
+                            />
+                            <q-icon name="event" class="cursor-pointer">
+                                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                    <q-date
+                                        :model-value="quotationDateTo"
+                                        mask="YYYY-MM-DD"
+                                        :options="isQuotationDateToAllowed"
+                                        @update:model-value="onQuotationDateToChange"
+                                    />
+                                </q-popup-proxy>
+                            </q-icon>
+                        </template>
+                    </q-input>
                 </div>
-                <div class="col-auto" style="min-width: 170px;">
+                <div class="col-auto" style="min-width: 190px;">
                     <q-input
-                        v-model="validUntilFrom"
+                        :model-value="validUntilFrom"
                         dense
                         outlined
                         clearable
+                        readonly
                         label="Valid Until From"
-                        placeholder="YYYY-MM-DD"
-                        @update:model-value="goFirst"
-                    />
+                        @update:model-value="onValidUntilFromChange"
+                    >
+                        <template #append>
+                            <q-icon
+                                v-if="validUntilFrom"
+                                name="close"
+                                class="cursor-pointer q-mr-xs"
+                                @click.stop="onValidUntilFromChange('')"
+                            />
+                            <q-icon name="event" class="cursor-pointer">
+                                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                    <q-date
+                                        :model-value="validUntilFrom"
+                                        mask="YYYY-MM-DD"
+                                        :options="isValidUntilFromAllowed"
+                                        @update:model-value="onValidUntilFromChange"
+                                    />
+                                </q-popup-proxy>
+                            </q-icon>
+                        </template>
+                    </q-input>
                 </div>
-                <div class="col-auto" style="min-width: 170px;">
+                <div class="col-auto" style="min-width: 190px;">
                     <q-input
-                        v-model="validUntilTo"
+                        :model-value="validUntilTo"
                         dense
                         outlined
                         clearable
+                        readonly
                         label="Valid Until To"
-                        placeholder="YYYY-MM-DD"
-                        @update:model-value="goFirst"
-                    />
+                        @update:model-value="onValidUntilToChange"
+                    >
+                        <template #append>
+                            <q-icon
+                                v-if="validUntilTo"
+                                name="close"
+                                class="cursor-pointer q-mr-xs"
+                                @click.stop="onValidUntilToChange('')"
+                            />
+                            <q-icon name="event" class="cursor-pointer">
+                                <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                                    <q-date
+                                        :model-value="validUntilTo"
+                                        mask="YYYY-MM-DD"
+                                        :options="isValidUntilToAllowed"
+                                        @update:model-value="onValidUntilToChange"
+                                    />
+                                </q-popup-proxy>
+                            </q-icon>
+                        </template>
+                    </q-input>
                 </div>
             </div>
         </template>

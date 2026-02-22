@@ -16,6 +16,8 @@ const columns = [
     { name: 'total_amount', label: 'Total', field: 'total_amount', align: 'right' },
     { name: 'paid_amount', label: 'Paid', field: 'paid_amount', align: 'right' },
     { name: 'due_amount', label: 'Due', field: 'due_amount', align: 'right' },
+    { name: 'is_fully_paid', label: 'Fully Paid', field: 'is_fully_paid', align: 'center' },
+    { name: 'is_fully_verified', label: 'Fully Verified', field: 'is_fully_verified', align: 'center' },
     { name: 'status', label: 'Status', field: 'status', align: 'center' },
     { name: 'actions', label: '', field: 'actions', align: 'right' },
 ]
@@ -68,6 +70,16 @@ const dueAmount = (row) => {
                         <q-chip square dense size="sm" :color="row.status === 'FULLY PAID' ? 'positive' : (row.status === 'PARTIAL PAYMENT' ? 'warning' : 'negative')" text-color="white">
                             {{ row.status }}
                         </q-chip>
+                    </div>
+                </template>
+                <template #cell-is_fully_paid="{ row }">
+                    <div class="text-center">
+                        <q-icon :name="row.is_fully_paid ? 'check_circle' : 'cancel'" :color="row.is_fully_paid ? 'positive' : 'negative'" size="20px" />
+                    </div>
+                </template>
+                <template #cell-is_fully_verified="{ row }">
+                    <div class="text-center">
+                        <q-icon :name="row.is_fully_verified ? 'check_circle' : 'cancel'" :color="row.is_fully_verified ? 'positive' : 'negative'" size="20px" />
                     </div>
                 </template>
                 <template #cell-actions="{ row }">

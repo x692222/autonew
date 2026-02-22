@@ -3,7 +3,9 @@ import { Head, router } from '@inertiajs/vue3'
 import Layout from 'bo@/Layouts/Layout.vue'
 import DealerTabs from 'bo@/Pages/GuardBackoffice/DealerManagement/Dealers/_Tabs.vue'
 import DealerConfigurationNav from 'bo@/Pages/GuardDealer/DealerConfiguration/_Nav.vue'
+import AssociatedQuotationsTable from 'bo@/Components/Shared/AssociatedQuotationsTable.vue'
 import AssociatedInvoicesTable from 'bo@/Components/Shared/AssociatedInvoicesTable.vue'
+import AssociatedPaymentsTable from 'bo@/Components/Shared/AssociatedPaymentsTable.vue'
 import { formatCurrency } from 'bo@/Composables/currencyFormatterService'
 
 defineOptions({ layout: Layout })
@@ -15,8 +17,12 @@ const props = defineProps({
     pageTab: { type: String, default: 'customers' },
     data: { type: Object, required: true },
     summary: { type: Object, default: () => ({}) },
+    associatedQuotations: { type: Array, default: () => [] },
+    canViewAssociatedQuotations: { type: Boolean, default: false },
     associatedInvoices: { type: Array, default: () => [] },
     canViewAssociatedInvoices: { type: Boolean, default: false },
+    associatedPayments: { type: Array, default: () => [] },
+    canViewAssociatedPayments: { type: Boolean, default: false },
     editRoute: { type: String, default: null },
     indexRoute: { type: String, required: true },
     returnTo: { type: String, required: true },
@@ -34,7 +40,7 @@ const props = defineProps({
         </div>
         <div class="q-gutter-sm">
             <q-btn v-if="editRoute" color="primary" unelevated label="Edit Customer" @click="router.visit(editRoute)" />
-            <q-btn color="grey-7" outline label="Back" @click="router.visit(returnTo)" />
+            <q-btn color="grey-4" text-color="standard" no-wrap unelevated label="Back" @click="router.visit(returnTo)" />
         </div>
     </div>
 
@@ -98,9 +104,21 @@ const props = defineProps({
                 </q-card-section>
             </q-card>
 
+            <AssociatedQuotationsTable
+                v-if="canViewAssociatedQuotations"
+                :rows="associatedQuotations"
+                :currency-symbol="currencySymbol"
+            />
+
             <AssociatedInvoicesTable
                 v-if="canViewAssociatedInvoices"
                 :rows="associatedInvoices"
+                :currency-symbol="currencySymbol"
+            />
+
+            <AssociatedPaymentsTable
+                v-if="canViewAssociatedPayments"
+                :rows="associatedPayments"
                 :currency-symbol="currencySymbol"
             />
         </div>

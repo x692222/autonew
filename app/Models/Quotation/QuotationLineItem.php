@@ -4,6 +4,7 @@ namespace App\Models\Quotation;
 
 use App\Enums\QuotationLineItemSectionEnum;
 use App\Models\Dealer\Dealer;
+use App\Models\LineItem\StoredLineItem;
 use App\Models\Stock\Stock;
 use App\Traits\HasUuidPrimaryKey;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,7 @@ class QuotationLineItem extends Model
         'quotation_id',
         'dealer_id',
         'stock_id',
+        'stored_line_item_id',
         'section',
         'sku',
         'description',
@@ -53,5 +55,9 @@ class QuotationLineItem extends Model
     {
         return $this->belongsTo(Stock::class, 'stock_id');
     }
-}
 
+    public function storedLineItem(): BelongsTo
+    {
+        return $this->belongsTo(StoredLineItem::class, 'stored_line_item_id');
+    }
+}

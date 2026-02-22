@@ -82,7 +82,18 @@ class Payment extends Model
 
     public function latestVerification(): HasOne
     {
-        return $this->hasOne(PaymentVerification::class, 'payment_id')->latestOfMany('date_verified');
+        return $this->hasOne(PaymentVerification::class, 'payment_id')
+            ->select([
+                'payment_verifications.id',
+                'payment_verifications.payment_id',
+                'payment_verifications.amount_verified',
+                'payment_verifications.date_verified',
+                'payment_verifications.verified_by_type',
+                'payment_verifications.verified_by_id',
+                'payment_verifications.created_at',
+                'payment_verifications.updated_at',
+            ])
+            ->latestOfMany('date_verified');
     }
 
     public function createdBy(): MorphTo

@@ -309,7 +309,7 @@ const submit = () => {
         </div>
 
         <div class="q-gutter-sm">
-            <q-btn color="grey-7" text-color="white" label="Back" no-caps unelevated @click="router.visit(returnTo)" />
+            <q-btn color="grey-4" text-color="standard" no-wrap unelevated label="Back" @click="router.visit(returnTo)" />
             <q-btn color="primary" label="Save" no-caps unelevated :disable="!canSubmit" :loading="form.processing" @click="submit" />
         </div>
     </div>
@@ -322,11 +322,11 @@ const submit = () => {
 
                     <div class="row q-col-gutter-md">
                         <div class="col-md-6 col-sm-12">
-                            <q-input dense outlined v-model="form.name" label="Title" hint="Summarised title of your stock item" :error="!!form.errors.name" :error-message="form.errors.name" />
+                            <q-input dense outlined v-model="form.name" label="Title" maxlength="75" counter hint="Summarised title of your stock item" :error="!!form.errors.name" :error-message="form.errors.name" />
                         </div>
 
                         <div class="col-md-6 col-sm-12">
-                            <q-input dense outlined v-model="form.internal_reference" label="Internal Reference" hint="Unique internal reference. Leave blank to auto-generate." :error="!!form.errors.internal_reference" :error-message="form.errors.internal_reference" />
+                            <q-input dense outlined v-model="form.internal_reference" label="Internal Reference" maxlength="50" counter hint="Unique internal reference. Leave blank to auto-generate." :error="!!form.errors.internal_reference" :error-message="form.errors.internal_reference" />
                         </div>
 
                         <div class="col-md-6 col-sm-12">

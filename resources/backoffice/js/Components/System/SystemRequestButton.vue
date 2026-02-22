@@ -60,8 +60,8 @@ const submit = async () => {
                 <div class="text-h6">Submit Request</div>
             </q-card-section>
             <q-card-section>
-                <q-input v-model="form.subject" dense outlined label="Subject" class="q-mb-sm" />
-                <q-input v-model="form.message" dense outlined type="textarea" autogrow label="Message" />
+                <q-input v-model="form.subject" dense outlined label="Subject" maxlength="255" counter class="q-mb-sm" />
+                <q-input v-model="form.message" dense outlined type="textarea" autogrow label="Message" maxlength="5000" counter />
             </q-card-section>
             <q-card-actions align="right">
                 <q-btn flat label="Cancel" @click="open = false" />

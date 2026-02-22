@@ -1,6 +1,6 @@
 <script setup>
 import { Head, router, useForm } from '@inertiajs/vue3'
-import { computed, inject } from 'vue'
+import { inject } from 'vue'
 import Layout from 'bo@/Layouts/Layout.vue'
 
 defineOptions({ layout: Layout })
@@ -9,19 +9,13 @@ const route = inject('route')
 
 const props = defineProps({
     publicTitle: { type: String, default: 'User Management' },
-    roles: { type: Array, default: () => [] },
     data: { type: Object, required: true }
 })
-
-const roleOptions = computed(() =>
-    (props.roles || []).map(r => ({ label: r, value: r }))
-)
 
 const form = useForm({
     firstname: props.data.firstname ?? '',
     lastname: props.data.lastname ?? '',
     email: props.data.email ?? '',
-    role: props.data.role ?? null,
 })
 
 const submit = () => {
@@ -55,6 +49,8 @@ const cancel = () => {
                             label="First name"
                             filled
                             dense
+                            maxlength="50"
+                            counter
                             :error="!!form.errors.firstname"
                             :error-message="form.errors.firstname"
                             autocomplete="off"
@@ -67,6 +63,8 @@ const cancel = () => {
                             label="Last name"
                             filled
                             dense
+                            maxlength="50"
+                            counter
                             :error="!!form.errors.lastname"
                             :error-message="form.errors.lastname"
                             autocomplete="off"
@@ -80,25 +78,14 @@ const cancel = () => {
                             label="Email"
                             filled
                             dense
+                            maxlength="150"
+                            counter
                             :error="!!form.errors.email"
                             :error-message="form.errors.email"
                             :input-attrs="{ autocomplete: 'off' }"
                         />
                     </div>
 
-                    <div class="col-12 col-md-6">
-                        <q-select
-                            v-model="form.role"
-                            label="Role"
-                            :options="roleOptions"
-                            filled
-                            dense
-                            emit-value
-                            map-options
-                            :error="!!form.errors.role"
-                            :error-message="form.errors.role"
-                        />
-                    </div>
                 </div>
             </q-form>
 

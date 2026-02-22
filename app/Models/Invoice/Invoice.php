@@ -32,7 +32,6 @@ class Invoice extends Model
         'invoice_date',
         'payable_by',
         'purchase_order_number',
-        'payment_method',
         'payment_terms',
         'is_fully_paid',
         'vat_enabled',
@@ -62,12 +61,12 @@ class Invoice extends Model
 
     public function scopeSystem(Builder $query): Builder
     {
-        return $query->whereNull('dealer_id');
+        return $query->whereNull($query->qualifyColumn('dealer_id'));
     }
 
     public function scopeForDealer(Builder $query, string $dealerId): Builder
     {
-        return $query->where('dealer_id', $dealerId);
+        return $query->where($query->qualifyColumn('dealer_id'), $dealerId);
     }
 
     public function dealer(): BelongsTo

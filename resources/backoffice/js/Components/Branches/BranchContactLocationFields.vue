@@ -98,7 +98,7 @@ const coordinatesErrorMessage = computed(() => {
         <div class="col-12">
             <q-input
                 :model-value="modelValue?.contact_numbers ?? ''"
-                :label="contactRequired ? 'Contact numbers *' : 'Contact numbers'"
+                label="Contact numbers"
                 :dense="dense"
                 :outlined="variant === 'outlined'"
                 :filled="variant === 'filled'"

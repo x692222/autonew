@@ -104,11 +104,11 @@ const cancel = () => {
             <q-form @submit.prevent="submit">
                 <div class="row q-col-gutter-md">
                     <div class="col-12 col-md-6">
-                        <q-input v-model="form.name" label="Branch name" filled dense :error="!!form.errors.name" :error-message="form.errors.name" />
+                        <q-input v-model="form.name" label="Branch name" filled dense maxlength="255" counter :error="!!form.errors.name" :error-message="form.errors.name" />
                     </div>
 
                     <div class="col-12 col-md-6">
-                        <q-input v-model="form.display_address" label="Display address" filled dense :error="!!form.errors.display_address" :error-message="form.errors.display_address" />
+                        <q-input v-model="form.display_address" label="Display address" filled dense maxlength="500" counter :error="!!form.errors.display_address" :error-message="form.errors.display_address" />
                     </div>
 
                     <div class="col-12 col-md-6">

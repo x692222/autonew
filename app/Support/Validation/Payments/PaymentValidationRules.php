@@ -11,14 +11,14 @@ class PaymentValidationRules
     {
         return [
             'search' => ['nullable', 'string', 'max:100'],
-            'invoice_identifier' => ['nullable', 'string', 'max:100'],
             'payment_method' => ['nullable', Rule::in(PaymentMethodEnum::values())],
-            'verification_status' => ['nullable', Rule::in(['all', 'pending', 'verified'])],
-            'payment_date_from' => ['nullable', 'date_format:Y-m-d'],
-            'payment_date_to' => ['nullable', 'date_format:Y-m-d'],
+            'banking_detail_id' => ['nullable', 'uuid'],
+            'verification_status' => ['nullable', Rule::in(['all', 'pending', 'verified', 'unverified'])],
+            'payment_date_from' => ['nullable', 'date_format:Y-m-d', 'required_with:payment_date_to', 'before:payment_date_to'],
+            'payment_date_to' => ['nullable', 'date_format:Y-m-d', 'required_with:payment_date_from', 'after:payment_date_from'],
             'page' => ['nullable', 'integer', 'min:1'],
             'rowsPerPage' => ['nullable', 'integer', 'min:1', 'max:200'],
-            'sortBy' => ['nullable', 'in:payment_date,invoice_identifier,payment_method,amount,created_at'],
+            'sortBy' => ['nullable', 'in:payment_date,invoice_identifier,payment_method,amount,is_approved,last_verified_at,created_at'],
             'descending' => ['nullable'],
         ];
     }

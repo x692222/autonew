@@ -3,6 +3,7 @@
 namespace App\Support\Validation\Customers;
 
 use App\Enums\QuotationCustomerTypeEnum;
+use Illuminate\Validation\Rules\Unique;
 use Illuminate\Validation\Rule;
 
 class CustomerValidationRules
@@ -19,17 +20,38 @@ class CustomerValidationRules
         ];
     }
 
-    public function upsert(): array
+    public function upsert(?string $dealerId = null, ?string $ignoreCustomerId = null): array
     {
+        $emailUniqueRule = Rule::unique('customers', 'email')
+            ->whereNull('deleted_at')
+            ->when(
+                $dealerId === null,
+                fn (Unique $rule) => $rule->whereNull('dealer_id'),
+                fn (Unique $rule) => $rule->where('dealer_id', $dealerId)
+            );
+
+        $contactUniqueRule = Rule::unique('customers', 'contact_number')
+            ->whereNull('deleted_at')
+            ->when(
+                $dealerId === null,
+                fn (Unique $rule) => $rule->whereNull('dealer_id'),
+                fn (Unique $rule) => $rule->where('dealer_id', $dealerId)
+            );
+
+        if ($ignoreCustomerId) {
+            $emailUniqueRule = $emailUniqueRule->ignore($ignoreCustomerId);
+            $contactUniqueRule = $contactUniqueRule->ignore($ignoreCustomerId);
+        }
+
         return [
             'type' => ['required', Rule::in(QuotationCustomerTypeEnum::values())],
-            'title' => ['nullable', 'string', 'max:50'],
-            'firstname' => ['required', 'string', 'max:255'],
-            'lastname' => ['nullable', 'string', 'max:255'],
+            'title' => ['nullable', 'string', 'max:15'],
+            'firstname' => ['required', 'string', 'max:50'],
+            'lastname' => ['nullable', 'string', 'max:50'],
             'id_number' => ['nullable', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'contact_number' => ['required', 'regex:/^\\+[1-9]\\d{7,14}$/'],
-            'address' => ['required', 'string', 'min:20', 'max:150'],
+            'email' => ['nullable', 'email', 'max:150', $emailUniqueRule],
+            'contact_number' => ['required', 'string', 'max:25', 'regex:/^\\+[1-9]\\d{5,14}$/', $contactUniqueRule],
+            'address' => ['required', 'string', 'max:200'],
             'vat_number' => ['nullable', 'string', 'max:35', 'regex:/^[A-Za-z0-9\\/\\-]+$/'],
         ];
     }

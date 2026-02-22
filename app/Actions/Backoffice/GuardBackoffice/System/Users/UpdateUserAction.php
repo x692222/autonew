@@ -7,14 +7,10 @@ class UpdateUserAction
 {
     public function execute(User $user, array $data): bool
     {
-        $ok = $user->update([
+        return $user->update([
             'firstname' => $data['firstname'],
             'lastname' => $data['lastname'],
             'email' => $data['email'],
         ]);
-
-        $user->syncRoles([$data['role']]);
-
-        return $ok;
     }
 }

@@ -73,14 +73,13 @@ class QuotationsController extends Controller
             keys: [
                 'quotation_date',
                 'quote_identifier',
-                'total_items_general_accessories',
                 'valid_until',
                 'customer_firstname',
                 'customer_lastname',
                 'total_amount',
             ],
             allSortable: true,
-            numericKeys: ['total_items_general_accessories', 'total_amount']
+            numericKeys: ['total_amount']
         );
 
         return Inertia::render('Shared/Quotations/Index', [
@@ -165,6 +164,16 @@ class QuotationsController extends Controller
     public function edit(EditDealerQuotationsRequest $request, Dealer $dealer, Quotation $quotation): Response|RedirectResponse
     {
         $documentSettings = $this->documentSettings->dealer($dealer->id, includeContactNoPrefix: true);
+        $canEditQuotation = $this->editabilityService->dealerCanEdit($quotation, $dealer);
+        $currentVatSnapshot = $this->vatSnapshotResolver->forDealer($dealer);
+        $quotationVatSnapshot = [
+            'vat_enabled' => (bool) $quotation->vat_enabled,
+            'vat_percentage' => $quotation->vat_percentage !== null ? (float) $quotation->vat_percentage : null,
+        ];
+        $isVatSnapshotMismatch = ! $this->vatSnapshotResolver->hasMatchingVatSnapshot($currentVatSnapshot, $quotationVatSnapshot);
+        $readOnlyReason = ! $canEditQuotation && $isVatSnapshotMismatch
+            ? 'This quotation is read-only because VAT settings changed since it was created.'
+            : null;
 
         $quotation->load([
             'customer',
@@ -177,11 +186,6 @@ class QuotationsController extends Controller
             'lineItems.stock.motorbikeItem.make',
             'lineItems.stock.motorbikeItem.model',
         ]);
-
-        if (! $this->editabilityService->dealerCanEdit($quotation, $dealer)) {
-            return redirect($request->input('return_to', route('backoffice.dealer-management.dealers.quotations.index', $dealer)))
-                ->with('error', 'This quotation can no longer be edited because VAT settings changed since it was created.');
-        }
 
         return Inertia::render('Shared/Quotations/Form', [
             'publicTitle' => 'Dealer Management',
@@ -201,12 +205,13 @@ class QuotationsController extends Controller
                 'vat_percentage' => $quotation->vat_percentage !== null ? (float) $quotation->vat_percentage : null,
                 'vat_number' => $quotation->vat_number,
             ],
-            'canEdit' => true,
+            'canEdit' => $canEditQuotation,
+            'readOnlyReason' => $readOnlyReason,
             'canDelete' => true,
             'canExport' => true,
             'canShowNotes' => true,
             'canCreateCustomer' => $request->user('backoffice')?->hasPermissionTo('createDealershipCustomers', 'backoffice') ?? false,
-            'canConvertToInvoice' => $request->user('backoffice')?->hasPermissionTo('createDealershipInvoices', 'backoffice') ?? false,
+            'canConvertToInvoice' => ($request->user('backoffice')?->hasPermissionTo('createDealershipInvoices', 'backoffice') ?? false) && $canEditQuotation,
             'convertToInvoiceRoute' => route('backoffice.dealer-management.dealers.quotations.convert-to-invoice', [$dealer, $quotation]),
             'linkedInvoices' => $quotation->invoices
                 ->sortByDesc('invoice_date')
@@ -271,11 +276,15 @@ class QuotationsController extends Controller
 
     public function convertToInvoice(ConvertDealerQuotationsToInvoiceRequest $request, Dealer $dealer, Quotation $quotation): RedirectResponse
     {
+        if (! $this->editabilityService->dealerCanEdit($quotation, $dealer)) {
+            return back()->with('error', 'This quotation cannot be converted to an invoice because VAT settings changed since it was created.');
+        }
+
         $quotation->load('lineItems');
         $actor = $request->user('backoffice');
         $vatSnapshot = $this->vatSnapshotResolver->forDealer($dealer);
 
-        $this->upsertInvoiceAction->execute(
+        $invoice = $this->upsertInvoiceAction->execute(
             invoice: null,
             data: [
                 'customer_id' => $quotation->customer_id,
@@ -284,7 +293,6 @@ class QuotationsController extends Controller
                 'invoice_date' => now()->toDateString(),
                 'payable_by' => optional($quotation->valid_until)?->format('Y-m-d'),
                 'purchase_order_number' => null,
-                'payment_method' => null,
                 'payment_terms' => null,
                 'line_items' => $quotation->lineItems->map(fn ($item) => [
                     'section' => $item->section?->value ?? (string) $item->section,
@@ -303,6 +311,10 @@ class QuotationsController extends Controller
             quotation: $quotation
         );
 
-        return back()->with('success', 'Invoice created from quotation.');
+        return redirect()->route('backoffice.dealer-management.dealers.invoices.edit', [
+            'dealer' => $dealer->id,
+            'invoice' => $invoice->id,
+            'return_to' => $request->input('return_to', route('backoffice.dealer-management.dealers.quotations.index', $dealer)),
+        ])->with('success', 'Invoice created from quotation.');
     }
 }

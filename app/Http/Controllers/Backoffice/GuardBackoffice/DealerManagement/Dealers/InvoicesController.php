@@ -168,6 +168,15 @@ class InvoicesController extends Controller
         $documentSettings = $this->documentSettings->dealer($dealer->id, includeContactNoPrefix: true);
         $canEditInvoice = $this->editabilityService->dealerCanEdit($invoice, $dealer);
         $canRecordPayment = $this->editabilityService->canRecordPayment($invoice);
+        $currentVatSnapshot = $this->vatSnapshotResolver->forDealer($dealer);
+        $invoiceVatSnapshot = [
+            'vat_enabled' => (bool) $invoice->vat_enabled,
+            'vat_percentage' => $invoice->vat_percentage !== null ? (float) $invoice->vat_percentage : null,
+        ];
+        $isVatSnapshotMismatch = ! $this->vatSnapshotResolver->hasMatchingVatSnapshot($currentVatSnapshot, $invoiceVatSnapshot);
+        $readOnlyReason = ! $canEditInvoice && $isVatSnapshotMismatch
+            ? 'This invoice is read-only because VAT settings changed since it was created.'
+            : null;
 
         $invoice->load([
             'customer',
@@ -201,7 +210,8 @@ class InvoicesController extends Controller
                 'vat_number' => $invoice->vat_number,
             ],
             'canEdit' => $canEditInvoice,
-            'canDelete' => true,
+            'readOnlyReason' => $readOnlyReason,
+            'canDelete' => \Illuminate\Support\Facades\Gate::inspect('deleteInvoice', [$dealer, $invoice])->allowed(),
             'canExport' => true,
             'canShowNotes' => true,
             'canCreateCustomer' => $request->user('backoffice')?->hasPermissionTo('createDealershipCustomers', 'backoffice') ?? false,

@@ -48,6 +48,7 @@ use App\Http\Controllers\Backoffice\GuardDealer\DealerConfiguration\UserPermissi
 use App\Http\Controllers\Backoffice\Shared\NotesController as BackofficeNotesController;
 use App\Http\Controllers\Backoffice\Shared\QuotationLookupsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\LocationsManagementController;
+use App\Http\Controllers\Backoffice\GuardBackoffice\System\BlockedIpsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\PendingFeatureTagsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\SystemConfigurationsController;
 use App\Http\Controllers\Backoffice\GuardBackoffice\System\QuotationsController as SystemQuotationsController;
@@ -102,8 +103,11 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
             Route::post('/', [SystemRequestsController::class, 'store'])->name('store');
         });
 
+    Route::get('logout', [LoginController::class, 'destroy'])
+        ->middleware('auth:backoffice,dealer')
+        ->name('logout');
+
     Route::group(['middleware' => ['auth:backoffice', 'block-backoffice-while-impersonating']], function () {
-        Route::get('logout', [LoginController::class, 'destroy'])->name('logout');
         Route::get('/', [DashboardController::class, 'index'])->name('index');
         Route::get('/test', [DashboardController::class, 'test'])->name('test');
         Route::post('/auth/impersonations/start', [ImpersonationsController::class, 'start'])->name('auth.impersonations.start');
@@ -188,6 +192,10 @@ Route::group(['as' => 'backoffice.', 'prefix' => 'backoffice'], function () {
                     ->name('pending-feature-tags.index');
                 Route::patch('pending-feature-tags/{stockFeatureTag}', [PendingFeatureTagsController::class, 'update'])
                     ->name('pending-feature-tags.update');
+                Route::get('blocked-ips', [BlockedIpsController::class, 'index'])
+                    ->name('blocked-ips.index');
+                Route::delete('blocked-ips/{blockedIp}', [BlockedIpsController::class, 'destroy'])
+                    ->name('blocked-ips.destroy');
             });
 
         Route::prefix('dealer-management')

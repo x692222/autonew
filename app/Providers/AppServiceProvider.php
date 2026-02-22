@@ -22,8 +22,10 @@ use App\Models\Payments\Payment;
 use App\Models\Quotation\Customer;
 use App\Models\Quotation\Quotation;
 use App\Models\Stock\Stock;
+use App\Models\Security\BlockedIp;
 use App\Policies\Backoffice\Auth\ImpersonationsPolicy;
 use App\Policies\Backoffice\DealerManagement\DealersManagementPolicy;
+use App\Policies\Backoffice\System\BlockedIpsPolicy;
 use App\Policies\Backoffice\System\LocationsManagementPolicy;
 use App\Policies\Backoffice\System\SystemConfigurationsPolicy;
 use App\Policies\Backoffice\System\SystemInvoicesPolicy;
@@ -66,6 +68,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Payment::class, SystemPaymentsPolicy::class);
         Gate::policy(BankingDetail::class, SystemBankingDetailsPolicy::class);
         Gate::policy(Customer::class, SystemCustomersPolicy::class);
+        Gate::policy(BlockedIp::class, BlockedIpsPolicy::class);
 
         Gate::define('dealerConfigurationEditDealership', function ($actor, Dealer $dealer): Response {
             if (! $actor instanceof DealerUser) {
@@ -661,6 +664,10 @@ class AppServiceProvider extends ServiceProvider
                 return Response::deny('Dealer mismatch.');
             }
 
+            if ($invoice->payments()->exists()) {
+                return Response::deny('Invoices with recorded payments cannot be deleted.');
+            }
+
             return $actor->hasPermissionTo('deleteDealershipInvoices', 'dealer')
                 ? Response::allow()
                 : Response::deny('You do not have permission to delete invoices.');
@@ -773,6 +780,10 @@ class AppServiceProvider extends ServiceProvider
                 return Response::deny('Dealer mismatch.');
             }
 
+            if ((bool) $payment->is_approved) {
+                return Response::deny('Verified payments cannot be edited.');
+            }
+
             return $actor->hasPermissionTo('editDealershipPayments', 'dealer')
                 ? Response::allow()
                 : Response::deny('You do not have permission to edit payments.');
@@ -785,6 +796,10 @@ class AppServiceProvider extends ServiceProvider
 
             if ((string) $actor->dealer_id !== (string) $payment->dealer_id) {
                 return Response::deny('Dealer mismatch.');
+            }
+
+            if ((bool) $payment->is_approved) {
+                return Response::deny('Verified payments cannot be deleted.');
             }
 
             return $actor->hasPermissionTo('deleteDealershipPayments', 'dealer')

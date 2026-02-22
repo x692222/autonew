@@ -33,9 +33,9 @@ class BankingDetailValidationRules
         return [
             "{$prefix}bank" => ['required', 'string', 'max:50'],
             "{$prefix}account_holder" => ['required', 'string', 'max:75'],
-            "{$prefix}account_number" => ['required', 'string', 'max:25'],
+            "{$prefix}account_number" => ['required', 'string', 'max:20'],
             "{$prefix}branch_name" => ['nullable', 'string', 'max:50'],
-            "{$prefix}branch_code" => ['nullable', 'string', 'max:50'],
+            "{$prefix}branch_code" => ['nullable', 'string', 'max:15'],
             "{$prefix}swift_code" => ['nullable', 'string', 'max:20'],
             "{$prefix}other_details" => ['nullable', 'string', 'max:200'],
         ];

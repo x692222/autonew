@@ -39,9 +39,12 @@ class SystemInvoicesPolicy
             return Response::deny('This is not a system invoice.');
         }
 
+        if ($invoice->payments()->exists()) {
+            return Response::deny('Invoices with recorded payments cannot be deleted.');
+        }
+
         return $user->hasPermissionTo('deleteSystemInvoices', 'backoffice')
             ? Response::allow()
             : Response::deny('You do not have permission to delete system invoices.');
     }
 }
-

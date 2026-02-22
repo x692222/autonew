@@ -141,6 +141,25 @@ final class GeneralOptions extends AbstractOptions
         return new GeneralCollection($options);
     }
 
+    public static function paymentVerificationStatuses(bool $withAll = false): GeneralCollection
+    {
+        $items = cache()->rememberForever("general:payment_verification_statuses:{$withAll}:v1", function () {
+            return collect([
+                ['label' => 'All', 'value' => 'all'],
+                ['label' => 'Verified', 'value' => 'verified'],
+                ['label' => 'Unverified', 'value' => 'pending'],
+            ])->values()->all();
+        });
+
+        $options = collect($items);
+
+        if ($withAll) {
+            $options = self::prependAll($options);
+        }
+
+        return new GeneralCollection($options);
+    }
+
     public static function pendingFeatureTagStatuses(bool $withAll = false): GeneralCollection
     {
         $items = cache()->rememberForever("general:pending_feature_tag_statuses:{$withAll}:v1", function () {

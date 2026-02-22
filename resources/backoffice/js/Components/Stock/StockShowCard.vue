@@ -77,7 +77,7 @@ const paymentStatusPositive = computed(() => props.stock?.payment_status === 'fu
         </div>
 
         <div class="q-gutter-sm">
-            <q-btn color="grey-7" label="Back" no-caps no-wrap outline @click="router.visit(backUrl)" />
+            <q-btn color="grey-4" text-color="standard" no-wrap unelevated label="Back" @click="router.visit(backUrl)" />
             <q-btn color="primary" label="Edit" no-caps no-wrap unelevated @click="router.visit(editUrl)" />
         </div>
     </div>

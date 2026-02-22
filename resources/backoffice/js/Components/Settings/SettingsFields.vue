@@ -57,7 +57,8 @@ const setValue = (key, value) => {
 }
 
 const fieldError = (key) => props.errors?.[`settings.${key}`] ?? ''
-const isRequired = (key) => (props.requiredKeys || []).includes(key)
+const fieldMin = (setting) => (setting?.min ?? undefined)
+const fieldMax = (setting) => (setting?.max ?? undefined)
 </script>
 
 <template>
@@ -70,7 +71,6 @@ const isRequired = (key) => (props.requiredKeys || []).includes(key)
                     <div v-for="setting in group.items" :key="setting.key" :class="fieldColumnClass()">
                         <div class="text-subtitle2 text-grey-9 row items-center q-gutter-xs">
                             <span>{{ setting.label }}</span>
-                            <span v-if="isRequired(setting.key)" class="text-negative">*</span>
                             <q-badge
                                 v-if="showBackofficeOnlyBadge && setting.backoffice_only"
                                 color="orange"
@@ -129,6 +129,8 @@ const isRequired = (key) => (props.requiredKeys || []).includes(key)
                             :model-value="getValue(setting.key)"
                             :type="setting.type === 'number' || setting.type === 'float' ? 'number' : 'text'"
                             :step="setting.type === 'float' ? '0.0001' : '1'"
+                            :min="fieldMin(setting)"
+                            :max="fieldMax(setting)"
                             dense
                             outlined
                             :disable="disabled"

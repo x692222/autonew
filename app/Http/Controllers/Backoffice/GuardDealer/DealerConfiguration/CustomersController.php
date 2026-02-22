@@ -133,26 +133,74 @@ class CustomersController extends Controller
         $dealer = $actor->dealer;
         Gate::forUser($actor)->authorize('dealerConfigurationViewCustomer', $customer);
 
+        $canViewQuotations = $actor->hasPermissionTo('editDealershipQuotations', 'dealer');
         $canViewInvoices = $actor->hasPermissionTo('editDealershipInvoices', 'dealer');
+        $canViewPayments = $actor->hasPermissionTo('viewPayments', 'dealer');
         $settings = $this->documentSettings->dealer($dealer->id);
+        $quotationRows = $canViewQuotations
+            ? $customer->quotations()
+                ->orderByDesc('quotation_date')
+                ->limit(20)
+                ->select(['id', 'quote_identifier', 'quotation_date', 'valid_until', 'total_amount'])
+                ->get()
+                ->map(fn ($quotation) => [
+                    'quotation_id' => $quotation->id,
+                    'quote_identifier' => (string) $quotation->quote_identifier,
+                    'quotation_date' => optional($quotation->quotation_date)?->format('Y-m-d'),
+                    'valid_until' => optional($quotation->valid_until)?->format('Y-m-d'),
+                    'total_amount' => $quotation->total_amount !== null ? (float) $quotation->total_amount : null,
+                    'status' => $quotation->valid_until && $quotation->valid_until->isPast() ? 'EXPIRED' : 'ACTIVE',
+                    'url' => route('backoffice.dealer-configuration.quotations.edit', ['quotation' => $quotation->id, 'return_to' => $request->fullUrl()]),
+                ])
+                ->values()
+                ->all()
+            : [];
         $invoiceRows = $canViewInvoices
             ? $customer->invoices()
                 ->orderByDesc('invoice_date')
-                ->withSum('payments as paid_amount', 'amount')
                 ->limit(20)
-                ->select(['id', 'invoice_identifier', 'invoice_date'])
+                ->select(['id', 'invoice_identifier', 'invoice_date', 'is_fully_paid'])
+                ->withSum('payments as paid_amount', 'amount')
+                ->withCount([
+                    'payments as total_payments_count',
+                    'payments as verified_payments_count' => fn ($payments) => $payments->where('is_approved', true),
+                ])
                 ->tap(fn ($query) => $this->amountSummaryService->applyComputedTotalAmount($query))
                 ->get()
                 ->map(fn ($invoice) => [
+                    'is_fully_verified' => (int) ($invoice->total_payments_count ?? 0) > 0
+                        && (int) ($invoice->total_payments_count ?? 0) === (int) ($invoice->verified_payments_count ?? 0),
                     'invoice_id' => $invoice->id,
                     'invoice_identifier' => (string) $invoice->invoice_identifier,
                     'invoice_date' => optional($invoice->invoice_date)?->format('Y-m-d'),
                     'total_amount' => $invoice->total_amount !== null ? (float) $invoice->total_amount : null,
                     'paid_amount' => $invoice->paid_amount !== null ? (float) $invoice->paid_amount : null,
+                    'is_fully_paid' => (bool) $invoice->is_fully_paid,
                     'status' => ((float) ($invoice->paid_amount ?? 0) >= (float) ($invoice->total_amount ?? 0) && (float) ($invoice->total_amount ?? 0) > 0)
                         ? 'FULLY PAID'
                         : ((float) ($invoice->paid_amount ?? 0) > 0 ? 'PARTIAL PAYMENT' : 'NOT PAID'),
                     'url' => route('backoffice.dealer-configuration.invoices.edit', ['invoice' => $invoice->id, 'return_to' => $request->fullUrl()]),
+                ])
+                ->values()
+                ->all()
+            : [];
+        $paymentRows = $canViewPayments
+            ? Payment::query()
+                ->where('dealer_id', $dealer->id)
+                ->whereHas('invoice', fn ($query) => $query->where('customer_id', $customer->id))
+                ->with('invoice:id,invoice_identifier')
+                ->orderByDesc('payment_date')
+                ->orderByDesc('id')
+                ->limit(20)
+                ->get(['id', 'dealer_id', 'invoice_id', 'payment_date', 'payment_method', 'amount', 'is_approved'])
+                ->map(fn ($payment) => [
+                    'payment_id' => $payment->id,
+                    'invoice_identifier' => (string) ($payment->invoice?->invoice_identifier ?? '-'),
+                    'payment_date' => optional($payment->payment_date)?->format('Y-m-d'),
+                    'payment_method' => $payment->payment_method?->value ?? (string) $payment->payment_method,
+                    'amount' => $payment->amount !== null ? (float) $payment->amount : null,
+                    'status' => (bool) $payment->is_approved ? 'APPROVED' : 'NOT APPROVED',
+                    'url' => route('backoffice.dealer-configuration.payments.show', ['payment' => $payment->id, 'return_to' => $request->fullUrl()]),
                 ])
                 ->values()
                 ->all()
@@ -201,7 +249,11 @@ class CustomersController extends Controller
                 ),
             ],
             'associatedInvoices' => $invoiceRows,
+            'associatedQuotations' => $quotationRows,
+            'canViewAssociatedQuotations' => $canViewQuotations,
             'canViewAssociatedInvoices' => $canViewInvoices,
+            'associatedPayments' => $paymentRows,
+            'canViewAssociatedPayments' => $canViewPayments,
             'currencySymbol' => $settings['currencySymbol'],
             'editRoute' => route('backoffice.dealer-configuration.customers.edit', ['customer' => $customer->id, 'return_to' => $request->fullUrl()]),
             'indexRoute' => route('backoffice.dealer-configuration.customers.index'),
@@ -257,7 +309,8 @@ class CustomersController extends Controller
             dealer: $dealer
         );
 
-        return back()->with('success', 'Customer updated.');
+        return redirect($request->input('return_to', route('backoffice.dealer-configuration.customers.index')))
+            ->with('success', 'Customer updated.');
     }
 
     public function destroy(Request $request, Customer $customer, DeleteCustomerAction $action): RedirectResponse

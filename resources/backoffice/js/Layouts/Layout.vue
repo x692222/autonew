@@ -55,6 +55,7 @@ const canViewDealerPayments = computed(() => authGuard.value === 'dealer' && !!a
 const canViewDealerVerifyPayments = computed(() => authGuard.value === 'dealer' && !!abilities.value.verifyPayments)
 const canViewDealerCustomers = computed(() => authGuard.value === 'dealer' && !!abilities.value.indexCustomers)
 const canProcessSystemRequests = computed(() => isBackofficeGuard.value && !!abilities.value.processSystemRequests)
+const canManageBlockedIps = computed(() => isBackofficeGuard.value && !!abilities.value.manageBlockedIps)
 const canConfigureSystemSettings = computed(() => isBackofficeGuard.value && !!abilities.value.canConfigureSystemSettings)
 
 const isImpersonating = computed(() => !!impersonation.value.active)
@@ -411,6 +412,14 @@ watch(
                                 @click="router.visit(route('backoffice.system.pending-feature-tags.index'))"
                             >
                                 <q-item-section>Pending Feature Tags</q-item-section>
+                            </q-item>
+                            <q-item
+                                v-if="canManageBlockedIps"
+                                clickable
+                                v-close-popup
+                                @click="router.visit(route('backoffice.system.blocked-ips.index'))"
+                            >
+                                <q-item-section>Blocked IPs</q-item-section>
                             </q-item>
                             <q-separator />
                             <q-item clickable>

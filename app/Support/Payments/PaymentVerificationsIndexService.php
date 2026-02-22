@@ -22,7 +22,6 @@ class PaymentVerificationsIndexService
 
         return Payment::query()
             ->select('payments.*')
-            ->selectRaw('(SELECT COUNT(*) FROM invoice_line_items ili WHERE ili.invoice_id = payments.invoice_id) as invoice_items_count')
             ->selectRaw("(SELECT ROUND(COALESCE(SUM({$signedPayable}), 0), 2) FROM invoice_line_items ili INNER JOIN invoices i ON i.id = ili.invoice_id WHERE ili.invoice_id = payments.invoice_id) as invoice_total_amount")
             ->when($dealerId, fn ($query) => $query->forDealer($dealerId), fn ($query) => $query->system())
             ->with([
@@ -37,10 +36,14 @@ class PaymentVerificationsIndexService
             ->when($filters['search'] ?? null, fn ($query, $search) => $query
                 ->where(fn ($nested) => $nested
                     ->where('description', 'like', "%{$search}%")
-                    ->orWhereHas('invoice', fn ($invoiceQ) => $invoiceQ->where('invoice_identifier', 'like', "%{$search}%"))))
-            ->when($filters['invoice_identifier'] ?? null, fn ($query, $identifier) => $query
-                ->whereHas('invoice', fn ($invoiceQ) => $invoiceQ->where('invoice_identifier', 'like', "%{$identifier}%")))
+                    ->orWhereHas('invoice', fn ($invoiceQ) => $invoiceQ
+                        ->where('invoice_identifier', 'like', "%{$search}%")
+                        ->orWhere('id', 'like', "%{$search}%"))
+                    ->orWhereHas('invoice.customer', fn ($customerQ) => $customerQ
+                        ->where('firstname', 'like', "%{$search}%")
+                        ->orWhere('lastname', 'like', "%{$search}%"))))
             ->when($filters['payment_method'] ?? null, fn ($query, $method) => $query->where('payment_method', $method))
+            ->when($filters['banking_detail_id'] ?? null, fn ($query, $bankingDetailId) => $query->where('banking_detail_id', $bankingDetailId))
             ->when(($filters['verification_status'] ?? 'pending') !== 'all', function ($query) use ($filters) {
                 $isApproved = ($filters['verification_status'] ?? 'pending') === 'verified';
                 $query->where('is_approved', $isApproved);
@@ -59,10 +62,13 @@ class PaymentVerificationsIndexService
     public function toArray(Payment $payment, callable $abilityResolver): array
     {
         $customerName = trim((string) (($payment->invoice?->customer?->firstname ?? '') . ' ' . ($payment->invoice?->customer?->lastname ?? '')));
-        $stockNumbers = $payment->invoice?->lineItems
-            ?->pluck('stock.internal_reference')
-            ->filter()
-            ->unique()
+        $stockRows = $payment->invoice?->lineItems
+            ?->map(fn ($lineItem) => [
+                'id' => $lineItem?->stock?->id,
+                'internal_reference' => $lineItem?->stock?->internal_reference,
+            ])
+            ->filter(fn ($row) => ! empty($row['id']) && ! empty($row['internal_reference']))
+            ->unique('id')
             ->values()
             ->all() ?? [];
 
@@ -81,8 +87,7 @@ class PaymentVerificationsIndexService
             'invoice_identifier' => (string) ($payment->invoice?->invoice_identifier ?? '-'),
             'invoice_date' => optional($payment->invoice?->invoice_date)?->format('Y-m-d'),
             'customer_name' => $customerName !== '' ? $customerName : '-',
-            'stock_numbers' => $stockNumbers,
-            'invoice_items_count' => (int) ($payment->invoice_items_count ?? 0),
+            'stock_items' => $stockRows,
             'invoice_total_amount' => $payment->invoice_total_amount !== null ? (float) $payment->invoice_total_amount : null,
             'payment_method' => $paymentMethodDisplay,
             'payment_amount' => $payment->amount !== null ? (float) $payment->amount : null,

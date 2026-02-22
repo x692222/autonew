@@ -4,11 +4,13 @@ namespace App\Actions\Backoffice\Shared\Quotations;
 
 use App\Models\Dealer\Dealer;
 use App\Models\Quotation\Quotation;
+use App\Support\LineItems\StoredLineItemUpsertService;
 use App\Support\Quotations\QuotationIdentifierGenerator;
 use App\Support\Quotations\QuotationTotalsCalculator;
 use App\Support\Security\TenantScopeEnforcer;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -18,6 +20,7 @@ class UpsertQuotationAction
         private readonly QuotationIdentifierGenerator $identifierGenerator,
         private readonly QuotationTotalsCalculator $totalsCalculator,
         private readonly TenantScopeEnforcer $tenantScopeEnforcer,
+        private readonly StoredLineItemUpsertService $storedLineItemUpsertService,
     ) {
     }
 
@@ -28,7 +31,8 @@ class UpsertQuotationAction
         ?Dealer $dealer,
         array $vatSnapshot
     ): Quotation {
-        return DB::transaction(function () use ($quotation, $data, $actor, $dealer, $vatSnapshot): Quotation {
+        try {
+            return DB::transaction(function () use ($quotation, $data, $actor, $dealer, $vatSnapshot): Quotation {
             if ($quotation) {
                 $this->tenantScopeEnforcer->assertQuotationInScope(quotation: $quotation, dealer: $dealer);
             }
@@ -63,6 +67,20 @@ class UpsertQuotationAction
                 dealer: $dealer
             );
 
+            $lineItems = collect($lineItems)
+                ->map(function (array $lineItem) use ($dealer): array {
+                    $storedLineItem = $this->storedLineItemUpsertService->upsert(
+                        dealer: $dealer,
+                        lineItem: $lineItem
+                    );
+
+                    return [
+                        ...$lineItem,
+                        'stored_line_item_id' => $storedLineItem?->id,
+                    ];
+                })
+                ->all();
+
             $totals = $this->totalsCalculator->calculate(
                 lineItems: $lineItems,
                 vatEnabled: (bool) ($vatSnapshot['vat_enabled'] ?? false),
@@ -80,13 +98,13 @@ class UpsertQuotationAction
                 : (string) $quotation->quote_identifier;
 
             $duplicateExists = Quotation::query()
+                ->withTrashed()
                 ->where('quote_identifier', $quoteIdentifier)
                 ->when(
                     $dealer,
                     fn ($query) => $query->where('dealer_id', $dealer->id),
                     fn ($query) => $query->whereNull('dealer_id')
                 )
-                ->whereNull('deleted_at')
                 ->when($quotation, fn ($query) => $query->where('id', '!=', $quotation->id))
                 ->exists();
 
@@ -141,6 +159,23 @@ class UpsertQuotationAction
             }
 
             return $quotation->fresh(['customer', 'lineItems']);
-        });
+            });
+        } catch (QueryException $exception) {
+            if ($this->isDuplicateScopeIdentifierError($exception)) {
+                throw ValidationException::withMessages([
+                    'quote_identifier' => ['Quotation reference must be unique in this scope.'],
+                ]);
+            }
+
+            throw $exception;
+        }
+    }
+
+    private function isDuplicateScopeIdentifierError(QueryException $exception): bool
+    {
+        $message = strtolower((string) $exception->getMessage());
+
+        return str_contains($message, 'duplicate entry')
+            && str_contains($message, 'quotations_scope_identifier_unique');
     }
 }
